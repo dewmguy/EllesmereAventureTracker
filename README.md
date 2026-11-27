@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.2.0 establishes the addon structure and a playable first pass:
+Version 0.3.0 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -71,6 +71,14 @@ Version 0.2.0 establishes the addon structure and a playable first pass:
 - Encounter Journal upgrade suggestions filtered for the current class and
   specialization and then limited to drops whose item level beats the relevant
   equipped slot;
+- a compact in-tracker flight-master timer with destination, configurable time
+  fields and progress, plus its own learned route history independent of the
+  native and Custom Tweaks flight timers;
+- independent flight bar texture, fill, background, border, font, outline,
+  text-size, text-color and icon controls;
+- contextual In Flight, In Combat, Resting, Mounted, instance, life and
+  presence statuses beside the zone/class context;
+- a live session duration and character `/played` line below the main context;
 - profession Legacy checkpoints kept in the Legacy section;
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;
@@ -86,7 +94,8 @@ Version 0.2.0 establishes the addon structure and a playable first pass:
 - a researched zone-gathering design for ranked herbs and ore, observed
   skinning materials, available fish and recommended effective Fishing skill;
 - an `Adventure Tracker` sidebar section in EllesmereUI with Tracker,
-  Readiness, World Buffs, Instances, Legacy and Professions submenu groups.
+  Readiness, World Buffs, Travel & Status, Instances, Legacy and Professions
+  submenu groups.
 
 Current-zone Legacy objectives and exact profession node/mob recommendations are
 hidden until their providers can return verified actions. The researched source,
@@ -131,6 +140,9 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `Professions.lua` — rank goals, learned-recipe plans, gear and local resources
 - `Instances.lua` — run and boss timers, QuestieDB quest suggestions and
   Encounter Journal upgrade drops
+- `Flight.lua` — independent in-tracker flight timing, route learning and
+  progress-bar data
+- `Status.lua` — contextual activity states, session duration and `/played`
 - `Data/GatheringCatalog.lua` — generated per-zone node types and known-position counts
 - `Data/CookingFoods.lua` — Cooking recipe/output discovery seeds
 - `Tracker.lua` — floating tracker window

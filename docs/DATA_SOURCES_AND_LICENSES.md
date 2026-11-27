@@ -84,6 +84,10 @@ seeds; their retained notices are in the root `THIRD_PARTY_NOTICES.md`.
 - Version 0.2.0 also uses Encounter Journal class/spec loot filters, encounter
   names and item IDs at runtime, then compares live item levels with equipped
   slots. No Encounter Journal database is copied into the addon.
+- Version 0.3.0 reads EllesmereUI Forever Essentials' already-loaded TaxiPath
+  distance table at runtime for a simplified in-tracker flight estimate. Its
+  measured route history and every appearance setting are stored separately in
+  Adventure Tracker and do not modify the native or Custom Tweaks flight timer.
 - Boundary: Blizzard game data is not relicensed as Adventure Tracker content.
   Generated files identify the client build and retain the appropriate Blizzard
   ownership notice.

@@ -92,6 +92,17 @@ local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissing
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals" }
 local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showCompletedProfessions", "showProfessionZoneHints" }
 local INSTANCE_KEYS = { "showInstances", "showInstanceRunTimer", "showInstanceBossTimer", "showInstanceQuests", "showInstanceLoot", "instanceQuestLimit", "instanceLootLimit" }
+local FLIGHT_KEYS = {
+    "showFlightTimer", "flightTimerShowDestination", "flightTimerShowElapsed", "flightTimerShowRemaining", "flightTimerShowTotal",
+    "flightTimerLearnTimes", "flightTimerShowIcon", "flightTimerBarHeight", "flightTimerBarTexture", "flightTimerFillColorMode",
+    "flightTimerFillColor", "flightTimerBackgroundColor", "flightTimerBorderTexture", "flightTimerBorderSize", "flightTimerBorderColor",
+    "flightTimerFont", "flightTimerFontOutline", "flightTimerDestinationFontSize", "flightTimerTimeFontSize",
+    "flightTimerDestinationColor", "flightTimerTimeColor",
+}
+local STATUS_KEYS = {
+    "showStatuses", "showFlightStatus", "showCombatStatus", "showRestingStatus", "showMountedStatus", "showInstanceStatus",
+    "showPresenceStatus", "showLifeStatus", "showPlaytime", "showSessionPlaytime", "showTotalPlaytime",
+}
 
 local function BuildTracker(pageName, parent, yOffset)
     local W, y, h = EUI.Widgets, yOffset
@@ -471,6 +482,128 @@ local function BuildInstances(pageName, parent, yOffset)
     return math.abs(y)
 end
 
+local function BuildTravelStatus(pageName, parent, yOffset)
+    local W, y, h = EUI.Widgets, yOffset
+    if EUI.ClearContentHeader then EUI:ClearContentHeader() end
+    parent._showRowDivider = true
+
+    if pageName == "Flight Timer" then
+        local textureValues, textureOrder = { none = "Solid" }, { "none" }
+        if EUI.BuildBarTextureTables then
+            local _, names, order = EUI.BuildBarTextureTables()
+            if type(names) == "table" and type(order) == "table" then textureValues, textureOrder = names, order end
+        end
+        local borderValues, borderOrder = { solid = "Solid" }, { "solid" }
+        if EUI.GetBorderTextureDropdown then borderValues, borderOrder = EUI.GetBorderTextureDropdown() end
+        local fontValues, fontOrder = { __global = "EUI Global Font" }, { "__global" }
+        if EUI.BuildFontDropdownData then fontValues, fontOrder = EUI.BuildFontDropdownData() end
+        local disabled = function() return not ns.Get("showFlightTimer") end
+        local customFillDisabled = function()
+            return not ns.Get("showFlightTimer") or ns.Get("flightTimerFillColorMode") ~= "custom"
+        end
+
+        _, h = W:SectionHeader(parent, "TRACKER FLIGHT TIMER", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showFlightTimer", "Show While In Flight", "Shows a compact destination, clock and progress bar inside Adventure Tracker during flight-master travel.", true),
+            Toggle("flightTimerLearnTimes", "Learn Actual Route Times", "Records clean completed flights by their complete route and uses their rolling median for future estimates."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("flightTimerShowIcon", "Show Flight Icon", "Shows the flight-master icon beside the timer."),
+            { type = "button", text = "Clear Learned Route Times", tooltip = "Forgets only Adventure Tracker's flight history. Native and Custom Tweaks flight data are unchanged.",
+              onClick = function()
+                  if ns.ResetFlightTimerRoutes then ns.ResetFlightTimerRoutes() end
+                  if EUI.RefreshPage then EUI:RefreshPage() end
+              end })
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Label("This timer has its own route history and appearance settings."),
+            Label("It does not read or overwrite the native flight timer or Custom Tweaks settings."))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "TEXT CONTENT", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("flightTimerShowDestination", "Show Destination", "Shows the final or early-landing destination in the timer label."),
+            Toggle("flightTimerShowElapsed", "Show Elapsed Time", "Adds elapsed flight time to the detail line."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("flightTimerShowRemaining", "Show Remaining Time", "Shows the estimated time until landing."),
+            Toggle("flightTimerShowTotal", "Show Total Time", "Shows the full estimated route duration."))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "PROGRESS BAR", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("flightTimerBarHeight", "Bar Height", 2, 24, 1, "Height of the tracker flight progress bar.", disabled),
+            Dropdown("flightTimerBarTexture", "Bar Texture", textureValues, textureOrder, "Texture used by both the fill and its independent background.", disabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Dropdown("flightTimerFillColorMode", "Fill Color", { custom = "Custom", class = "Class Color", accent = "Accent Color" },
+                { "custom", "class", "accent" }, "Color source for the progress fill.", disabled, true),
+            ColorPicker("flightTimerFillColor", "Custom Fill Color", "Custom progress-fill color and opacity.", true, customFillDisabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("flightTimerBackgroundColor", "Bar Background", "Background color and opacity behind the flight progress.", true, disabled),
+            Dropdown("flightTimerBorderTexture", "Border Style", borderValues, borderOrder, "Independent border style for the flight progress bar.", disabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("flightTimerBorderSize", "Border Size", 0, 4, 1, "Set to zero to hide the flight progress border.", disabled),
+            ColorPicker("flightTimerBorderColor", "Border Color", "Flight progress border color and opacity.", true,
+                function() return disabled() or (tonumber(ns.Get("flightTimerBorderSize")) or 0) <= 0 end))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "FLIGHT TYPOGRAPHY", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Dropdown("flightTimerFont", "Flight Font", fontValues, fontOrder, "Font used only by the tracker flight timer.", disabled),
+            Dropdown("flightTimerFontOutline", "Flight Font Outline", { NONE = "None", OUTLINE = "Outline", THICKOUTLINE = "Thick Outline" },
+                { "NONE", "OUTLINE", "THICKOUTLINE" }, "Outline used only by the tracker flight timer.", disabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("flightTimerDestinationFontSize", "Destination Font Size", 8, 24, 1, "Size of the flight destination label.", disabled),
+            ColorPicker("flightTimerDestinationColor", "Destination Color", "Color and alpha of the flight destination label.", true, disabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("flightTimerTimeFontSize", "Time Font Size", 8, 24, 1, "Size of elapsed, remaining and total time.", disabled),
+            ColorPicker("flightTimerTimeColor", "Time Color", "Color and alpha of the flight time detail.", true, disabled))
+        y = y - h
+    else
+        _, h = W:SectionHeader(parent, "ACTIVITY STATUSES", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showStatuses", "Show Activity Statuses", "Adds compact live status labels beside the zone, class, specialization and role context."),
+            Label("Statuses appear only while applicable so the context line stays compact."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showFlightStatus", "In Flight", "Shows In Flight during flight-master travel."),
+            Toggle("showCombatStatus", "In Combat", "Shows In Combat while the character is fighting."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showRestingStatus", "Resting", "Shows Resting in inns, cities and other rested areas."),
+            Toggle("showMountedStatus", "Mounted", "Shows Mounted outside flight-master travel."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showInstanceStatus", "Instance Type", "Shows Dungeon, Raid, Battleground, Arena or Scenario while inside one."),
+            Toggle("showLifeStatus", "Dead or Ghost", "Shows Dead or Ghost when applicable."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showPresenceStatus", "AFK or DND", "Shows the character's AFK or Do Not Disturb state."),
+            nil)
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "PLAYTIME", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showPlaytime", "Show Playtime Line", "Shows a second compact line below the main context and status line."),
+            Label("The session clock starts when this UI session loads; /played is the character's live total."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showSessionPlaytime", "Current Session", "Shows a live hours:minutes:seconds duration for the current UI session."),
+            Toggle("showTotalPlaytime", "Total /played", "Shows the character's total played time, refreshed through the shared EllesmereUI request."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Label("Status and playtime text use the Tracker Context font size and color settings."),
+            nil)
+        y = y - h
+    end
+    return math.abs(y)
+end
+
 local registered = false
 local function Register()
     if registered then return true end
@@ -499,6 +632,15 @@ local function Register()
                 description = "Active world buffs and where missing ones come from.",
                 pages = { "Tracking", "Sources" }, buildPage = BuildWorldBuffs,
                 onReset = function() ns.ResetKeys(WORLD_BUFF_KEYS) end,
+            },
+            {
+                key = "travel-status", title = "Travel & Status",
+                description = "Tracker flight timer, activity statuses and playtime.",
+                pages = { "Flight Timer", "Statuses & Playtime" }, buildPage = BuildTravelStatus,
+                onReset = function()
+                    ns.ResetKeys(FLIGHT_KEYS)
+                    ns.ResetKeys(STATUS_KEYS)
+                end,
             },
             {
                 key = "instances", title = "Instances",

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 - 2026-11-26
+
+- Added a compact flight-master timer inside the tracker with destination,
+  elapsed/remaining/total time options and a live progress bar.
+- Added an independent rolling-median route history. Adventure Tracker does not
+  read or modify the native EllesmereUI or Custom Tweaks flight-timer settings
+  and learned times.
+- Added independent flight icon, texture, fill mode, background, border, font,
+  outline, text-size and text-color controls under Travel & Status.
+- Added contextual In Flight, In Combat, Resting, Mounted, instance-type,
+  Dead/Ghost and AFK/DND statuses beside the zone and character context.
+- Added a second context line with a live current-session duration and the
+  character's shared, live `/played` total.
+- Extended tracker rows with optional independently styled progress bars and
+  per-row typography while preserving the existing global entry appearance.
+
 ## 0.2.0 - 2026-11-26
 
 - Added an instance run timer with per-character, per-difficulty personal bests

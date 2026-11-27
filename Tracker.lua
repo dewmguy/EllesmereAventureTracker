@@ -87,6 +87,12 @@ contextText:SetPoint("TOPLEFT", 2, 0)
 contextText:SetPoint("TOPRIGHT", -2, 0)
 contextText:SetJustifyH("LEFT")
 contextText:SetTextColor(0.67, 0.72, 0.75)
+contextText:SetWordWrap(true)
+
+local playtimeText = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+playtimeText:SetJustifyH("LEFT")
+playtimeText:SetTextColor(0.67, 0.72, 0.75)
+playtimeText:SetWordWrap(true)
 
 local iconPool, sectionPool, rowPool = {}, {}, {}
 local skin
@@ -388,6 +394,17 @@ local function AcquireRow(index)
     row.detail:SetPoint("TOPRIGHT", -7, -18)
     row.detail:SetJustifyH("LEFT")
     row.detail:SetTextColor(0.62, 0.66, 0.69)
+    row.progress = CreateFrame("StatusBar", nil, row, "BackdropTemplate")
+    row.progress:SetMinMaxValues(0, 1)
+    row.progress:SetValue(0)
+    row.progress:EnableMouse(false)
+    row.progress.bg = row.progress:CreateTexture(nil, "BACKGROUND")
+    row.progress.bg:SetAllPoints()
+    row.progress.border = CreateFrame("Frame", nil, row.progress, "BackdropTemplate")
+    row.progress.border:SetAllPoints(row.progress)
+    row.progress.border:SetFrameLevel(row.progress:GetFrameLevel() + 5)
+    row.progress.border:EnableMouse(false)
+    row.progress:Hide()
     row:SetScript("OnEnter", function(self)
         if UpdateLockFade then UpdateLockFade(true) end
         SetSurfaceBackground(self, "entryHoverBackgroundColor")
@@ -436,8 +453,8 @@ local function PanePadding()
     return Clamp(ns.Get("panePadding"), 0, 24, 8)
 end
 
-local function TextFontPath()
-    local choice = ns.Get("textFont")
+local function TextFontPath(choice)
+    choice = choice or ns.Get("textFont")
     if choice == nil or choice == "" or choice == "__global" then
         return (EUI.GetFontPath and EUI.GetFontPath()) or STANDARD_TEXT_FONT
     end
@@ -448,8 +465,8 @@ local function TextFontPath()
     return (EUI.GetFontPath and EUI.GetFontPath()) or STANDARD_TEXT_FONT
 end
 
-local function TextFontFlags()
-    local outline = ns.Get("textOutline")
+local function TextFontFlags(outline)
+    outline = outline or ns.Get("textOutline")
     if outline == "OUTLINE" or outline == "THICKOUTLINE" then return outline end
     return ""
 end
@@ -470,6 +487,7 @@ local function ApplyTextAppearance()
     StyleFontString(title, "titleFontSize", 13)
     StyleFontString(collapseButton.text, "titleFontSize", 13)
     StyleFontString(contextText, "contextFontSize", 11, "contextTextColor")
+    StyleFontString(playtimeText, "contextFontSize", 11, "contextTextColor")
     for i = 1, #iconPool do
         StyleFontString(iconPool[i].badge, "badgeFontSize", 10, "badgeTextColor")
     end
@@ -484,6 +502,90 @@ local function ApplyTextAppearance()
         StyleFontString(row.detail, "entryDetailFontSize", 10, "entryDetailTextColor")
         SetSurfaceBackground(row, row:IsMouseOver() and "entryHoverBackgroundColor" or "entryBackgroundColor")
     end
+end
+
+local function DataColor(color, fallbackKey)
+    if type(color) == "table" then
+        return color.r or color[1] or 1, color.g or color[2] or 1,
+            color.b or color[3] or 1, color.a == nil and (color[4] or 1) or color.a
+    end
+    return ColorValue(fallbackKey)
+end
+
+local function ApplyDataTypography(row, data)
+    if not (row and data) then return end
+    local path = TextFontPath(data.font)
+    local flags = TextFontFlags(data.fontOutline)
+    local labelSize = Clamp(data.labelFontSize, 8, 24, Clamp(ns.Get("entryLabelFontSize"), 8, 24, 12))
+    local detailSize = Clamp(data.detailFontSize, 8, 24, Clamp(ns.Get("entryDetailFontSize"), 8, 24, 10))
+    if EUI.SetFontFamily then
+        pcall(EUI.SetFontFamily, row.label, path, labelSize, flags, flags == "")
+        pcall(EUI.SetFontFamily, row.detail, path, detailSize, flags, flags == "")
+    else
+        pcall(row.label.SetFont, row.label, path, labelSize, flags)
+        pcall(row.detail.SetFont, row.detail, path, detailSize, flags)
+    end
+    if data.labelColor then row.label:SetTextColor(DataColor(data.labelColor, "entryLabelTextColor")) end
+    if data.detailColor then row.detail:SetTextColor(DataColor(data.detailColor, "entryDetailTextColor")) end
+end
+
+local barTextureLookup
+local function ProgressTexture(choice)
+    if not barTextureLookup and EUI.BuildBarTextureTables then
+        local ok, lookup = pcall(EUI.BuildBarTextureTables)
+        if ok then barTextureLookup = lookup end
+    end
+    if EUI.ResolveTexturePath and barTextureLookup then
+        local ok, path = pcall(EUI.ResolveTexturePath, barTextureLookup, choice, "Interface\\Buttons\\WHITE8x8")
+        if ok and path then return path end
+    end
+    return "Interface\\Buttons\\WHITE8x8"
+end
+
+local function ApplyProgress(row, data, contentWidth)
+    local progressData = data and data.progress
+    local progress = row.progress
+    if type(progressData) ~= "table" then progress:Hide(); return end
+    local height = Clamp(progressData.height, 2, 24, 8)
+    local left = data.hideIcon and 7 or 38
+    progress:ClearAllPoints()
+    progress:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", left, 5)
+    progress:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -7, 5)
+    progress:SetHeight(height)
+    progress:SetStatusBarTexture(ProgressTexture(progressData.texture))
+    progress:SetMinMaxValues(0, 1)
+    progress:SetValue(Clamp(progressData.value, 0, 1, 0))
+    progress:SetStatusBarColor(DataColor(progressData.fillColor, "entryLabelTextColor"))
+    progress.bg:SetTexture(ProgressTexture(progressData.texture))
+    progress.bg:SetVertexColor(DataColor(progressData.backgroundColor, "entryBackgroundColor"))
+    local borderSize = Clamp(progressData.borderSize, 0, 4, 0)
+    local borderStyleKey = table.concat({ tostring(progressData.borderTexture), tostring(borderSize),
+        tostring(progressData.borderColor and (progressData.borderColor.r or progressData.borderColor[1])),
+        tostring(progressData.borderColor and (progressData.borderColor.g or progressData.borderColor[2])),
+        tostring(progressData.borderColor and (progressData.borderColor.b or progressData.borderColor[3])),
+        tostring(progressData.borderColor and (progressData.borderColor.a or progressData.borderColor[4])) }, ":")
+    if progress._adventureBorderStyleKey ~= borderStyleKey then
+        progress._adventureBorderStyleKey = borderStyleKey
+        local border = progress.border
+        if borderSize > 0 then
+            local r, g, b, a = DataColor(progressData.borderColor, "borderColor")
+            if EUI.ApplyBorderStyle then
+                EUI.ApplyBorderStyle(border, borderSize, r, g, b, a, progressData.borderTexture or "solid")
+            else
+                border:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = borderSize })
+                border:SetBackdropBorderColor(r, g, b, a)
+                border:Show()
+            end
+        else
+            if EUI.ApplyBorderStyle then
+                EUI.ApplyBorderStyle(border, 0, 0, 0, 0, 0, progressData.borderTexture or "solid")
+            else
+                border:SetBackdrop(nil)
+                border:Hide()
+            end
+        end
+    end
+    progress:Show()
 end
 
 local function SectionCollapsed(sectionID)
@@ -693,6 +795,9 @@ local function ApplyWindowStyle()
     contextText:ClearAllPoints()
     contextText:SetPoint("TOPLEFT", content, "TOPLEFT", 2, 0)
     contextText:SetPoint("TOPRIGHT", content, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
+    playtimeText:ClearAllPoints()
+    playtimeText:SetPoint("TOPLEFT", content, "TOPLEFT", 2, 0)
+    playtimeText:SetPoint("TOPRIGHT", content, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
     UpdateLockIcon()
     UpdateLockFade()
 end
@@ -796,6 +901,19 @@ local function BaseVisibilityAllows()
     return true
 end
 
+local function CurrentContextLines()
+    if ns.GetTrackerContextLines then return ns.GetTrackerContextLines() end
+    if ns.Get("showContext") then return ns.GetZoneName(), nil end
+    return nil, nil
+end
+
+function ns.RefreshTrackerContextText()
+    if not (frame:IsShown() and scrollFrame:IsShown()) then return end
+    local contextLine, playtimeLine = CurrentContextLines()
+    if contextText:IsShown() and contextLine then contextText:SetText(contextLine) end
+    if playtimeText:IsShown() and playtimeLine then playtimeText:SetText(playtimeLine) end
+end
+
 local function Render()
     if HideSecureCastButtons then HideSecureCastButtons() end
     HidePools()
@@ -821,24 +939,29 @@ local function Render()
     end
 
     local y = 0
-    if ns.Get("showContext") then
-        local zone = ns.GetZoneName()
-        local role = ns.ROLE_LABELS[ns.GetRole()] or ns.GetRole()
-        local className = UnitClass and UnitClass("player") or "Character"
-        local specName
-        if GetSpecialization and GetSpecializationInfo then
-            local specialization = GetSpecialization()
-            if specialization then
-                local ok, _, name = pcall(GetSpecializationInfo, specialization)
-                if ok and type(name) == "string" and name ~= "" then specName = name end
-            end
-        end
-        local build = specName and (specName .. " " .. className) or className
-        contextText:SetText(zone .. "  •  " .. build .. "  •  " .. role)
+    local contextLine, playtimeLine
+    contextLine, playtimeLine = CurrentContextLines()
+    local contextLineHeight = math.max(19, Clamp(ns.Get("contextFontSize"), 8, 24, 11) + 8)
+    local contextRight = TitleBarMode() == "hidden" and -28 or -2
+    if contextLine then
+        contextText:ClearAllPoints()
+        contextText:SetPoint("TOPLEFT", content, "TOPLEFT", 2, y)
+        contextText:SetPoint("TOPRIGHT", content, "TOPRIGHT", contextRight, y)
+        contextText:SetText(contextLine)
         contextText:Show()
-        y = y - math.max(19, Clamp(ns.Get("contextFontSize"), 8, 24, 11) + 8)
+        y = y - math.max(contextLineHeight, math.ceil(contextText:GetStringHeight() or 0) + 5)
     else
         contextText:Hide()
+    end
+    if playtimeLine then
+        playtimeText:ClearAllPoints()
+        playtimeText:SetPoint("TOPLEFT", content, "TOPLEFT", 2, y)
+        playtimeText:SetPoint("TOPRIGHT", content, "TOPRIGHT", contextRight, y)
+        playtimeText:SetText(playtimeLine)
+        playtimeText:Show()
+        y = y - math.max(contextLineHeight, math.ceil(playtimeText:GetStringHeight() or 0) + 5)
+    else
+        playtimeText:Hide()
     end
 
     local iconCount = #snapshot.statuses
@@ -889,24 +1012,28 @@ local function Render()
                     rowIndex = rowIndex + 1
                     local data = rows[j]
                     local row = AcquireRow(rowIndex)
-                    local labelSize = Clamp(ns.Get("entryLabelFontSize"), 8, 24, 12)
-                    local detailSize = Clamp(ns.Get("entryDetailFontSize"), 8, 24, 10)
-                    local rowHeight = math.max(37, labelSize + detailSize + 12)
+                    local labelSize = Clamp(data.labelFontSize, 8, 24, Clamp(ns.Get("entryLabelFontSize"), 8, 24, 12))
+                    local detailSize = Clamp(data.detailFontSize, 8, 24, Clamp(ns.Get("entryDetailFontSize"), 8, 24, 10))
+                    local progressHeight = type(data.progress) == "table" and Clamp(data.progress.height, 2, 24, 8) or 0
+                    local rowHeight = math.max(37, labelSize + detailSize + 12 + (progressHeight > 0 and progressHeight + 6 or 0))
                     row.data = data
                     row:ClearAllPoints()
                     row:SetHeight(rowHeight)
                     row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
                     row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y)
                     row.icon:SetTexture(data.icon or 134400)
+                    row.icon:SetShown(not data.hideIcon)
+                    local textLeft = data.hideIcon and 7 or 38
                     row.label:ClearAllPoints()
-                    row.label:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 7, -2)
-                    row.label:SetSize(math.max(1, contentWidth - 45), labelSize + 3)
+                    row.label:SetPoint("TOPLEFT", row, "TOPLEFT", textLeft, -4)
+                    row.label:SetSize(math.max(1, contentWidth - textLeft - 7), labelSize + 3)
                     row.detail:ClearAllPoints()
                     row.detail:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -2)
-                    row.detail:SetSize(math.max(1, contentWidth - 45), detailSize + 3)
+                    row.detail:SetSize(math.max(1, contentWidth - textLeft - 7), detailSize + 3)
                     row.label:SetText(data.label or "")
                     row.detail:SetText(data.detail or "")
                     row.stripe:SetColorTexture(StateColor(data.state))
+                    ApplyProgress(row, data, contentWidth)
                     SetAttention(row, data.attention, 2)
                     row:EnableMouse(true)
                     row:Show()
@@ -920,6 +1047,7 @@ local function Render()
     local contentHeight = math.max(12, math.abs(y))
     content:SetHeight(contentHeight)
     ApplyTextAppearance()
+    for index = 1, rowIndex do ApplyDataTypography(rowPool[index], rowPool[index].data) end
     local viewportHeight = math.min(contentHeight, math.max(12, MaximumPanelHeight() - ChromeHeight()))
     scrollFrame:SetHeight(viewportHeight)
     frame:SetHeight(ChromeHeight() + viewportHeight)
@@ -1026,6 +1154,7 @@ local eventNames = {
     "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED",
     "SPELLS_CHANGED", "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
     "CHAT_MSG_SKILL", "UNIT_INVENTORY_CHANGED", "UNIT_CONNECTION", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
+    "PLAYER_UPDATE_RESTING", "PLAYER_MOUNT_DISPLAY_CHANGED", "PLAYER_FLAGS_CHANGED", "UNIT_FLAGS", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST",
     "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "ITEM_DATA_LOAD_RESULT", "SPELL_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED",
     "TRAINER_SHOW", "TRAINER_UPDATE", "TRAINER_CLOSED",
     "TRAIT_TREE_CURRENCY_INFO_UPDATED", "TRAIT_CONFIG_UPDATED", "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "ACHIEVEMENT_EARNED",
@@ -1036,6 +1165,10 @@ events:SetScript("OnEvent", function(_, event, ...)
     if event == "UNIT_AURA" then
         local unit = ...
         if unit and unit ~= "player" and not tostring(unit):match("^party%d+$") then return end
+    end
+    if event == "UNIT_FLAGS" then
+        local unit = ...
+        if unit and unit ~= "player" then return end
     end
     if (event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE") and ns.ScanProfessionRecipes then
         ns.ScanProfessionRecipes()
@@ -1068,6 +1201,7 @@ if EUI.RegisterSkin then
         S.Font(title)
         S.Font(collapseButton.text)
         S.Font(contextText)
+        S.Font(playtimeText)
         for i = 1, #iconPool do S.SquareIcon(iconPool[i].icon) end
         for i = 1, #sectionPool do S.Font(sectionPool[i].text) end
         for i = 1, #rowPool do
