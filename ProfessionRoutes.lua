@@ -456,4 +456,3 @@ function ns.AddProfessionRouteRow(rows, profession, professions, mapID, zoneName
     }
     return true
 end
-

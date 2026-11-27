@@ -2226,4 +2226,3 @@ ns.ProfessionTrainingData = {
     },
   },
 }
-
