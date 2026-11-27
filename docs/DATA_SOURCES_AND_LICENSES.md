@@ -92,6 +92,9 @@ root `THIRD_PARTY_NOTICES.md`.
 - Extended in 0.7.0 for character-visited zone summaries and player-level
   aggregate XP from QuestieDB's public QuestXP support table. Coin rewards are
   read from the live client API by quest ID and are not copied from QuestieDB.
+- Extended in 0.8.1 to relate newly vendored items to actual item objectives
+  for meaningful, unaccepted quests in zones the character has visited. The
+  addon stores only the resulting per-character warning state.
 
 ### What's Training?
 

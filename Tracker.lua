@@ -514,6 +514,32 @@ local function AcquireRow(index)
     row.detail:SetPoint("TOPRIGHT", -7, -18)
     row.detail:SetJustifyH("LEFT")
     row.detail:SetTextColor(0.62, 0.66, 0.69)
+    row.dismiss = CreateFrame("Button", nil, row)
+    row.dismiss:SetSize(18, 18)
+    row.dismiss:SetPoint("TOPRIGHT", -3, -3)
+    row.dismiss.text = row.dismiss:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.dismiss.text:SetPoint("CENTER", 0, 0)
+    row.dismiss.text:SetText("X")
+    row.dismiss.text:SetTextColor(0.72, 0.75, 0.78)
+    row.dismiss:SetScript("OnEnter", function(self)
+        if UpdateLockFade then UpdateLockFade(true) end
+        self.text:SetTextColor(1, 0.25, 0.20)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Dismiss warning")
+        local data = self:GetParent().data
+        if data and data.dismissHint then GameTooltip:AddLine(data.dismissHint, 1, 1, 1, true) end
+        GameTooltip:Show()
+    end)
+    row.dismiss:SetScript("OnLeave", function(self)
+        self.text:SetTextColor(0.72, 0.75, 0.78)
+        GameTooltip_Hide()
+        if UpdateLockFade then C_Timer.After(0, UpdateLockFade) end
+    end)
+    row.dismiss:SetScript("OnClick", function(self)
+        local data = self:GetParent().data
+        if data and data.onDismiss then data.onDismiss() end
+    end)
+    row.dismiss:Hide()
     row.progress = CreateFrame("StatusBar", nil, row, "BackdropTemplate")
     row.progress:SetMinMaxValues(0, 1)
     row.progress:SetValue(0)
@@ -544,6 +570,7 @@ local function AcquireRow(index)
     if skin then
         skin.Font(row.label)
         skin.Font(row.detail)
+        skin.Font(row.dismiss.text)
         skin.SquareIcon(row.icon)
     end
     return row
@@ -1342,12 +1369,14 @@ local function Render()
                     row.icon:SetTexture(data.icon or 134400)
                     row.icon:SetShown(not data.hideIcon)
                     local textLeft = data.hideIcon and 7 or 38
+                    local textRight = data.onDismiss and 26 or 7
+                    row.dismiss:SetShown(type(data.onDismiss) == "function")
                     row.label:ClearAllPoints()
                     row.label:SetPoint("TOPLEFT", row, "TOPLEFT", textLeft, -4)
-                    row.label:SetSize(math.max(1, rowContentWidth - textLeft - 7), labelSize + 3)
+                    row.label:SetSize(math.max(1, rowContentWidth - textLeft - textRight), labelSize + 3)
                     row.detail:ClearAllPoints()
                     row.detail:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -2)
-                    row.detail:SetSize(math.max(1, rowContentWidth - textLeft - 7), detailSize + 3)
+                    row.detail:SetSize(math.max(1, rowContentWidth - textLeft - textRight), detailSize + 3)
                     row.label:SetText(data.label or "")
                     row.detail:SetText(data.detail or "")
                     row.stripe:SetColorTexture(StateColor(data.state))

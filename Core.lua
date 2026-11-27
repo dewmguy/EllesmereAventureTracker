@@ -111,6 +111,8 @@ local DEFAULTS = {
     showZoneQuests = true,
     zoneQuestExpandedByCharacter = {},
     zoneQuestVisitedByCharacter = {},
+    warnFutureQuestItems = true,
+    futureQuestItemsByCharacter = {},
 
     showProfessions = true,
     showProfessionProgress = true,

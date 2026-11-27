@@ -86,6 +86,9 @@ Version 0.8.0 establishes the addon structure and a playable first pass:
   has actually entered outside flight-path travel, combined player-level XP
   and coin rewards, and the same conservative QuestieDB filtering without
   exposing locations, routes or objectives;
+- red, breathing future quest-material warnings when a newly vendored item is
+  still needed by a meaningful unaccepted quest in a visited zone, with direct
+  merchant buyback while available and an explicit per-item dismiss button;
 - Encounter Journal upgrade suggestions filtered for the current class and
   specialization and then limited to drops whose item level beats the relevant
   equipped slot;
@@ -182,8 +185,8 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `Professions.lua` — rank goals, learned-recipe plans, gear and local resources
 - `Instances.lua` — run and boss timers, QuestieDB quest suggestions and
   Encounter Journal upgrade drops
-- `Quests.lua` — visited-zone quest progress and aggregate rewards without
-  route guidance
+- `Quests.lua` — visited-zone quest progress, aggregate rewards and future
+  quest-material merchant warnings without route guidance
 - `Flight.lua` — independent in-tracker flight timing, route learning and
   progress-bar data
 - `Status.lua` — contextual activity states, session duration and `/played`

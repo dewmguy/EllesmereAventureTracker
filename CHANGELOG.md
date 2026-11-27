@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.1 - 2026-11-27
+
+- Added red, breathing Quest Progress warnings when a newly vendored item is
+  still needed by a non-trivial, unaccepted quest in a genuinely visited zone.
+- Limited future-material matching to real item objectives, the current
+  character's race/class, and quests no more than five levels ahead while
+  intentionally allowing later steps in an unfinished chain.
+- Made an active warning buy the matching stack back when clicked while the
+  merchant still offers it, with the volatile buyback index resolved again at
+  click time.
+- Added a per-warning X that dismisses the current notification without
+  suppressing a later warning if another stack is sold.
+
 ## 0.8.0 - 2026-11-27
 
 - Replaced the generic highest-scoring learned-recipe suggestion with a

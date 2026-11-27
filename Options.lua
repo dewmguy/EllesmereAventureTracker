@@ -172,7 +172,10 @@ local READINESS_KEYS = {
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit" }
-local QUEST_KEYS = { "showZoneQuests", "zoneQuestExpandedByCharacter", "zoneQuestVisitedByCharacter" }
+local QUEST_KEYS = {
+    "showZoneQuests", "zoneQuestExpandedByCharacter", "zoneQuestVisitedByCharacter",
+    "warnFutureQuestItems", "futureQuestItemsByCharacter",
+}
 local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showProfessionAttainableRecipes", "showObservedGathering", "professionRecipeCatalogExpandedByCharacter", "showCompletedProfessions", "showProfessionZoneHints" }
 local INSTANCE_KEYS = { "showInstances", "showInstanceRunTimer", "showInstanceBossTimer", "showInstanceQuests", "showInstanceLoot", "instanceQuestLimit", "instanceLootLimit" }
 local FLIGHT_KEYS = {
@@ -536,6 +539,13 @@ local function BuildQuests(pageName, parent, yOffset)
             "Lists eligible, incomplete quests in zones this character has entered on foot and that are not already in the quest log.", true),
         Label((_G.LibQuestieDB and "QuestieDB detected." or "QuestieDB is not installed or enabled."),
             "QuestieDB is an optional runtime provider; Adventure Tracker does not copy its database or expose map data."))
+    y = y - h
+
+    _, h = W:DualRow(parent, y,
+        Toggle("warnFutureQuestItems", "Future Quest-Material Vendor Warnings",
+            "Warns when you sell an item still needed by a non-trivial, unaccepted quest in a zone this character has visited. Click the warning to buy it back while possible, or use its X to dismiss the current warning."),
+        Label("Warnings cover actual item objectives up to five levels ahead.",
+            "Later chain steps are intentionally considered so useful materials are not discarded before the quest itself becomes available."))
     y = y - h
 
     _, h = W:SectionHeader(parent, "PRESENTATION RULES", y); y = y - h

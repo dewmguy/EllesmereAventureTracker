@@ -12,6 +12,7 @@ spell, uses an item, changes protected UI, or reads combat-sensitive state.
 | Cast a spell | Calling a protected cast function from ordinary Lua. | Preconfigure a secure action button with `type = "spell"`, the spell attribute and an allowed unit. |
 | Change a secure action | Setting secure attributes, moving the secure overlay or changing its state driver during combat lockdown. | Hide it through a state driver in combat and defer all attribute or position changes until combat ends. |
 | Activate a protected action automatically | Programmatically clicking a secure button or triggering it from a timer/event. | Require the player's hardware click. The addon may recommend and prepare the action, but cannot execute it automatically. |
+| Buy back a recently sold merchant item | Treating a remembered buyback index as stable, or trying to buy after the merchant closes. | Re-read the live buyback list during the player's click, match the item again, and call `BuybackItem` only while the merchant is open. This action does not require a secure item-use button. |
 
 Wrapping a protected call in `pcall` does not make it permitted and does not
 prevent Blizzard's blocked-action dialog. Protection is enforced by the UI
@@ -35,6 +36,8 @@ security system outside normal Lua error handling.
 - Role-critical self-buffs use the same secure-button pattern for spells.
 - Direct item-use and spell-cast calls are not allowed in recommendation
   `onClick` handlers.
+- Future quest-material warnings may call `BuybackItem` from their normal
+  player click, but never from the merchant event that detected the sale.
 - Secure action overlays are hidden in combat and resynchronized afterward.
 
 ## Implementation checklist
