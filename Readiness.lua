@@ -83,6 +83,19 @@ local CLASS_REQUIREMENTS = {
     },
 }
 
+local TRACKED_AURA_SPELLS = {
+    [CAMP_BENEFITS] = true,
+    [SLEEPING_BAG_BUFF] = true,
+}
+for i = 1, #FOOD_BUFFS do TRACKED_AURA_SPELLS[FOOD_BUFFS[i]] = true end
+for _, requirements in pairs(CLASS_REQUIREMENTS) do
+    for i = 1, #requirements do
+        for j = 1, #(requirements[i].spells or {}) do
+            TRACKED_AURA_SPELLS[requirements[i].spells[j]] = true
+        end
+    end
+end
+
 local function IsSecret(value)
     return _G.issecretvalue and _G.issecretvalue(value)
 end
@@ -93,6 +106,13 @@ local function SpellName(id)
         if ok and not IsSecret(name) then return name end
     end
     return GetSpellInfo and GetSpellInfo(id)
+end
+
+function ns.IsReadinessAuraSpell(spellID, spellName)
+    if type(spellID) == "number" and TRACKED_AURA_SPELLS[spellID] == true then return true end
+    local wellFedName = SpellName(WELL_FED)
+    return type(spellName) == "string" and not IsSecret(spellName)
+        and type(wellFedName) == "string" and spellName == wellFedName
 end
 
 local function SpellTexture(id)
@@ -326,6 +346,21 @@ local function MaxStatValue(text, phrases)
 end
 
 local foodCache = {}
+local foodCacheRevision = {}
+local foodBagCounts = {}
+local foodBagDirty = {}
+local foodBagsInitialized = false
+local foodInventoryRevision = 0
+local foodSignatureCache = {}
+
+local function StoreFoodEvaluation(role, itemID, value)
+    if foodCache[role][itemID] ~= value then
+        foodCache[role][itemID] = value
+        foodCacheRevision[role] = (foodCacheRevision[role] or 0) + 1
+    end
+    return value or nil
+end
+
 local function IsFoodCandidate(itemID)
     if not GetItemInfoInstant then return true end
     local ok, _, _, _, _, _, classID, subClassID = pcall(GetItemInfoInstant, itemID)
@@ -335,34 +370,84 @@ local function IsFoodCandidate(itemID)
     return tonumber(classID) == tonumber(consumable) and tonumber(subClassID) == tonumber(foodAndDrink)
 end
 
-function ns.GetReadinessInventorySignature()
-    if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemID) then return "" end
+local function ScanFoodBag(bag)
     local counts = {}
+    local slots = C_Container.GetContainerNumSlots(bag) or 0
+    for slot = 1, slots do
+        local itemID = C_Container.GetContainerItemID(bag, slot)
+        if itemID and IsFoodCandidate(itemID) then
+            local info = C_Container.GetContainerItemInfo and C_Container.GetContainerItemInfo(bag, slot)
+            counts[itemID] = (counts[itemID] or 0) + (info and info.stackCount or 1)
+        end
+    end
+    foodBagCounts[bag] = counts
+    foodBagDirty[bag] = nil
+    foodInventoryRevision = foodInventoryRevision + 1
+end
+
+function ns.MarkReadinessInventoryBagDirty(bag)
+    bag = tonumber(bag)
+    if bag and bag >= 0 and bag <= (NUM_BAG_SLOTS or 4) then foodBagDirty[bag] = true end
+end
+
+function ns.GetReadinessInventorySignature()
+    if not ns.Get("showReadiness") or not ns.Get("trackFood") then return "" end
+    if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemID) then return "" end
+    if not foodBagsInitialized then
+        for bag = 0, NUM_BAG_SLOTS or 4 do ScanFoodBag(bag) end
+        foodBagsInitialized = true
+    else
+        for bag in pairs(foodBagDirty) do ScanFoodBag(bag) end
+    end
+
+    local role = ns.GetRole()
+    local classificationRevision = foodCacheRevision[role] or 0
+    local cachedSignature = foodSignatureCache[role]
+    if cachedSignature and cachedSignature.inventoryRevision == foodInventoryRevision
+        and cachedSignature.classificationRevision == classificationRevision then
+        return cachedSignature.value
+    end
+
+    local counts = {}
+    local roleCache = foodCache[role] or {}
     for bag = 0, NUM_BAG_SLOTS or 4 do
-        local slots = C_Container.GetContainerNumSlots(bag) or 0
-        for slot = 1, slots do
-            local itemID = C_Container.GetContainerItemID(bag, slot)
-            if itemID and IsFoodCandidate(itemID) then
-                local info = C_Container.GetContainerItemInfo and C_Container.GetContainerItemInfo(bag, slot)
-                counts[itemID] = (counts[itemID] or 0) + (info and info.stackCount or 1)
-            end
+        for itemID, count in pairs(foodBagCounts[bag] or {}) do
+            -- Food and drink share one Blizzard subclass. Once tooltip
+            -- evaluation establishes that an item has no combat-food benefit,
+            -- exclude it from the signature so drinking it cannot dirty the
+            -- readiness provider on every sip.
+            if roleCache[itemID] ~= false then counts[itemID] = (counts[itemID] or 0) + count end
         end
     end
     local values = {}
     for itemID, count in pairs(counts) do values[#values + 1] = string.format("%d:%d", itemID, count) end
     table.sort(values)
-    return table.concat(values, ";")
+    local signature = table.concat(values, ";")
+    foodSignatureCache[role] = {
+        inventoryRevision = foodInventoryRevision,
+        classificationRevision = classificationRevision,
+        value = signature,
+    }
+    return signature
 end
 
 local function EvaluateCombatFood(itemID)
     local role = ns.GetRole()
     foodCache[role] = foodCache[role] or {}
-    if foodCache[role][itemID] then return foodCache[role][itemID] end
+    local cached = foodCache[role][itemID]
+    if cached ~= nil then return cached or nil end
 
     local ok, name, _, _, itemLevel, requiredLevel, _, _, _, _, icon = pcall(C_Item.GetItemInfo, itemID)
     if not ok or not name or IsSecret(name) then
         if ns.RequestItemData then ns.RequestItemData(itemID, "readiness") end
         return nil
+    end
+    if C_Item and C_Item.IsItemDataCachedByID then
+        local cacheOK, ready = pcall(C_Item.IsItemDataCachedByID, itemID)
+        if cacheOK and ready ~= true then
+            if ns.RequestItemData then ns.RequestItemData(itemID, "readiness") end
+            return nil
+        end
     end
     requiredLevel = tonumber(requiredLevel) or 0
     if requiredLevel > (UnitLevel("player") or 0) then return nil end
@@ -379,7 +464,9 @@ local function EvaluateCombatFood(itemID)
         if spellOK and not IsSecret(spellName) then foodSpell = spellName end
     end
     local lower = text:lower()
-    if not ((familyName and foodSpell == familyName) or lower:find("well fed", 1, true)) then return nil end
+    if not ((familyName and foodSpell == familyName) or lower:find("well fed", 1, true)) then
+        return StoreFoodEvaluation(role, itemID, false)
+    end
 
     local weights = FOOD_WEIGHTS[role] or FOOD_WEIGHTS.SOLO
     local stats, score, effect = {}, 0, {}
@@ -398,7 +485,9 @@ local function EvaluateCombatFood(itemID)
         score = score + sharedStamina * (weights.spirit or 0)
         effect[#effect + 1] = string.format("+%d Spirit", sharedStamina)
     end
-    if score <= 0 then return nil end
+    if score <= 0 then
+        return StoreFoodEvaluation(role, itemID, false)
+    end
     local result = {
         itemID = itemID,
         name = name,
@@ -408,8 +497,7 @@ local function EvaluateCombatFood(itemID)
         score = score,
         effect = #effect > 0 and table.concat(effect, ", ") or "combat benefit",
     }
-    foodCache[role][itemID] = result
-    return result
+    return StoreFoodEvaluation(role, itemID, result)
 end
 
 local function BetterFood(candidate, best)

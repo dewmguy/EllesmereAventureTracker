@@ -10,6 +10,11 @@ presentation timers into repeated database queries.
   providers; presentation state renders cached results; feature state dirties
   only its owning provider. A generic option must not default to rebuilding all
   data providers merely because its value changed.
+- Aura events must be classified from their delta before invalidation. Generic
+  eating, drinking and unrelated effects do no provider or pane work; player
+  flag changes update only context text. Bag signatures exclude food/drink
+  items already classified as irrelevant to combat-food recommendations and
+  rescan only bags marked dirty by `BAG_UPDATE`.
 - Providers cache their last result and rebuild only after an explicit relevant
   invalidation. A cached out-of-combat result is retained when combat data is
   restricted.

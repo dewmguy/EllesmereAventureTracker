@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.8.9 establishes the addon structure and a playable first pass:
+Version 0.8.10 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -123,6 +123,14 @@ Version 0.8.9 establishes the addon structure and a playable first pass:
   interaction state, appearance and collapse changes render cached rows, and
   feature settings invalidate only their owning provider instead of every
   quest, profession, instance and readiness calculation;
+- aura deltas are matched to the readiness and world-buff spell sets before a
+  provider is dirtied; temporary eating, drinking and other unrelated effects
+  do not rebuild the tracker, while player-flag changes update only the compact
+  status text;
+- non-combat drinks and ordinary food are negatively cached after their first
+  tooltip evaluation and omitted from the readiness inventory signature, so a
+  consumed drink does not cause repeated bag and recipe work; the signature is
+  maintained per bag so only changed containers are rescanned;
 - independent flight bar texture, fill, background, border, font, outline,
   text-size, text-color and icon controls;
 - contextual In Flight, In Combat, Resting, Mounted, instance, life and

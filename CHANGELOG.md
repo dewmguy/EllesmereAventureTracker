@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.8.10 - 2026-11-27
+
+- Filtered `UNIT_AURA` deltas against the exact readiness and world-buff spell
+  sets. Temporary eating, drinking and unrelated aura instances no longer
+  invalidate either provider or render the pane; tracked additions, updates
+  and removals still refresh their owner.
+- Stopped the secure food button from scheduling a speculative second refresh;
+  successful actions already report their authoritative aura and bag changes.
+- Changed resting, mounted, presence, life and player-flag events to update the
+  compact context text directly instead of rebuilding all tracker rows. This
+  removes the full render previously caused when eating or drinking made the
+  character sit.
+- Added negative caching for food/drink tooltip classification. Drinks and
+  other items without a combat-food benefit are excluded from the readiness
+  inventory signature after their first evaluation, preventing every consumed
+  stack from dirtying readiness.
+- Replaced the readiness signature's whole-inventory walk with a per-bag cache.
+  `BAG_UPDATE` marks only the changed player bag dirty, and the delayed event
+  scans that bag before comparing the compact cached signature.
+
 ## 0.8.9 - 2026-11-27
 
 - Fixed lock/unlock marking every provider dirty, immediately rebuilding the

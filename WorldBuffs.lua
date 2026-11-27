@@ -66,6 +66,17 @@ local WORLD_BUFFS = {
     },
 }
 
+local TRACKED_AURA_SPELLS = {}
+for i = 1, #WORLD_BUFFS do
+    for j = 1, #WORLD_BUFFS[i].spells do
+        TRACKED_AURA_SPELLS[WORLD_BUFFS[i].spells[j]] = true
+    end
+end
+
+function ns.IsWorldBuffAuraSpell(spellID)
+    return type(spellID) == "number" and TRACKED_AURA_SPELLS[spellID] == true
+end
+
 local function IsSecret(value)
     return _G.issecretvalue and _G.issecretvalue(value)
 end

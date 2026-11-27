@@ -344,11 +344,9 @@ local function AcquireSecureActionButton(index)
         GameTooltip_Hide()
         if UpdateLockFade then C_Timer.After(0, UpdateLockFade) end
     end)
-    button:SetScript("PostClick", function()
-        if ns.RequestRefresh then
-            C_Timer.After(0.1, function() ns.RequestRefresh("readiness", "secure action") end)
-        end
-    end)
+    -- Successful item and spell actions already produce their authoritative
+    -- bag or aura event. Do not add a speculative second readiness rebuild.
+    button:SetScript("PostClick", nil)
     button:Hide()
     secureActionPool[index] = button
     return button
@@ -1619,7 +1617,7 @@ local events = CreateFrame("Frame")
 local eventNames = {
     "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA",
     "DISPLAY_SIZE_CHANGED", "UI_SCALE_CHANGED",
-    "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_COMBAT_CONFIG_CHANGED",
+    "BAG_UPDATE", "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_COMBAT_CONFIG_CHANGED",
     "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
     "CHAT_MSG_SKILL", "UNIT_INVENTORY_CHANGED", "UNIT_CONNECTION", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
     "PLAYER_UPDATE_RESTING", "PLAYER_MOUNT_DISPLAY_CHANGED", "PLAYER_FLAGS_CHANGED", "UNIT_FLAGS", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST",
@@ -1653,6 +1651,104 @@ local function QueueProfessionCacheScan()
     end)
 end
 
+-- UNIT_AURA fires for every temporary effect, including the generic eating and
+-- drinking auras. Track the provider relevance of aura instances so unrelated
+-- consumable effects never rebuild readiness or world-buff rows. Unknown/full
+-- updates remain conservative for API compatibility.
+local auraInstanceScopes = {}
+
+local function AddAuraProvider(providers, seen, provider)
+    if not seen[provider] then
+        seen[provider] = true
+        providers[#providers + 1] = provider
+    end
+end
+
+local function AuraScope(unit, spellID, spellName)
+    if type(spellID) ~= "number" or (issecretvalue and issecretvalue(spellID)) then
+        return { readiness = true, world = unit == "player" }
+    end
+    return {
+        readiness = ns.IsReadinessAuraSpell and ns.IsReadinessAuraSpell(spellID, spellName) or false,
+        world = unit == "player" and ns.IsWorldBuffAuraSpell and ns.IsWorldBuffAuraSpell(spellID) or false,
+    }
+end
+
+local function ProvidersForAuraEvent(unit, updateInfo)
+    local providers, seen = {}, {}
+    local function addScope(scope)
+        if not scope then
+            AddAuraProvider(providers, seen, "readiness")
+            if unit == "player" then AddAuraProvider(providers, seen, "world-buffs") end
+            return
+        end
+        if scope.readiness then AddAuraProvider(providers, seen, "readiness") end
+        if scope.world then AddAuraProvider(providers, seen, "world-buffs") end
+    end
+
+    if type(updateInfo) ~= "table" or (issecretvalue and issecretvalue(updateInfo)) then
+        addScope(nil)
+        return providers
+    end
+    local fullUpdate = updateInfo.isFullUpdate
+    if (issecretvalue and issecretvalue(fullUpdate)) or fullUpdate then
+        addScope(nil)
+        return providers
+    end
+
+    local cache = auraInstanceScopes[unit]
+    if not cache then
+        cache = {}
+        auraInstanceScopes[unit] = cache
+    end
+    local sawDelta = false
+
+    for _, aura in ipairs(type(updateInfo.addedAuras) == "table" and updateInfo.addedAuras or {}) do
+        sawDelta = true
+        if type(aura) ~= "table" or (issecretvalue and issecretvalue(aura)) then
+            addScope(nil)
+        else
+            local instanceID = aura.auraInstanceID
+            local scope = AuraScope(unit, aura.spellId or aura.spellID, aura.name)
+            if type(instanceID) == "number" and not (issecretvalue and issecretvalue(instanceID)) then
+                cache[instanceID] = scope
+            end
+            addScope(scope)
+        end
+    end
+
+    for _, instanceID in ipairs(type(updateInfo.updatedAuraInstanceIDs) == "table" and updateInfo.updatedAuraInstanceIDs or {}) do
+        sawDelta = true
+        if (issecretvalue and issecretvalue(instanceID)) or type(instanceID) ~= "number" then
+            addScope(nil)
+        else
+            local scope = cache[instanceID]
+            if C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID then
+                local ok, aura = pcall(C_UnitAuras.GetAuraDataByAuraInstanceID, unit, instanceID)
+                if ok and type(aura) == "table" and not (issecretvalue and issecretvalue(aura)) then
+                    scope = AuraScope(unit, aura.spellId or aura.spellID, aura.name)
+                    cache[instanceID] = scope
+                end
+            end
+            addScope(scope)
+        end
+    end
+
+    for _, instanceID in ipairs(type(updateInfo.removedAuraInstanceIDs) == "table" and updateInfo.removedAuraInstanceIDs or {}) do
+        sawDelta = true
+        if (issecretvalue and issecretvalue(instanceID)) or type(instanceID) ~= "number" then
+            addScope(nil)
+        else
+            local scope = cache[instanceID]
+            cache[instanceID] = nil
+            addScope(scope)
+        end
+    end
+
+    if not sawDelta then addScope(nil) end
+    return providers
+end
+
 local trainerScanTimer
 local function QueueTrainerCacheScan()
     if trainerScanTimer and trainerScanTimer.Cancel then trainerScanTimer:Cancel() end
@@ -1672,7 +1768,7 @@ local function ProvidersForTrackerEvent(event, ...)
     if event == "DISPLAY_SIZE_CHANGED" or event == "UI_SCALE_CHANGED" or event == "ADDON_LOADED" then
         return false
     elseif event == "UNIT_AURA" then
-        return { "readiness", "world-buffs" }
+        return ProvidersForAuraEvent(...)
     elseif event == "GROUP_ROSTER_UPDATE" or event == "UNIT_CONNECTION" then
         return { "readiness" }
     elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
@@ -1680,7 +1776,10 @@ local function ProvidersForTrackerEvent(event, ...)
     elseif event == "PLAYER_UPDATE_RESTING" or event == "PLAYER_MOUNT_DISPLAY_CHANGED"
         or event == "PLAYER_FLAGS_CHANGED" or event == "UNIT_FLAGS" or event == "PLAYER_DEAD"
         or event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
-        return { "readiness" }
+        -- These events change the directly rendered status row. Relevant buff
+        -- changes arrive separately through UNIT_AURA, so cached provider rows
+        -- can be reused.
+        return false
     elseif event == "ITEM_DATA_LOAD_RESULT" or event == "GET_ITEM_INFO_RECEIVED" then
         local itemID, succeeded = ...
         return ns.ConsumeItemDataProviders and ns.ConsumeItemDataProviders(itemID, succeeded) or nil
@@ -1708,8 +1807,17 @@ local function ProvidersForTrackerEvent(event, ...)
     return nil
 end
 
+local function IsContextOnlyEvent(event)
+    return event == "PLAYER_UPDATE_RESTING" or event == "PLAYER_MOUNT_DISPLAY_CHANGED"
+        or event == "PLAYER_FLAGS_CHANGED" or event == "UNIT_FLAGS" or event == "PLAYER_DEAD"
+        or event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST"
+end
+
 events:SetScript("OnEvent", function(_, event, ...)
-    if event == "BAG_UPDATE_DELAYED" then
+    if event == "BAG_UPDATE" then
+        if ns.MarkReadinessInventoryBagDirty then ns.MarkReadinessInventoryBagDirty((...)) end
+        return
+    elseif event == "BAG_UPDATE_DELAYED" then
         local food, profession = CurrentBagRecommendationSignature()
         local providers = {}
         if foodInventorySignature ~= food then providers[#providers + 1] = "readiness" end
@@ -1754,6 +1862,10 @@ events:SetScript("OnEvent", function(_, event, ...)
         local unit = ...
         if unit and unit ~= "player" then return end
     end
+    if IsContextOnlyEvent(event) then
+        if ns.RefreshTrackerContextText then ns.RefreshTrackerContextText() end
+        return
+    end
     if event == "PLAYER_REGEN_ENABLED" and HideSecureActionButtons then HideSecureActionButtons() end
     if event == "PLAYER_LOGIN" then
         RegisterUnlockElement()
@@ -1773,6 +1885,7 @@ events:SetScript("OnEvent", function(_, event, ...)
         local providers = ProvidersForTrackerEvent(event, ...)
         if (event == "ITEM_DATA_LOAD_RESULT" or event == "GET_ITEM_INFO_RECEIVED"
             or event == "SPELL_DATA_LOAD_RESULT") and not providers then return end
+        if type(providers) == "table" and #providers == 0 then return end
         ns.RequestRefresh(providers, event)
     end
 end)
