@@ -608,6 +608,10 @@ local function ApplyTextAppearance()
     StyleFontString(collapseButton.text, "titleFontSize", 13)
     StyleFontString(contextText, "contextFontSize", 11, "contextTextColor", "contextTextColorMode")
     StyleFontString(playtimeText, "contextFontSize", 11, "contextTextColor", "contextTextColorMode")
+    local statusAlignment = tostring(ns.Get("statusTextAlignment") or "LEFT"):upper()
+    if statusAlignment ~= "CENTER" and statusAlignment ~= "RIGHT" then statusAlignment = "LEFT" end
+    contextText:SetJustifyH(statusAlignment)
+    playtimeText:SetJustifyH(statusAlignment)
     for i = 1, #iconPool do
         StyleFontString(iconPool[i].badge, "badgeFontSize", 10, "badgeTextColor", "badgeTextColorMode", 6, 32)
     end

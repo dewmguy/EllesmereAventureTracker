@@ -156,7 +156,7 @@ local TRACKER_KEYS = {
     "enabled", "locked", "width", "scale", "frameStrata", "maximizePaneHeight", "paneGrowthDirection", "paneHeightLimitMode", "paneHeightLimitPercent", "paneHeightLimitPixels", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
     "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor", "entryBackgroundColor", "entryHoverBackgroundColor",
     "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
-    "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "contextTextColorMode", "contextTextColor",
+    "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "statusTextAlignment", "contextTextColorMode", "contextTextColor",
     "sectionFontSize", "sectionTextColorMode", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor",
     "entryDetailFontSize", "entryDetailTextColorMode", "entryDetailTextColor",
     "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
@@ -217,7 +217,7 @@ local function BuildTracker(pageName, parent, yOffset)
               ns.ResetKeys({ "frameStrata", "opacity", "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor",
                   "entryBackgroundColor", "entryHoverBackgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode",
                   "titleBarHeight", "titleBarColor", "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize",
-                  "contextFontSize", "contextTextColorMode", "contextTextColor", "sectionFontSize", "sectionTextColorMode", "sectionTextColor",
+                  "contextFontSize", "statusTextAlignment", "contextTextColorMode", "contextTextColor", "sectionFontSize", "sectionTextColorMode", "sectionTextColor",
                   "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor", "entryDetailFontSize", "entryDetailTextColorMode",
                   "entryDetailTextColor", "titleAlignment", "showTitleText",
                   "titleSeparatorSize", "titleSeparatorColor" })
@@ -326,6 +326,11 @@ local function BuildTracker(pageName, parent, yOffset)
     _, h = W:DualRow(parent, y,
         Slider("contextFontSize", "Context Font Size", 8, 24, 1, "Size of the zone, class, specialization and role line."),
         TextColorSwatches("contextTextColorMode", "contextTextColor", "Context Text Color"))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Dropdown("statusTextAlignment", "Status Row Alignment", { LEFT = "Left", CENTER = "Center", RIGHT = "Right" },
+            { "LEFT", "CENTER", "RIGHT" }, "Horizontal alignment of the complete zone, class, role, activity, session and currency status line."),
+        Label("The readiness icon row remains independently centered."))
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("sectionFontSize", "Section Font Size", 8, 24, 1, "Size of collapsible section titles."),

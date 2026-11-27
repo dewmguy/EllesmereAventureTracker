@@ -40,6 +40,7 @@ local DEFAULTS = {
     textOutline = "NONE",
     titleFontSize = 13,
     contextFontSize = 11,
+    statusTextAlignment = "LEFT",
     contextTextColorMode = "custom",
     contextTextColor = { r = 0.67, g = 0.72, b = 0.75, a = 1 },
     sectionFontSize = 11,

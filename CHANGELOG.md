@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.18 - 2026-11-27
+
+- Added a Tracker Text dropdown that aligns the complete fixed status row to
+  the left, center or right without changing readiness-icon alignment.
+
 ## 0.3.17 - 2026-11-27
 
 - Added Readiness settings for icon size, horizontal and vertical spacing,
