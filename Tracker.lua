@@ -1052,7 +1052,14 @@ end
 function ns.RefreshTrackerContextText()
     if not (frame:IsShown() and fixedFrame:IsShown()) then return end
     local contextLine, playtimeLine = CurrentContextLines()
-    if contextButton:IsShown() and contextLine then contextButton:SetText(contextLine) end
+    if contextButton:IsShown() and contextLine then
+        contextButton:SetText(contextLine)
+        local minimum = math.max(19, Clamp(ns.Get("contextFontSize"), 8, 24, 11) + 8)
+        local expected = math.max(minimum, math.ceil(contextText:GetStringHeight() or 0) + 5)
+        if math.abs((contextButton:GetHeight() or 0) - expected) > 0.5 and ns.RequestRefresh then
+            ns.RequestRefresh()
+        end
+    end
     if playtimeText:IsShown() and playtimeLine then playtimeText:SetText(playtimeLine) end
 end
 
