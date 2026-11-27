@@ -110,15 +110,25 @@ local function ShortSpecName(name)
     return SHORT_SPEC_NAMES[tostring(name):upper()] or name
 end
 
+local function GroupContext()
+    if SafeBoolean(IsInRaid) then return "Raid" end
+    if SafeBoolean(IsInGroup) then return "Party" end
+    return "Solo"
+end
+
 local function CharacterContext()
     if not ns.Get("showContext") then return nil end
     local zone = ns.GetZoneName()
-    local role = ns.ROLE_LABELS[ns.GetRole()] or ns.GetRole()
     local className = UnitClass and UnitClass("player") or "Character"
     local specName = ns.GetCurrentSpecializationName and ns.GetCurrentSpecializationName()
     local buildName = specName and specName ~= className
         and (ShortSpecName(specName) .. " " .. className) or className
-    return table.concat({ zone, buildName, role }, "  •  ")
+    local parts = { zone, buildName, GroupContext() }
+    local roleKey = ns.GetRole()
+    if roleKey ~= "SOLO" then
+        parts[#parts + 1] = ns.ROLE_LABELS[roleKey] or roleKey
+    end
+    return table.concat(parts, "  •  ")
 end
 
 local goldLedger

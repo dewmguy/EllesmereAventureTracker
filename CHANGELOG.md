@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.2 - 2026-11-27
+
+- Added live `Solo`, `Party` or `Raid` context to the fixed status row and kept
+  a specifically selected Tank, Healer or DPS role beside it.
+- Kept the per-character Tank, Healer, Physical DPS and Caster DPS selection as
+  a separate recommendation input, so joining a group updates the visible
+  context without silently changing buff or profession advice. The default
+  Solo recommendation profile is omitted while grouped to avoid `Party • Solo`.
+
 ## 0.8.1 - 2026-11-27
 
 - Added red, breathing Quest Progress warnings when a newly vendored item is

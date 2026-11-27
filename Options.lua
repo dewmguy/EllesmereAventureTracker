@@ -235,7 +235,7 @@ local function BuildTracker(pageName, parent, yOffset)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("panePadding", "Pane Padding", 0, 24, 1, "Space between the pane edges and tracker contents on all sides."),
-        Toggle("showContext", "Show Zone, Class, Spec and Role", "Shows the current zone, class, dominant Forever talent tree and selected activity role above the readiness icons."))
+        Toggle("showContext", "Show Zone, Class, Spec, Group and Role", "Shows the current zone, class, dominant Forever talent tree, live Solo, Party or Raid context, and any specifically selected activity role above the readiness icons."))
     y = y - h
     _, h = W:DualRow(parent, y,
         Toggle("maximizePaneHeight", "Allow Full Viewport Height", "Allows an unanchored pane to use all safe screen space in the selected growth direction instead of the normal 75% screen-height limit. A dynamic EllesmereUI anchor always uses the safe space between its fixed edge and the viewport."),
@@ -328,12 +328,12 @@ local function BuildTracker(pageName, parent, yOffset)
             { "NONE", "OUTLINE", "THICKOUTLINE" }, "Outline shared by every tracker font."))
     y = y - h
     _, h = W:DualRow(parent, y,
-        Slider("contextFontSize", "Context Font Size", 8, 24, 1, "Size of the zone, class, specialization and role line."),
+        Slider("contextFontSize", "Context Font Size", 8, 24, 1, "Size of the zone, class, specialization, group-context and selected-role line."),
         TextColorSwatches("contextTextColorMode", "contextTextColor", "Context Text Color"))
     y = y - h
     _, h = W:DualRow(parent, y,
         Dropdown("statusTextAlignment", "Status Row Alignment", { LEFT = "Left", CENTER = "Center", RIGHT = "Right" },
-            { "LEFT", "CENTER", "RIGHT" }, "Horizontal alignment of the complete zone, class, role, activity, session and currency status line."),
+            { "LEFT", "CENTER", "RIGHT" }, "Horizontal alignment of the complete zone, class, group context, role, activity, session and currency status line."),
         Label("The readiness icon row remains independently centered."))
     y = y - h
     _, h = W:DualRow(parent, y,
@@ -441,7 +441,7 @@ local function BuildReadiness(pageName, parent, yOffset)
               values = roleValues, order = roleOrder,
               getValue = ns.GetRole,
               setValue = ns.SetRole },
-            Label("This manual activity role controls role-specific recommendations and does not change automatically when joining a group."))
+            Label("This manual activity role controls role-specific recommendations and appears after the live Solo, Party or Raid context when it is more specific than Solo."))
         y = y - h
 
         _, h = W:SectionHeader(parent, "CLASS PREPARATION", y); y = y - h
@@ -799,7 +799,7 @@ local function BuildTravelStatus(pageName, parent, yOffset)
     else
         _, h = W:SectionHeader(parent, "ACTIVITY STATUSES", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Toggle("showStatuses", "Show Activity Statuses", "Adds compact live status labels beside the zone, class, specialization and role context."),
+            Toggle("showStatuses", "Show Activity Statuses", "Adds compact live status labels beside the zone, class, specialization and group context."),
             Label("Statuses appear only while applicable so the context line stays compact."))
         y = y - h
         _, h = W:DualRow(parent, y,

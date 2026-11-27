@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.8.0 establishes the addon structure and a playable first pass:
+Version 0.8.2 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -16,7 +16,8 @@ Version 0.8.0 establishes the addon structure and a playable first pass:
   rows, plus an EllesmereUI Unlock Mode mover for precise anchoring and width;
 - a left-, center- or right-aligned context and status line showing zone,
   the dominant Forever talent tree and class as a compact `Prot Paladin`-style
-  segment, and the manually selected activity role;
+  segment, plus live `Solo`, `Party` or `Raid` group context and a specifically
+  selected role such as Tank or Healer;
 - custom, player-class or EllesmereUI-accent coloring for the title and collapse
   glyph, which aligns with the zone/class context line when the title bar is
   hidden without reserving an empty title row;
@@ -51,7 +52,8 @@ Version 0.8.0 establishes the addon structure and a playable first pass:
 - Camp Benefits equivalence for Incense Candle/Intellect and First Aid
   Kit/Fortitude;
 - an explicit per-character activity role because Forever does not reliably
-  expose a solo specialization role;
+  expose a solo specialization role; this drives recommendations without
+  replacing the live group-context label and appears beside it when specific;
 - a separate World Buffs submenu and tracker section for active timers and
   acquisition hints, with the faction Rend buff retained while missing and
   other missing buffs opt-in;
