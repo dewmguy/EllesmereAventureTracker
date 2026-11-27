@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.8.10 establishes the addon structure and a playable first pass:
+Version 0.9.0 includes:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -92,6 +92,12 @@ Version 0.8.10 establishes the addon structure and a playable first pass:
 - event-invalidated provider and composed zone-result caches that keep
   QuestieDB lookups out of timer, aura, group and unrelated presentation
   refreshes;
+- a shared 0.35 ms frame-work budget for cold provider builds, Questie area
+  indexing, inventory signatures, trainer and profession capture, and tracker
+  rendering; long passes yield between records and continue on later frames;
+- provider computation separated from presentation: the pane always renders
+  cached results, structural changes use a time-sliced layout pass, and stable
+  rows, headings and readiness icons update in place without rebuilding the pane;
 - red, breathing future quest-material warnings when a newly vendored item is
   still needed by a meaningful unaccepted quest in a visited zone, with direct
   merchant buyback while available and an explicit per-item dismiss button;

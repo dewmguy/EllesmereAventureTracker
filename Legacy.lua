@@ -105,6 +105,7 @@ local function Criteria(achievementID)
                 required = required + goal
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local progress
     if required > 0 then
@@ -171,7 +172,9 @@ local function ScanChallenges()
                     end
                 end
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return challengeCatalog
 end
@@ -269,8 +272,9 @@ local function BuildChallengeRows(professions)
         if score > 0 and not CheckpointDuplicate(entry, professions) then
             candidates[#candidates + 1] = { entry = entry, score = score, reasons = reasons }
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    table.sort(candidates, function(a, b)
+    ns.BudgetedSort(candidates, function(a, b)
         if a.score ~= b.score then return a.score > b.score end
         local progressA, progressB = a.entry.progress or 0, b.entry.progress or 0
         if progressA ~= progressB then return progressA > progressB end
@@ -293,6 +297,7 @@ local function BuildChallengeRows(professions)
             icon = entry.icon,
             onClick = OpenLegacy,
         }
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return rows
 end
@@ -331,6 +336,7 @@ local function Build()
                     }
                 end
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
 

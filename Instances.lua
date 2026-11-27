@@ -146,6 +146,7 @@ local function ResolveJournalInstance()
                 return state.journalInstanceID
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return nil
 end
@@ -168,6 +169,7 @@ local function ResolveFinalEncounters()
                 result[tonumber(dungeonEncounterID)] = true
             end
             index = index + 1
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
     if next(result) then state.finalEncounterIDs = result end
@@ -262,6 +264,7 @@ local function IsQuestInLog(questID)
             local _, _, _, _, _, _, _, id = GetQuestLogTitle(index)
             if id == questID then return true end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return false
 end
@@ -313,6 +316,7 @@ local function EveryQuestComplete(list)
             found = true
             if not IsQuestComplete(id) then return false end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return true
 end
@@ -326,6 +330,7 @@ local function AnyQuestComplete(list)
             found = true
             if IsQuestComplete(id) then return true end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return not found
 end
@@ -335,6 +340,7 @@ local function NoneComplete(list)
     for _, id in pairs(list) do
         id = tonumber(id)
         if id and id > 0 and IsQuestComplete(id) then return false end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return true
 end
@@ -354,6 +360,7 @@ local function ProfessionRequirementMet(required)
         if professions[index].skillLineID == skillLineID then
             return (tonumber(professions[index].rank) or 0) >= rank
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return false
 end
@@ -363,7 +370,10 @@ local function ProfessionRankRequirementsMet(required)
     if not ns.GetProfessionList then return false end
     local professions = ns.GetProfessionList()
     local bySkill = {}
-    for index = 1, #professions do bySkill[professions[index].skillLineID] = professions[index] end
+    for index = 1, #professions do
+        bySkill[professions[index].skillLineID] = professions[index]
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
     local found = false
     local rankCaps = { [1] = 75, [2] = 150, [3] = 225, [4] = 300 }
     for _, pair in pairs(required) do
@@ -382,6 +392,7 @@ local function ProfessionRankRequirementsMet(required)
                 end
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return not found
 end
@@ -432,6 +443,7 @@ local function QuestRequirementsMet(questDB, questID)
     local raceMask = enums.raceMaskById and enums.raceMaskById[raceID]
     if not MaskIncludes(EntityValue(questDB, "requiredClasses", questID), classMask) then return false end
     if not MaskIncludes(EntityValue(questDB, "requiredRaces", questID), raceMask) then return false end
+    if ns.YieldForBudget then ns.YieldForBudget() end
 
     local parent = tonumber(EntityValue(questDB, "parentQuest", questID)) or 0
     if parent > 0 and not IsQuestInLog(parent) then return false end
@@ -448,6 +460,7 @@ local function QuestRequirementsMet(questDB, questID)
     if breadcrumbFor > 0 and (IsQuestComplete(breadcrumbFor) or IsQuestInLog(breadcrumbFor)) then return false end
     local disabledBy = tonumber(EntityValue(questDB, "disabledByQuest", questID)) or 0
     if disabledBy > 0 and IsQuestInLog(disabledBy) then return false end
+    if ns.YieldForBudget then ns.YieldForBudget() end
 
     local requiredSpell = tonumber(EntityValue(questDB, "requiredSpell", questID)) or 0
     if requiredSpell > 0 then
@@ -476,11 +489,15 @@ local function JoinNames(entity, ids, limit)
                 names[#names + 1] = name
                 seen[name] = true
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
-    table.sort(names)
+    ns.BudgetedSort(names, function(a, b) return a < b end)
     local total = #names
-    while #names > (limit or 3) do table.remove(names) end
+    while #names > (limit or 3) do
+        names[#names] = nil
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
     local text = table.concat(names, ", ")
     if total > #names then text = text .. string.format(" +%d more", total - #names) end
     return text, total
@@ -503,6 +520,7 @@ local function QuestStarter(questDB, npcDB, itemDB, questID)
                 local icon = GetItemIcon and GetItemIcon(itemID) or QUEST_ICON
                 return string.format("%s • Drops from: %s", itemName, mobText), icon
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
     return nil
@@ -538,19 +556,21 @@ local function BuildQuestRows()
 
     local areaID = InstanceAreaID()
     if not areaID then return {} end
-    local profileStart = debugprofilestop and debugprofilestop() or nil
     local cacheKey = tostring(state.instanceID) .. ":" .. tostring(areaID)
     local candidates = questCandidates[cacheKey]
     if not candidates then
         candidates = {}
-        local ids = type(questDB.GetAllIds) == "function" and questDB.GetAllIds() or {}
+        local ids = ns.GetQuestCandidateIDs and ns.GetQuestCandidateIDs(questDB, areaID)
+            or (type(questDB.GetAllIds) == "function" and questDB.GetAllIds() or {})
         for index = 1, #ids do
             local questID = ids[index]
-            if tonumber(EntityValue(questDB, "zoneOrSort", questID)) == tonumber(areaID) then
+            if ns.GetQuestCandidateIDs
+                or tonumber(EntityValue(questDB, "zoneOrSort", questID)) == tonumber(areaID) then
                 candidates[#candidates + 1] = questID
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
-        table.sort(candidates, function(a, b)
+        ns.BudgetedSort(candidates, function(a, b)
             local levelA = tonumber(EntityValue(questDB, "questLevel", a)) or 0
             local levelB = tonumber(EntityValue(questDB, "questLevel", b)) or 0
             if levelA == levelB then
@@ -580,6 +600,7 @@ local function BuildQuestRows()
                 }
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local limit = math.max(1, math.min(20, tonumber(ns.Get("instanceQuestLimit")) or 8))
     local total = #rows
@@ -592,10 +613,6 @@ local function BuildQuestRows()
             state = "info",
             icon = QUEST_ICON,
         }
-    end
-    if ns.RecordProfileMetric then
-        ns.RecordProfileMetric("BuildQuestRows", profileStart,
-            tostring(areaID), #candidates)
     end
     return rows
 end
@@ -624,6 +641,7 @@ local function EquippedLevel(equipLoc)
         local link = GetInventoryItemLink and GetInventoryItemLink("player", slots[index])
         local level = link and ItemLevel(link) or 0
         if lowest == nil or level < lowest then lowest = level end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return lowest or 0
 end
@@ -715,10 +733,11 @@ local function BuildLootRows()
         elseif itemID and ns.RequestItemData then
             ns.RequestItemData(itemID, "instances")
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     pcall(EJ_SetLootFilter, oldClass or 0, oldSpec or 0)
 
-    table.sort(rows, function(a, b)
+    ns.BudgetedSort(rows, function(a, b)
         if a.improvement == b.improvement then return tostring(a.label) < tostring(b.label) end
         return a.improvement > b.improvement
     end)

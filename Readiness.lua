@@ -210,6 +210,7 @@ local function FindAura(spells, unit)
             local aura, ok = GetAura(spells[i])
             if not ok then readable = false end
             if aura then return aura, spells[i], readable end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
         return nil, nil, readable
     end
@@ -220,6 +221,7 @@ local function FindAura(spells, unit)
         spellIDs[spells[i]] = true
         local name = SpellName(spells[i])
         if type(name) == "string" and not IsSecret(name) then spellNames[name] = true end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     for index = 1, 255 do
         local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, index, "HELPFUL")
@@ -231,6 +233,7 @@ local function FindAura(spells, unit)
         if spellIDs[spellID] or spellNames[name] then
             return aura, spellID, true
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return nil, nil, true
 end
@@ -379,6 +382,7 @@ local function ScanFoodBag(bag)
             local info = C_Container.GetContainerItemInfo and C_Container.GetContainerItemInfo(bag, slot)
             counts[itemID] = (counts[itemID] or 0) + (info and info.stackCount or 1)
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     foodBagCounts[bag] = counts
     foodBagDirty[bag] = nil
@@ -394,7 +398,10 @@ function ns.GetReadinessInventorySignature()
     if not ns.Get("showReadiness") or not ns.Get("trackFood") then return "" end
     if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemID) then return "" end
     if not foodBagsInitialized then
-        for bag = 0, NUM_BAG_SLOTS or 4 do ScanFoodBag(bag) end
+        for bag = 0, NUM_BAG_SLOTS or 4 do
+            ScanFoodBag(bag)
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
         foodBagsInitialized = true
     else
         for bag in pairs(foodBagDirty) do ScanFoodBag(bag) end
@@ -417,11 +424,15 @@ function ns.GetReadinessInventorySignature()
             -- exclude it from the signature so drinking it cannot dirty the
             -- readiness provider on every sip.
             if roleCache[itemID] ~= false then counts[itemID] = (counts[itemID] or 0) + count end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
     local values = {}
-    for itemID, count in pairs(counts) do values[#values + 1] = string.format("%d:%d", itemID, count) end
-    table.sort(values)
+    for itemID, count in pairs(counts) do
+        values[#values + 1] = string.format("%d:%d", itemID, count)
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+    ns.BudgetedSort(values, function(a, b) return a < b end)
     local signature = table.concat(values, ";")
     foodSignatureCache[role] = {
         inventoryRevision = foodInventoryRevision,
@@ -511,16 +522,12 @@ local function BetterFood(candidate, best)
 end
 
 local function BestBagCombatFood()
-    if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemID) then return nil end
+    if not foodBagsInitialized then ns.GetReadinessInventorySignature() end
     local counts = {}
     for bag = 0, NUM_BAG_SLOTS or 4 do
-        local slots = C_Container.GetContainerNumSlots(bag) or 0
-        for slot = 1, slots do
-            local itemID = C_Container.GetContainerItemID(bag, slot)
-            if itemID then
-                local info = C_Container.GetContainerItemInfo and C_Container.GetContainerItemInfo(bag, slot)
-                counts[itemID] = (counts[itemID] or 0) + (info and info.stackCount or 1)
-            end
+        for itemID, count in pairs(foodBagCounts[bag] or {}) do
+            counts[itemID] = (counts[itemID] or 0) + count
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
     local best
@@ -530,6 +537,7 @@ local function BestBagCombatFood()
             food.count = count
             best = BetterFood(food, best)
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return best
 end
@@ -568,15 +576,19 @@ end
 
 local function BestCraftedCombatFood()
     local recipes = {}
-    for recipeID, itemID in pairs(ns.CookingFoodRecipes or {}) do recipes[recipeID] = itemID end
-    if C_TradeSkillUI and C_TradeSkillUI.GetAllRecipeIDs then
-        local ok, ids = pcall(C_TradeSkillUI.GetAllRecipeIDs)
-        if ok and not IsSecret(ids) and type(ids) == "table" then
-            for i = 1, #ids do
-                local recipeID = ids[i]
-                if not IsSecret(recipeID) then recipes[recipeID] = recipes[recipeID] or RecipeOutput(recipeID) end
-            end
+    for recipeID, itemID in pairs(ns.CookingFoodRecipes or {}) do
+        recipes[recipeID] = itemID
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+    -- The durable profession snapshot and shipped seed replace the broad live
+    -- GetAllRecipeIDs call. Readiness must never enumerate a profession merely
+    -- because an aura changed.
+    local cookingCache = ns.GetProfessionRecipeCache and ns.GetProfessionRecipeCache(185, "Cooking")
+    for _, recipe in pairs(cookingCache and cookingCache.recipes or {}) do
+        if recipe.recipeID and recipe.resultItemID then
+            recipes[tonumber(recipe.recipeID)] = tonumber(recipe.resultItemID)
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 
     local best
@@ -594,6 +606,7 @@ local function BestCraftedCombatFood()
                 best = BetterFood(food, best)
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return best
 end
@@ -622,6 +635,7 @@ local function FoodAura()
         if not IsSecret(name) and wellFedName and name == wellFedName then
             return data, data.spellId or data.spellID, true
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return nil, nil, true
 end
@@ -891,6 +905,7 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
             statuses[#statuses + 1] = status
             AddReadinessRow(rows, status)
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 end
 

@@ -75,6 +75,7 @@ local function TrainingRows(skillLineID)
             auto = flags:find("auto", 1, true) ~= nil,
             rank = flags:find("rank", 1, true) ~= nil,
         }
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     trainingCache[skillLineID] = rows
     return rows
@@ -86,7 +87,10 @@ end
 
 local function TrainingBySpell(skillLineID)
     local result = {}
-    for _, row in ipairs(TrainingRows(skillLineID)) do result[row.spellID] = row end
+    for _, row in ipairs(TrainingRows(skillLineID)) do
+        result[row.spellID] = row
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
     return result
 end
 
@@ -122,6 +126,7 @@ LearnedMap = function(profession)
         and ns.GetProfessionRecipeCache(profession.skillLineID, profession.name)
     for _, recipe in pairs(cache and cache.recipes or {}) do
         if recipe.recipeID then learned[tonumber(recipe.recipeID)] = true end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return learned
 end
@@ -160,7 +165,9 @@ local function UtilityIndex()
         for _, entry in ipairs(ns.GetRecipeCatalogForProfession(skillLineID) or {}) do
             for _, reagent in ipairs(entry.reagents or {}) do
                 utilityCache[reagent.itemID] = (utilityCache[reagent.itemID] or 0) + 1
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
     return utilityCache
@@ -187,6 +194,7 @@ local function CandidateMaterials(entry, crafts)
         haveCrafts = math.min(haveCrafts, math.floor(ItemCount(reagent.itemID) / quantity))
         priced = priced and known
         provider, basis = provider or source, basis or valueBasis
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if haveCrafts == math.huge then haveCrafts = 0 end
     local outputValue, _, _, outputKnown = UnitValue(entry.productID)
@@ -256,8 +264,9 @@ local function CandidateList(profession, mapID)
                 score = score,
             }
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    table.sort(candidates, function(a, b)
+    ns.BudgetedSort(candidates, function(a, b)
         if a.score ~= b.score then return a.score > b.score end
         return a.entry.spellID < b.entry.spellID
     end)
@@ -269,6 +278,7 @@ local function NextEasyUnlock(profession, rank)
     local catalog = {}
     for _, entry in ipairs(ns.GetRecipeCatalogForProfession(profession.skillLineID) or {}) do
         catalog[entry.spellID] = entry
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local best
     for spellID, fact in pairs(training) do
@@ -278,6 +288,7 @@ local function NextEasyUnlock(profession, rank)
             and SourceEasy(fact.source) and ChanceAt(entry, fact.learnAt) > 0 then
             best = not best and fact.learnAt or math.min(best, fact.learnAt)
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return best
 end
@@ -298,6 +309,7 @@ local function PickCandidate(profession, mapID)
                 best = candidate
                 break
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
 
@@ -338,13 +350,16 @@ function ns.GetProfessionRouteInventorySignature()
         for _, reagent in ipairs(candidate.entry and candidate.entry.reagents or {}) do
             local itemID = tonumber(reagent.itemID)
             if itemID then reagents[#reagents + 1] = itemID end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
-        table.sort(reagents)
+        ns.BudgetedSort(reagents, function(a, b) return a < b end)
         for _, itemID in ipairs(reagents) do
             values[#values + 1] = string.format("%s:%d:%d", tostring(skillLineID), itemID, ItemCount(itemID))
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    table.sort(values)
+    ns.BudgetedSort(values, function(a, b) return a < b end)
     return table.concat(values, ";")
 end
 
@@ -367,7 +382,7 @@ local function MissingMaterials(candidate)
             }
         end
     end
-    table.sort(missing, function(a, b)
+    ns.BudgetedSort(missing, function(a, b)
         if a.need ~= b.need then return a.need > b.need end
         return a.itemID < b.itemID
     end)

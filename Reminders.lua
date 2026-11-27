@@ -237,8 +237,10 @@ local function CatalogAbilityKnown(classData, spellID)
         for index, groupedID in ipairs(group) do
             if groupedID == spellID then spellIndex = index end
             if AbilityKnownRaw(groupedID) then highestKnown = math.max(highestKnown, index) end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
         if spellIndex and spellIndex <= highestKnown then return true end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return false
 end
@@ -254,6 +256,7 @@ local function SkillRank(skillLineID)
             local reportedID = tonumber(info[14]) or tonumber(info[15])
             if not isHeader and reportedID == tonumber(skillLineID) then return tonumber(rank) or 0 end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 end
 
@@ -266,12 +269,14 @@ local function CatalogEntryMatchesCharacter(entry)
         local matched = false
         for _, allowedRace in ipairs(entry.races) do
             if tonumber(allowedRace) == tonumber(raceID) then matched = true break end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
         if not matched then return false end
     end
     for _, requirement in ipairs(entry.skills or {}) do
         local rank = SkillRank(requirement.skill)
         if not rank or rank < (tonumber(requirement.level) or 1) then return false end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return true
 end
@@ -280,6 +285,7 @@ local function CatalogPrerequisitesMet(classData, entry)
     if entry.requiredTalentId and not CatalogAbilityKnown(classData, entry.requiredTalentId) then return false end
     for _, spellID in ipairs(entry.requiredIds or {}) do
         if not CatalogAbilityKnown(classData, spellID) then return false end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return true
 end
@@ -337,14 +343,19 @@ StaticTrainerServices = function()
                         catalog = true,
                     }
                 end
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 
     local cache = TrainerCache()
     local liveByKey = {}
     if type(cache) == "table" and tonumber(cache.level) == level then
-        for _, service in ipairs(cache.services or {}) do liveByKey[TrainerServiceKey(service)] = service end
+        for _, service in ipairs(cache.services or {}) do
+            liveByKey[TrainerServiceKey(service)] = service
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
     end
     local catalogKeys = {}
     for _, service in ipairs(services) do
@@ -356,6 +367,7 @@ StaticTrainerServices = function()
             service.icon = live.icon or service.icon
             service.tooltipText = live.tooltipText
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if type(cache) == "table" and tonumber(cache.level) == level then
         for _, live in ipairs(cache.services or {}) do
@@ -372,9 +384,10 @@ StaticTrainerServices = function()
                     liveNew = type(cache.newServiceKeys) == "table" and cache.newServiceKeys[key] == true,
                 }
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
-    table.sort(services, function(a, b)
+    ns.BudgetedSort(services, function(a, b)
         if a.requiredLevel ~= b.requiredLevel then return a.requiredLevel < b.requiredLevel end
         if a.name ~= b.name then return a.name < b.name end
         return (a.spellID or 0) < (b.spellID or 0)
@@ -399,6 +412,7 @@ MarkCatalogSeen = function()
     local seen = CatalogSeenTable(true)
     for _, service in ipairs(services) do
         if service.spellID then seen[tostring(service.spellID)] = true end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 end
 
@@ -410,6 +424,7 @@ local function NewCatalogServiceCount(services)
         elseif service.liveNew then
             count = count + 1
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return count
 end
@@ -436,6 +451,7 @@ function ns.ScanClassTrainer()
             services[#services + 1] = service
             total = total + service.cost
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 
     local currentLevel = tonumber(UnitLevel("player")) or 0
@@ -448,6 +464,7 @@ function ns.ScanClassTrainer()
         signatureParts[#signatureParts + 1] = table.concat({
             service.name or "", service.subText or "", service.cost or 0,
         }, "\031")
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local signature = table.concat(signatureParts, "\030")
     if type(previous) == "table" and previous.cacheVersion == CLASS_TRAINER_CACHE_VERSION
@@ -456,10 +473,14 @@ function ns.ScanClassTrainer()
     end
     for _, service in ipairs(services) do
         service.tooltipText = TrainerTooltipText(service.trainerIndex, service.name, service.cost)
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local previousServices, previousKeys = previous and previous.services, {}
     if type(previousServices) == "table" then
-        for index = 1, #previousServices do previousKeys[TrainerServiceKey(previousServices[index])] = true end
+        for index = 1, #previousServices do
+            previousKeys[TrainerServiceKey(previousServices[index])] = true
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
     end
     local retainedNew = type(previous) == "table" and type(previous.newServiceKeys) == "table"
         and previous.newServiceKeys or {}
@@ -471,10 +492,14 @@ function ns.ScanClassTrainer()
                 or (previous and currentLevel > (tonumber(previous.level) or currentLevel) and not previousKeys[key]) then
                 newServiceKeys[key] = true
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
     local newServiceCount = 0
-    for _ in pairs(newServiceKeys) do newServiceCount = newServiceCount + 1 end
+    for _ in pairs(newServiceKeys) do
+        newServiceCount = newServiceCount + 1
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
 
     local trainerName = UnitName and UnitName("npc")
     if IsSecret(trainerName) or type(trainerName) ~= "string" or trainerName == "" then trainerName = "Class trainer" end
@@ -523,7 +548,10 @@ local function Build()
         end
         if #services > 0 then
             local total = 0
-            for _, service in ipairs(services) do total = total + math.max(0, tonumber(service.cost) or 0) end
+            for _, service in ipairs(services) do
+                total = total + math.max(0, tonumber(service.cost) or 0)
+                if ns.YieldForBudget then ns.YieldForBudget() end
+            end
             local expanded = TrainerSkillsExpanded()
             if expanded and MarkCatalogSeen then MarkCatalogSeen() end
             local newServiceCount = NewCatalogServiceCount(services)
@@ -563,6 +591,7 @@ local function Build()
                         icon = service.icon or 136243,
                         indentLevel = 1,
                     }
+                    if ns.YieldForBudget then ns.YieldForBudget() end
                 end
             end
         end

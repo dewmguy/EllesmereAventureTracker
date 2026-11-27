@@ -134,6 +134,8 @@ playtimeText:SetWordWrap(true)
 
 local iconPool, sectionPool, rowPool = {}, {}, {}
 local visibleRowsByKey = {}
+local visibleIconsByKey, visibleSectionsByID = {}, {}
+local renderInProgress = false
 local skin
 local UpdateLockFade
 local RegisterDragSurface
@@ -384,7 +386,10 @@ end
 
 HideSecureActionButtons = function()
     if InCombatLockdown and InCombatLockdown() then return end
-    for index = 1, #secureActionPool do DeactivateSecureActionButton(secureActionPool[index]) end
+    for index = 1, #secureActionPool do
+        DeactivateSecureActionButton(secureActionPool[index])
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
 end
 
 local function HasSecureAction(data)
@@ -427,19 +432,33 @@ local function SyncSecureActionButtons()
                 actionIndex = actionIndex + 1
                 ConfigureSecureAction(actionIndex, owner, data)
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
     SyncPool(iconPool)
     SyncPool(rowPool)
     for index = actionIndex + 1, #secureActionPool do
         DeactivateSecureActionButton(secureActionPool[index])
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 end
 
 QueueSecureActionSync = function()
     if secureActionSyncQueued or (InCombatLockdown and InCombatLockdown()) then return end
     secureActionSyncQueued = true
-    C_Timer.After(0, SyncSecureActionButtons)
+    if ns.QueueBudgetedWork then
+        ns.QueueBudgetedWork("tracker-secure-actions", SyncSecureActionButtons, function()
+            secureActionSyncQueued = false
+        end, function()
+            return not (InCombatLockdown and InCombatLockdown())
+        end, function(message)
+            secureActionSyncQueued = false
+            local handler = geterrorhandler and geterrorhandler()
+            if type(handler) == "function" then handler(message) end
+        end)
+    else
+        C_Timer.After(0, SyncSecureActionButtons)
+    end
 end
 
 local function AcquireIcon(index)
@@ -601,19 +620,27 @@ local function AcquireRow(index)
     return row
 end
 
-local function HidePools()
+local function BeginPoolRender()
     wipe(visibleRowsByKey)
-    for i = 1, #iconPool do
+    wipe(visibleIconsByKey)
+    wipe(visibleSectionsByID)
+end
+
+local function HideUnusedPools(iconCount, sectionCount, rowCount)
+    for i = (iconCount or 0) + 1, #iconPool do
         SetAttention(iconPool[i], nil)
         iconPool[i]:Hide()
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    for i = 1, #sectionPool do
+    for i = (sectionCount or 0) + 1, #sectionPool do
         SetAttention(sectionPool[i], nil)
         sectionPool[i]:Hide()
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    for i = 1, #rowPool do
+    for i = (rowCount or 0) + 1, #rowPool do
         SetAttention(rowPool[i], nil)
         rowPool[i]:Hide()
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 end
 
@@ -680,7 +707,7 @@ local function StyleFontString(fontString, sizeKey, fallbackSize, colorKey, mode
     if colorKey then fontString:SetTextColor(ThemeColor(modeKey or TEXT_COLOR_MODES[colorKey], colorKey)) end
 end
 
-local function ApplyTextAppearance()
+local function ApplyTextAppearance(iconCount, sectionCount, rowCount)
     StyleFontString(title, "titleFontSize", 13)
     StyleFontString(collapseButton.text, "titleFontSize", 13)
     StyleFontString(contextText, "contextFontSize", 11, "contextTextColor", "contextTextColorMode")
@@ -689,19 +716,22 @@ local function ApplyTextAppearance()
     if statusAlignment ~= "CENTER" and statusAlignment ~= "RIGHT" then statusAlignment = "LEFT" end
     contextText:SetJustifyH(statusAlignment)
     playtimeText:SetJustifyH(statusAlignment)
-    for i = 1, #iconPool do
+    for i = 1, iconCount or #iconPool do
         StyleFontString(iconPool[i].badge, "badgeFontSize", 10, "badgeTextColor", "badgeTextColorMode", 6, 32)
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    for i = 1, #sectionPool do
+    for i = 1, sectionCount or #sectionPool do
         local section = sectionPool[i]
         StyleFontString(section.text, "sectionFontSize", 11, "sectionTextColor", "sectionTextColorMode")
         SetSurfaceBackground(section, section:IsMouseOver() and "sectionHoverBackgroundColor" or "sectionBackgroundColor")
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    for i = 1, #rowPool do
+    for i = 1, rowCount or #rowPool do
         local row = rowPool[i]
         StyleFontString(row.label, "entryLabelFontSize", 12, "entryLabelTextColor", "entryLabelTextColorMode")
         StyleFontString(row.detail, "entryDetailFontSize", 10, "entryDetailTextColor", "entryDetailTextColorMode")
         SetSurfaceBackground(row, row:IsMouseOver() and "entryHoverBackgroundColor" or "entryBackgroundColor")
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 end
 
@@ -846,6 +876,7 @@ local function SectionAttention(rows)
     for index = 1, #rows do
         if rows[index].attention == "critical" then return "critical" end
         if rows[index].attention == "warning" then attention = "warning" end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return attention
 end
@@ -857,8 +888,117 @@ local function SnapshotAttention(snapshot)
         local sectionAttention = SectionAttention(snapshot.sections[index].rows or {})
         if sectionAttention == "critical" then return sectionAttention end
         if sectionAttention == "warning" then attention = "warning" end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return attention
+end
+
+local function ResultSections(result)
+    if type(result) ~= "table" then return {} end
+    return result.id and { result } or result
+end
+
+local function ResultStatuses(sections)
+    local statuses = {}
+    for sectionIndex = 1, #sections do
+        for statusIndex = 1, #(sections[sectionIndex].statuses or {}) do
+            statuses[#statuses + 1] = sections[sectionIndex].statuses[statusIndex]
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
+    end
+    return statuses
+end
+
+local function SameRowGeometry(before, after)
+    local beforeProgress = type(before.progress) == "table" and before.progress or nil
+    local afterProgress = type(after.progress) == "table" and after.progress or nil
+    return (before.hideIcon == true) == (after.hideIcon == true)
+        and (type(before.onDismiss) == "function") == (type(after.onDismiss) == "function")
+        and (beforeProgress ~= nil) == (afterProgress ~= nil)
+        and (not beforeProgress or tonumber(beforeProgress.height) == tonumber(afterProgress.height))
+        and tonumber(before.indentLevel or 0) == tonumber(after.indentLevel or 0)
+        and tonumber(before.labelFontSize or 0) == tonumber(after.labelFontSize or 0)
+        and tonumber(before.detailFontSize or 0) == tonumber(after.detailFontSize or 0)
+end
+
+local function TryPatchProviderResult(previous, current)
+    if renderInProgress or not frame:IsShown() or ns.Get("collapsed") or ns.Get("hideWhenReady") then return false end
+    local beforeSections, afterSections = ResultSections(previous), ResultSections(current)
+    if #beforeSections ~= #afterSections then return false end
+
+    for sectionIndex = 1, #afterSections do
+        local before, after = beforeSections[sectionIndex], afterSections[sectionIndex]
+        if before.id ~= after.id or before.title ~= after.title
+            or #(before.rows or {}) ~= #(after.rows or {}) then return false end
+        for rowIndex = 1, #(after.rows or {}) do
+            local oldRow, newRow = before.rows[rowIndex], after.rows[rowIndex]
+            if oldRow.key ~= newRow.key or not SameRowGeometry(oldRow, newRow) then return false end
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
+    end
+
+    local beforeStatuses, afterStatuses = ResultStatuses(beforeSections), ResultStatuses(afterSections)
+    if #beforeStatuses ~= #afterStatuses then return false end
+    for index = 1, #afterStatuses do
+        if beforeStatuses[index].key ~= afterStatuses[index].key then return false end
+        local button = visibleIconsByKey[afterStatuses[index].key]
+        if not button then return false end
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+
+    local size = Clamp(ns.Get("readinessIconSize"), 20, 64, 31)
+    local borderSize = Clamp(ns.Get("readinessIconBorderSize"), 0, 4, 2)
+    for index = 1, #afterStatuses do
+        local data = afterStatuses[index]
+        local button = visibleIconsByKey[data.key]
+        button.data = data
+        button.icon:SetTexture(data.icon or 134400)
+        button.badge:SetText(data.badge or "")
+        ApplyReadinessIconAppearance(button, data.state, size, borderSize)
+        SetAttention(button, data.attention, 2)
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+
+    for sectionIndex = 1, #afterSections do
+        local section = afterSections[sectionIndex]
+        local sectionID = tostring(section.id)
+        local collapsed = SectionCollapsed(sectionID)
+        local heading = visibleSectionsByID[sectionID]
+        if not heading then return false end
+        heading.sectionTitle = section.title or sectionID
+        heading.text:SetText(string.format("%s %s", collapsed and "+" or "−", string.upper(heading.sectionTitle)))
+        SetAttention(heading, collapsed and SectionAttention(section.rows or {}) or nil, 1)
+        for rowIndex = 1, #(section.rows or {}) do
+            local data = section.rows[rowIndex]
+            local row = visibleRowsByKey[data.key]
+            if not collapsed then
+                if not row then return false end
+                row.data = data
+                row.icon:SetTexture(data.icon or 134400)
+                row.label:SetText(data.label or "")
+                row.detail:SetText(data.detail or "")
+                row.stripe:SetColorTexture(StateColor(data.state))
+                ApplyProgress(row, data, row:GetWidth() or content:GetWidth() or 1)
+                ApplyDataTypography(row, data)
+                SetAttention(row, data.attention, 2)
+            end
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
+    end
+    if QueueSecureActionSync then QueueSecureActionSync() end
+    return true
+end
+
+function ns.QueueProviderPresentation(providerID, previous, current)
+    if not ns.QueueBudgetedWork then
+        ns.RequestRender("provider committed: " .. tostring(providerID))
+        return
+    end
+    ns.QueueBudgetedWork("provider-presentation:" .. tostring(providerID), function()
+        return TryPatchProviderResult(previous, current)
+    end, function(patched)
+        if not patched then ns.RequestRender("provider structure changed: " .. tostring(providerID)) end
+    end)
 end
 
 local function MaximumScroll()
@@ -1316,14 +1456,14 @@ function ns.RefreshTrackerContextText()
     if playtimeText:IsShown() and playtimeLine then playtimeText:SetText(playtimeLine) end
 end
 
-local function RenderBody()
+local function RenderBody(snapshot)
     if HideSecureActionButtons then HideSecureActionButtons() end
-    HidePools()
+    BeginPoolRender()
     SetAttention(collapseButton, nil)
     if not BaseVisibilityAllows() then frame:Hide(); return end
-    local snapshot = ns.BuildSnapshot()
     if ns.Get("hideWhenReady") and not snapshot.actionable and not snapshot.forceVisible then frame:Hide(); return end
     frame:Show()
+    if ns.YieldForBudget then ns.YieldForBudget() end
 
     local width = math.max(280, math.min(480, tonumber(ns.Get("width")) or 340))
     local padding = PanePadding()
@@ -1377,6 +1517,7 @@ local function RenderBody()
         for i = 1, iconCount do
             local data = snapshot.statuses[i]
             local button = AcquireIcon(i)
+            if data.key then visibleIconsByKey[data.key] = button end
             local row = math.floor((i - 1) / columns)
             local column = (i - 1) % columns
             local countInRow = math.min(columns, iconCount - row * columns)
@@ -1390,6 +1531,7 @@ local function RenderBody()
             ApplyReadinessIconAppearance(button, data.state, size, borderSize)
             SetAttention(button, data.attention, 2)
             button:Show()
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
         fixedY = fixedY - rowCount * size - (rowCount - 1) * spacing - 9
     end
@@ -1397,7 +1539,8 @@ local function RenderBody()
     local fixedHeight = math.max(1, math.abs(fixedY))
     SetHeightIfChanged(fixedFrame, fixedHeight)
     if collapsed then
-        ApplyTextAppearance()
+        HideUnusedPools(iconCount, 0, 0)
+        ApplyTextAppearance(iconCount, 0, 0)
         -- The registered Ellesmere resize observer re-applies a dynamic anchor
         -- exactly once when this height really changes. Calling it again here
         -- used to duplicate the cascade and its settle pass on every render.
@@ -1421,6 +1564,7 @@ local function RenderBody()
             heading.sectionTitle = sectionTitle
             heading.sectionCollapsed = sectionCollapsed
             heading.ToggleSection = ToggleSection
+            visibleSectionsByID[sectionID] = heading
             heading:ClearAllPoints()
             local sectionHeight = math.max(16, Clamp(ns.Get("sectionFontSize"), 8, 24, 11) + 5)
             heading:SetHeight(sectionHeight)
@@ -1429,6 +1573,7 @@ local function RenderBody()
             heading.text:SetText(string.format("%s %s", sectionCollapsed and "+" or "−", string.upper(sectionTitle)))
             SetAttention(heading, sectionCollapsed and SectionAttention(rows) or nil, 1)
             heading:Show()
+            if ns.YieldForBudget then ns.YieldForBudget() end
             y = y - sectionHeight - 2
             if not sectionCollapsed then
                 for j = 1, #rows do
@@ -1466,6 +1611,7 @@ local function RenderBody()
                     row:EnableMouse(true)
                     row:Show()
                     y = y - rowHeight - 3
+                    if ns.YieldForBudget then ns.YieldForBudget() end
                 end
             end
             y = y - 4
@@ -1474,8 +1620,12 @@ local function RenderBody()
 
     local contentHeight = math.max(12, math.abs(y))
     SetHeightIfChanged(content, contentHeight)
-    ApplyTextAppearance()
-    for index = 1, rowIndex do ApplyDataTypography(rowPool[index], rowPool[index].data) end
+    HideUnusedPools(iconCount, sectionIndex, rowIndex)
+    ApplyTextAppearance(iconCount, sectionIndex, rowIndex)
+    for index = 1, rowIndex do
+        ApplyDataTypography(rowPool[index], rowPool[index].data)
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
     local viewportHeight = math.min(contentHeight,
         math.max(12, MaximumPanelHeight() - ChromeHeight() - fixedHeight))
     SetHeightIfChanged(scrollFrame, viewportHeight)
@@ -1487,41 +1637,53 @@ local function RenderBody()
     UpdateLockFade()
 end
 
-local function Render()
-    local startedAt = debugprofilestop and debugprofilestop() or nil
-    RenderBody()
-    if ns.RecordProfileMetric then ns.RecordProfileMetric("Render", startedAt, "tracker refresh") end
+function ns.RequestRender(reason)
+    reason = reason or "tracker render"
+    if not ns.QueueBudgetedWork then return end
+    ns.QueueBudgetedWork("Render", function()
+        renderInProgress = true
+        local snapshot = ns.BuildSnapshot()
+        RenderBody(snapshot)
+    end, function()
+        renderInProgress = false
+    end, nil, function(message)
+        renderInProgress = false
+        local handler = geterrorhandler and geterrorhandler()
+        if type(handler) == "function" then handler(message) end
+    end)
 end
 
 function ns.ApplySettings()
-    local strata = MainPaneStrata()
-    frame:SetFrameStrata(strata)
-    if not (InCombatLockdown and InCombatLockdown()) then
-        for index = 1, #secureActionPool do secureActionPool[index]:SetFrameStrata(strata) end
-    end
-    frame:SetScale(math.max(0.65, math.min(1.5, tonumber(ns.Get("scale")) or 1)))
-    frame:SetAlpha(1)
-    ApplyWindowStyle()
-    SetPosition()
-    Render()
+    if not ns.QueueBudgetedWork then return end
+    ns.QueueBudgetedWork("tracker-settings", function()
+        local strata = MainPaneStrata()
+        frame:SetFrameStrata(strata)
+        if not (InCombatLockdown and InCombatLockdown()) then
+            for index = 1, #secureActionPool do
+                secureActionPool[index]:SetFrameStrata(strata)
+                if ns.YieldForBudget then ns.YieldForBudget() end
+            end
+        end
+        frame:SetScale(math.max(0.65, math.min(1.5, tonumber(ns.Get("scale")) or 1)))
+        frame:SetAlpha(1)
+        ApplyWindowStyle()
+        SetPosition()
+    end, function()
+        ns.RequestRender("settings applied")
+    end)
 end
 
-local refreshQueued = false
 function ns.RequestRefresh(providers, reason)
     if providers == nil then
         if ns.InvalidateAllProviders then ns.InvalidateAllProviders(reason or "unspecified refresh") end
     elseif providers ~= false and ns.InvalidateProviders then
         ns.InvalidateProviders(providers, reason or "targeted refresh")
+    else
+        ns.RequestRender(reason or "presentation refresh")
     end
-    if refreshQueued then return end
-    refreshQueued = true
-    C_Timer.After(0.05, function()
-        refreshQueued = false
-        Render()
-    end)
 end
 
-ns.RefreshTracker = Render
+ns.RefreshTracker = ns.RequestRender
 ns.TrackerFrame = frame
 
 if EUI.RegAccent then
@@ -1529,15 +1691,13 @@ if EUI.RegAccent then
         type = "callback",
         obj = frame,
         fn = function()
-            ApplyWindowStyle()
-            if ns.RequestRefresh then ns.RequestRefresh(false, "accent color") end
+            ns.ApplySettings()
         end,
     })
 end
 if hooksecurefunc and type(EUI.ApplyColorsToOUF) == "function" then
     pcall(hooksecurefunc, EUI, "ApplyColorsToOUF", function()
-        ApplyWindowStyle()
-        if ns.RequestRefresh then ns.RequestRefresh(false, "UI color update") end
+        ns.ApplySettings()
     end)
 end
 
@@ -1634,20 +1794,44 @@ CurrentBagRecommendationSignature = function()
     return food, profession
 end
 
+local function QueueBagSignatureUpdate(initializeOnly)
+    if not ns.QueueBudgetedWork then return end
+    ns.QueueBudgetedWork("inventory-signatures", function()
+        return CurrentBagRecommendationSignature()
+    end, function(food, profession)
+        if initializeOnly and foodInventorySignature == nil and professionInventorySignature == nil then
+            foodInventorySignature, professionInventorySignature = food, profession
+            return
+        end
+        local providers = {}
+        if foodInventorySignature ~= food then providers[#providers + 1] = "readiness" end
+        if professionInventorySignature ~= profession then providers[#providers + 1] = "professions" end
+        foodInventorySignature, professionInventorySignature = food, profession
+        if #providers > 0 then ns.RequestRefresh(providers, "BAG_UPDATE_DELAYED") end
+    end)
+end
+
 local professionScanTimer
+local function EnqueueProfessionCacheScan()
+    if not ns.QueueBudgetedWork then return end
+    ns.QueueBudgetedWork("profession-recipe-scan", function()
+        return ns.ScanProfessionRecipes and ns.ScanProfessionRecipes() or false
+    end, function(changed)
+        if changed then ns.RequestRefresh("professions", "profession recipe cache changed") end
+    end, function()
+        return not (ns.IsCombatRestricted and ns.IsCombatRestricted())
+    end)
+end
+
 local function QueueProfessionCacheScan()
     if professionScanTimer and professionScanTimer.Cancel then professionScanTimer:Cancel() end
     if not (C_Timer and C_Timer.NewTimer) then
-        if ns.ScanProfessionRecipes and ns.ScanProfessionRecipes() then
-            ns.RequestRefresh("professions", "profession recipe cache changed")
-        end
+        EnqueueProfessionCacheScan()
         return
     end
     professionScanTimer = C_Timer.NewTimer(0.1, function()
         professionScanTimer = nil
-        if ns.ScanProfessionRecipes and ns.ScanProfessionRecipes() then
-            ns.RequestRefresh("professions", "profession recipe cache changed")
-        end
+        EnqueueProfessionCacheScan()
     end)
 end
 
@@ -1750,17 +1934,29 @@ local function ProvidersForAuraEvent(unit, updateInfo)
 end
 
 local trainerScanTimer
+local function EnqueueTrainerCacheScan()
+    if not ns.QueueBudgetedWork then return end
+    ns.QueueBudgetedWork("trainer-cache-scan", function()
+        local classChanged = ns.ScanClassTrainer and ns.ScanClassTrainer() or false
+        local professionChanged = ns.ScanProfessionTrainer and ns.ScanProfessionTrainer() or false
+        return classChanged, professionChanged
+    end, function(classChanged, professionChanged)
+        if classChanged then ns.RequestRefresh("character-reminders", "class trainer cache changed") end
+        if professionChanged then ns.RequestRefresh("professions", "profession trainer cache changed") end
+    end, function()
+        return not (ns.IsCombatRestricted and ns.IsCombatRestricted())
+    end)
+end
+
 local function QueueTrainerCacheScan()
     if trainerScanTimer and trainerScanTimer.Cancel then trainerScanTimer:Cancel() end
-    if not (C_Timer and C_Timer.NewTimer) then return end
+    if not (C_Timer and C_Timer.NewTimer) then
+        EnqueueTrainerCacheScan()
+        return
+    end
     trainerScanTimer = C_Timer.NewTimer(0.1, function()
         trainerScanTimer = nil
-        if ns.ScanClassTrainer and ns.ScanClassTrainer() then
-            ns.RequestRefresh("character-reminders", "class trainer cache changed")
-        end
-        if ns.ScanProfessionTrainer and ns.ScanProfessionTrainer() then
-            ns.RequestRefresh("professions", "profession trainer cache changed")
-        end
+        EnqueueTrainerCacheScan()
     end)
 end
 
@@ -1818,13 +2014,7 @@ events:SetScript("OnEvent", function(_, event, ...)
         if ns.MarkReadinessInventoryBagDirty then ns.MarkReadinessInventoryBagDirty((...)) end
         return
     elseif event == "BAG_UPDATE_DELAYED" then
-        local food, profession = CurrentBagRecommendationSignature()
-        local providers = {}
-        if foodInventorySignature ~= food then providers[#providers + 1] = "readiness" end
-        if professionInventorySignature ~= profession then providers[#providers + 1] = "professions" end
-        foodInventorySignature, professionInventorySignature = food, profession
-        if #providers == 0 then return end
-        ns.RequestRefresh(providers, event)
+        QueueBagSignatureUpdate(false)
         return
     end
     if event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE" then
@@ -1842,7 +2032,13 @@ events:SetScript("OnEvent", function(_, event, ...)
         trainerScanTimer = nil
         return
     elseif event == "LEARNED_SPELL_IN_TAB" and ns.MarkProfessionRecipeCachesDirty then
-        ns.MarkProfessionRecipeCachesDirty((...))
+        local spellID = (...)
+        ns.QueueBudgetedWork("profession-cache-dirty", function()
+            return ns.MarkProfessionRecipeCachesDirty(spellID)
+        end, function()
+            ns.RequestRefresh({ "professions", "character-reminders" }, event)
+        end)
+        return
     end
     if (event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_SPECIALIZATION_CHANGED"
         or event == "ACTIVE_COMBAT_CONFIG_CHANGED" or event == "PLAYER_TALENT_UPDATE"
@@ -1866,11 +2062,16 @@ events:SetScript("OnEvent", function(_, event, ...)
         if ns.RefreshTrackerContextText then ns.RefreshTrackerContextText() end
         return
     end
-    if event == "PLAYER_REGEN_ENABLED" and HideSecureActionButtons then HideSecureActionButtons() end
+    if event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+        if ns.RefreshTrackerContextText then ns.RefreshTrackerContextText() end
+        if event == "PLAYER_REGEN_ENABLED" and ns.WakeBudgetedWork then ns.WakeBudgetedWork() end
+    end
+    if event == "PLAYER_REGEN_ENABLED" and QueueSecureActionSync then QueueSecureActionSync() end
     if event == "PLAYER_LOGIN" then
         RegisterUnlockElement()
+        if ns.ActivateProviderRuntime then ns.ActivateProviderRuntime() end
         ns.ApplySettings()
-        foodInventorySignature, professionInventorySignature = CurrentBagRecommendationSignature()
+        QueueBagSignatureUpdate(true)
         -- Re-measure once WoW has resolved the saved point. Ongoing aura state is
         -- event-driven; exact warning-threshold transitions use one-shot timers.
         C_Timer.After(0, function()

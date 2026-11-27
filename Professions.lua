@@ -245,12 +245,14 @@ function ns.MarkProfessionRecipeCachesDirty(spellID)
         if not matches and skillLineID and ns.GetRecipeCatalogForProfession then
             for _, entry in ipairs(ns.GetRecipeCatalogForProfession(skillLineID) or {}) do
                 if tonumber(entry.spellID) == spellID then matches = true break end
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end
         if matches and type(cache) == "table" and cache.cacheVersion == RECIPE_CACHE_VERSION then
             cache.dirty = true
             changed = true
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return changed
 end
@@ -317,6 +319,7 @@ local function TrainerTooltipText(index, serviceName)
                     Add(line.leftText)
                     Add(line.rightText)
                 end
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end
     end
@@ -340,6 +343,7 @@ local function MatchProfession(professions, value)
         local profession = professions[i]
         local name = NormalizeProfessionName(profession.name)
         if name and (wanted == name or wanted:find(name, 1, true)) then return profession end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 end
 
@@ -452,6 +456,7 @@ function ns.ScanProfessionTrainer()
                 end
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if not next(buckets) then return false end
 
@@ -466,7 +471,7 @@ function ns.ScanProfessionTrainer()
     local character = db.professionTrainerCache[characterKey]
     local changed = false
     for cacheKey, bucket in pairs(buckets) do
-        table.sort(bucket.services, function(a, b)
+        ns.BudgetedSort(bucket.services, function(a, b)
             if a.requiredSkill ~= b.requiredSkill then return a.requiredSkill < b.requiredSkill end
             if a.name ~= b.name then return a.name < b.name end
             return (a.cost or 0) < (b.cost or 0)
@@ -477,6 +482,7 @@ function ns.ScanProfessionTrainer()
                 service.name or "", service.subText or "", service.requiredSkill or 0,
                 service.cost or 0, service.serviceType or "",
             }, "\031")
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
         local signature = table.concat(signatureParts, "\030")
         local previous = character[cacheKey]
@@ -484,6 +490,7 @@ function ns.ScanProfessionTrainer()
             and previous.signature == signature and previous.rank == bucket.profession.rank) then
             for _, service in ipairs(bucket.services) do
                 service.tooltipText = TrainerTooltipText(service.trainerIndex, service.name)
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
             character[cacheKey] = {
                 cacheVersion = TRAINER_CACHE_VERSION,
@@ -497,6 +504,7 @@ function ns.ScanProfessionTrainer()
             }
             changed = true
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return changed
 end
@@ -607,6 +615,7 @@ function ns.ScanProfessionRecipes()
                             quantity = quantity,
                         }
                     end
+                    if ns.YieldForBudget then ns.YieldForBudget() end
                 end
 
                 local resultLink
@@ -632,6 +641,7 @@ function ns.ScanProfessionRecipes()
                 learnedCount = learnedCount + 1
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 
     cache.professionName = profession.name
@@ -656,6 +666,7 @@ local function GatheringSummary(mapID, kind)
     for i = 1, shown do
         local node = entries[i]
         parts[#parts + 1] = string.format("%s (%d)", node.name, node.count)
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local more = #entries - shown
     local suffix = more > 0 and string.format(" +%d more", more) or ""
@@ -671,8 +682,9 @@ local function ObservedGatheringSummary(mapID, kind)
     local items = {}
     for _, item in pairs(bucket.items) do
         if type(item) == "table" and tonumber(item.itemID) then items[#items + 1] = item end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    table.sort(items, function(a, b)
+    ns.BudgetedSort(items, function(a, b)
         local aCount, bCount = tonumber(a.count) or 0, tonumber(b.count) or 0
         if aCount ~= bCount then return aCount > bCount end
         return tostring(a.name or a.itemID) < tostring(b.name or b.itemID)
@@ -684,6 +696,7 @@ local function ObservedGatheringSummary(mapID, kind)
         local name = ItemName(item.itemID)
         if name:match("^Item %d+$") and item.name then name = item.name end
         parts[#parts + 1] = string.format("%s ×%d", name, tonumber(item.count) or 0)
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if #items > 3 then parts[#parts + 1] = string.format("+%d more", #items - 3) end
     local windows = tonumber(bucket.windows) or 0
@@ -826,7 +839,10 @@ local function ZoneOreKeys(mapID)
     local entries = catalog and catalog.zones and mapID and catalog.zones[mapID]
     entries = entries and entries.ore
     if type(entries) == "table" then
-        for i = 1, #entries do keys[entries[i].key] = true end
+        for i = 1, #entries do
+            keys[entries[i].key] = true
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
     end
     return keys
 end
@@ -842,6 +858,7 @@ function ns.GetMiningMaterialPlan(itemID, mapID, need)
             available = available + 1
             names[#names + 1] = NODE_NAMES[key] or source.names[index]
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local localSource = source.requiresAll and available == #source.nodes or not source.requiresAll and available > 0
     if not localSource then names = source.names end
@@ -908,6 +925,7 @@ local function MaterialFacts(recipe, hasMining, mapID)
                     local name = NODE_NAMES[source.nodes[j]] or source.names[1]
                     if name then sourceNodeNames[#sourceNodeNames + 1] = name end
                 end
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
             sourceLocal = (source.requiresAll and availableNodes == #source.nodes)
                 or (not source.requiresAll and availableNodes > 0)
@@ -925,6 +943,7 @@ local function MaterialFacts(recipe, hasMining, mapID)
                         nodeSeen[name] = true
                         nodeNames[#nodeNames + 1] = name
                     end
+                    if ns.YieldForBudget then ns.YieldForBudget() end
                 end
             end
             if need > 0 and sourceLocal then
@@ -937,6 +956,7 @@ local function MaterialFacts(recipe, hasMining, mapID)
         elseif need > 0 then
             otherNeeds[#otherNeeds + 1] = string.format("%dx %s", need, reagentName)
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 
     local craftable = missing == 0
@@ -985,6 +1005,7 @@ end
 local function HasProfession(professions, skillLineID)
     for i = 1, #professions do
         if professions[i].skillLineID == skillLineID then return true end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return false
 end
@@ -1006,6 +1027,7 @@ local function BestSkillUpRecipe(profession, professions, mapID)
                 best, bestFacts, bestScore = recipe, facts, score
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return best, bestFacts
 end
@@ -1043,6 +1065,7 @@ local function EquippedItemLevel(equipLoc)
             end
         end
         if lowest == nil or level < lowest then lowest = level end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return lowest
 end
@@ -1128,6 +1151,7 @@ local function BestGearRecipe(profession, professions, mapID)
                 end
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return best, bestItem, bestFacts, bestDelta
 end
@@ -1185,6 +1209,7 @@ local function PermanentTrainerServices(profession)
     for _, live in ipairs(type(liveCache) == "table" and liveCache.services or {}) do
         local key = NormalizeProfessionName(live.name)
         if key then liveByName[key] = live end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local playerLevel = UnitLevel and UnitLevel("player") or 0
     for _, fact in ipairs(ns.GetPermanentProfessionTraining
@@ -1209,8 +1234,9 @@ local function PermanentTrainerServices(profession)
                     profession.name, fact.learnAt, FormatMoney(fact.cost)),
             }
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    table.sort(services, function(a, b)
+    ns.BudgetedSort(services, function(a, b)
         if a.requiredSkill ~= b.requiredSkill then return a.requiredSkill < b.requiredSkill end
         return a.name < b.name
     end)
@@ -1223,7 +1249,10 @@ local function AddTrainerRecipeRows(rows, profession)
     if #services == 0 then return end
 
     local total = 0
-    for index = 1, #services do total = total + (tonumber(services[index].cost) or 0) end
+    for index = 1, #services do
+        total = total + (tonumber(services[index].cost) or 0)
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
 
     local expanded = ProfessionTrainerExpanded(profession.skillLineID)
     rows[#rows + 1] = {
@@ -1255,13 +1284,17 @@ local function AddTrainerRecipeRows(rows, profession)
             icon = service.icon or profession.icon,
             indentLevel = 1,
         }
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
 end
 
 local stableProfessionRows = {}
 
 local function AppendRows(target, source)
-    for index = 1, #(source or {}) do target[#target + 1] = source[index] end
+    for index = 1, #(source or {}) do
+        target[#target + 1] = source[index]
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
 end
 
 local function BuildStableProfessionRows(profession, professions, mapID, zoneName)
@@ -1337,6 +1370,7 @@ local function Build(invalidationReason)
                 }
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return sections
 end

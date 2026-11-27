@@ -6,6 +6,23 @@ presentation timers into repeated database queries.
 
 ## Runtime rules
 
+- All variable-size runtime work shares a 0.35 ms frame budget. Providers,
+  Questie indexing, inventory signatures, trainer/profession capture, large
+  sorts and pane rendering must call `ns.YieldForBudget()` at safe record or UI
+  element boundaries. They resume on a later frame through the central keyed
+  scheduler; no module owns a competing permanent worker.
+- Provider builds and rendering are separate phases. An invalidation queues a
+  provider build, a successful build atomically commits `lastResult`, and
+  `BuildSnapshot` composes only committed cache entries. Rendering must never
+  call `provider.build` or wait for a provider to finish.
+- Work keys coalesce event bursts into the latest pending rerun. Structural
+  result changes queue one time-sliced pane layout; results with identical
+  section, status and row geometry patch their visible keyed elements in place.
+  Pooled elements are hidden only after a replacement layout is complete.
+- Combat-restricted tasks retain their queued state but the scheduler sleeps
+  when every task is gated. `PLAYER_REGEN_ENABLED` wakes the queue; it is not
+  polled every frame during combat.
+
 - Settings are scoped by effect. Lock and position state never render or dirty
   providers; presentation state renders cached results; feature state dirties
   only its owning provider. A generic option must not default to rebuilding all
@@ -24,6 +41,10 @@ presentation timers into repeated database queries.
 - Zone recommendations are cached by character, area, player level,
   quest-state revision and XP multiplier. Quest-log, level, spell,
   specialization, profession and reputation events invalidate eligibility.
+- QuestieDB quest records are indexed by area in one cold, time-sliced pass and
+  the finished index is published atomically. Visited zones and instance quest
+  suggestions share that index instead of each scanning the complete quest
+  database.
 - Recipe teaching-item relationships and product level gates are generated
   offline from build-stamped Blizzard `ItemEffect`, `ItemXItemEffect` and
   `ItemSparse` client tables. No runtime worker scans QuestieDB's item records.
@@ -54,13 +75,19 @@ presentation timers into repeated database queries.
 - The instance provider does not listen directly to global item-data or
   profession-window events. Requested item completions remain routed through
   the central per-item consumer registry.
+- Well Fed evaluation does not call `GetAllRecipeIDs`. It combines the shipped
+  Cooking food catalogue with the durable learned-recipe cache captured by the
+  budgeted profession-window scanner.
 
 ## Development profiling
 
 Profiling is disabled and silent by default. Use `/at profile` to enable it,
 reproduce an interaction, then use `/at profile report` to print last, average
-and maximum milliseconds for provider builds, snapshots, renders, zone quest
-composition and recipe-index batches. Use `/at profile` again to disable it.
+and maximum active milliseconds for each budgeted task. Providers appear as
+`provider:<id>`; layout is `Render`; inventory, trainer and profession capture
+have their own names. A `runtime-overrun:<task>` entry means one uninterrupted
+resume exceeded the 0.35 ms target and identifies the remaining atomic hot
+path. Use `/at profile` again to disable profiling.
 
 ## Validation matrix
 
@@ -74,8 +101,10 @@ Test after both a full client restart and `/reload`:
 - quest acceptance, removal and turn-in across multiple visited zones;
 - leveling, profession skill changes, trainer windows and recipe windows;
 - combat entry/exit, group changes and frequent aura updates.
+- repeated looting, eating, drinking, lock toggles and bag rearrangement while
+  moving, including the first cold Questie-area build after reload.
 
-The expected result is no half-second render cadence, no QuestieDB provider
-build caused by a timer tick or unrelated cache event, and no permanently
-running Adventure Tracker worker. Session, instance, boss and flight tickers
-may update their already-visible text or progress only.
+The expected result is no visible frame spike, no half-second render cadence,
+no QuestieDB provider build caused by a timer tick or unrelated cache event,
+and no permanently running Adventure Tracker worker. Session, instance, boss
+and flight tickers may update their already-visible text or progress only.

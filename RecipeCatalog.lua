@@ -99,11 +99,13 @@ local function ParseCatalog()
                     itemID = tonumber(itemID),
                     quantity = tonumber(quantity),
                 }
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
             local list = catalogByProfession[professionIndex]
             if not list then list = {}; catalogByProfession[professionIndex] = list end
             list[#list + 1] = entry
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return catalogByProfession
 end
@@ -144,11 +146,15 @@ local function Names(entity, ids, limit)
                 seen[name] = true
                 values[#values + 1] = name
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
-    table.sort(values)
+    ns.BudgetedSort(values, function(a, b) return a < b end)
     local total = #values
-    while #values > (limit or 3) do table.remove(values) end
+    while #values > (limit or 3) do
+        values[#values] = nil
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
     local text = table.concat(values, ", ")
     if total > #values then text = text .. string.format(" +%d more", total - #values) end
     return text, total
@@ -160,6 +166,7 @@ local function SpawnsHere(entity, id, areaID)
     if type(spawns) ~= "table" then return false end
     for zoneID in pairs(spawns) do
         if tonumber(zoneID) == tonumber(areaID) then return true end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return false
 end
@@ -168,6 +175,7 @@ local function AnySpawnHere(entity, ids, areaID)
     if type(ids) ~= "table" then return false end
     for _, id in pairs(ids) do
         if SpawnsHere(entity, id, areaID) then return true end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return false
 end
@@ -177,6 +185,7 @@ local function LocalSpawnIDs(entity, ids, areaID)
     local localIDs = {}
     for _, id in pairs(ids) do
         if SpawnsHere(entity, id, areaID) then localIDs[#localIDs + 1] = id end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return #localIDs > 0 and localIDs or ids
 end
@@ -202,12 +211,17 @@ local function SpawnZoneName(entity, ids, preferredAreaID)
             for areaID in pairs(spawns) do
                 local name = AreaName(areaID)
                 if name then names[name] = true end
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local ordered = {}
-    for name in pairs(names) do ordered[#ordered + 1] = name end
-    table.sort(ordered)
+    for name in pairs(names) do
+        ordered[#ordered + 1] = name
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+    ns.BudgetedSort(ordered, function(a, b) return a < b end)
     return ordered[1]
 end
 
@@ -219,6 +233,7 @@ local function ReasonableDrops(npcDB, ids)
         id = tonumber(id)
         local minimum = id and tonumber(ns.QuestData.Value(npcDB, "minLevel", id)) or nil
         if id and (not minimum or minimum <= playerLevel + 7) then result[#result + 1] = id end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return #result > 0 and result or nil
 end
@@ -284,6 +299,7 @@ local function BestSourceForItem(itemID, areaID, ignoreInventory)
                 and ns.QuestData.RequirementsMet(questDB, questID) then
                 available[#available + 1] = questID
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
         local questNames, questCount = Names(questDB, available, 2)
         if questCount > 0 then
@@ -315,6 +331,7 @@ RecipeSource = function(entry, areaID)
     for index = 1, #(itemIDs or {}) do
         local source = BestSourceForItem(itemIDs[index], areaID)
         if source and (not best or source.score > best.score) then best = source end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return best
 end
@@ -326,6 +343,7 @@ local function LearnedSpells(profession)
     local learned = {}
     for _, recipe in pairs(cache.recipes) do
         if recipe.recipeID then learned[tonumber(recipe.recipeID)] = true end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return learned, cache
 end
@@ -343,7 +361,10 @@ local function ToggleExpanded(profession)
     local source = ns.Get("professionRecipeCatalogExpandedByCharacter")
     local copy = {}
     if type(source) == "table" then
-        for key, value in pairs(source) do copy[key] = value end
+        for key, value in pairs(source) do
+            copy[key] = value
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
     end
     local key = ExpansionKey(profession)
     copy[key] = not (copy[key] == true)
@@ -370,8 +391,10 @@ local function CrossProfessionSynergy(profession, professions)
                         recipe = recipe,
                     }
                 end
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     local best
     for _, recipe in pairs(consumer.recipes) do
@@ -385,8 +408,10 @@ local function CrossProfessionSynergy(profession, professions)
                         best = { score = score, consumer = recipe, producer = producer, reagent = reagent, missing = missing }
                     end
                 end
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if not best then return nil end
     local reagentName = ItemName(best.reagent.itemID)
@@ -461,8 +486,9 @@ local function CatalogCandidates(profession, mapID)
                 end
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    table.sort(candidates, function(a, b)
+    ns.BudgetedSort(candidates, function(a, b)
         if a.score ~= b.score then return a.score > b.score end
         return ItemName(a.entry.productID) < ItemName(b.entry.productID)
     end)
@@ -496,7 +522,10 @@ function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
             onClick = function() ToggleExpanded(profession) end,
         }
         if expanded then
-            for index = 2, #candidates do rows[#rows + 1] = CandidateRow(candidates[index], 1) end
+            for index = 2, #candidates do
+                rows[#rows + 1] = CandidateRow(candidates[index], 1)
+                if ns.YieldForBudget then ns.YieldForBudget() end
+            end
         end
     end
 end

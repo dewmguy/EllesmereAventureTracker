@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.9.0 - 2026-11-27
+
+- Rebuilt the runtime around one shared 0.35 ms frame-work budget. Provider
+  builds, inventory signatures, trainer and profession scans, Questie indexing,
+  large sorts and tracker rendering now yield at safe record boundaries and
+  continue on later frames instead of monopolizing WoW's render thread.
+- Separated provider computation from presentation. `BuildSnapshot` only
+  composes committed cached results; it can no longer synchronously invoke a
+  dirty provider while the pane is rendering.
+- Replaced the immediate monolithic refresh with a coalescing budgeted render.
+  Old frames remain visible while a structural update is applied, then unused
+  pooled elements are hidden after the new layout is complete.
+- Added keyed in-place presentation updates for stable provider results. If row,
+  section and status structure is unchanged, labels, details, progress, states,
+  tooltips and alert styling update without rebuilding or resizing the pane.
+- Replaced one full QuestieDB quest scan per visited zone with a shared,
+  time-sliced area index built in one pass. The index is published atomically so
+  a failed cold build cannot expose partial results or strand another provider.
+- Moved merchant buyback capture, bag-signature comparison, class/profession
+  trainer capture and profession-window recipe capture out of event callbacks
+  and into the shared scheduler. Their frequent events now only enqueue and
+  coalesce work.
+- Removed broad live profession enumeration from the Well Fed provider. Crafted
+  food recommendations use the shipped Cooking catalogue plus the durable
+  learned-recipe cache populated from the profession window.
+- Made the scheduler sleep when all remaining jobs are combat-gated and wake on
+  combat exit, preventing a hidden per-frame retry loop.
+- Expanded `/at profile report` with budgeted task names and
+  `runtime-overrun:<task>` metrics for any individual coroutine resume that
+  exceeds the frame slice.
+
 ## 0.8.10 - 2026-11-27
 
 - Filtered `UNIT_AURA` deltas against the exact readiness and world-buff spell

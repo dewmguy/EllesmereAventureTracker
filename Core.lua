@@ -531,6 +531,7 @@ local providersByID = {}
 local profileMetrics = {}
 local timedProviderTimer
 local timedProviderDeadline
+local providerRuntimeActive = false
 
 local function ProfileNow()
     return debugprofilestop and debugprofilestop() or nil
@@ -540,7 +541,11 @@ function ns.RecordProfileMetric(id, startedAt, reason, examined)
     if ns.Get("debugProfiling") ~= true or not startedAt then return end
     local finishedAt = ProfileNow()
     if not finishedAt then return end
-    local elapsed = math.max(0, finishedAt - startedAt)
+    ns.RecordProfileDuration(id, math.max(0, finishedAt - startedAt), reason, examined)
+end
+
+function ns.RecordProfileDuration(id, elapsed, reason, examined)
+    if ns.Get("debugProfiling") ~= true or type(elapsed) ~= "number" then return end
     local metric = profileMetrics[id]
     if not metric then
         metric = { count = 0, total = 0, maximum = 0 }
@@ -561,6 +566,172 @@ end
 
 function ns.ResetProfileMetrics()
     wipe(profileMetrics)
+end
+
+-- WoW executes addon Lua on the render thread. All potentially repeated work
+-- therefore shares one deliberately small frame budget. Work functions may
+-- call ns.YieldForBudget() at safe boundaries; the scheduler resumes them on a
+-- later frame instead of allowing an event burst to monopolize a frame.
+local RUNTIME_FRAME_BUDGET_MS = 0.35
+local workQueue, workByKey = {}, {}
+local activeWork, activeSliceStartedAt
+local worker = CreateFrame("Frame")
+worker:Hide()
+
+local function RuntimeNow()
+    return debugprofilestop and debugprofilestop() or 0
+end
+
+function ns.YieldForBudget(force)
+    if not activeWork or not activeSliceStartedAt then return false end
+    if not force and RuntimeNow() - activeSliceStartedAt < RUNTIME_FRAME_BUDGET_MS then return false end
+    coroutine.yield("frame-budget")
+    return true
+end
+
+local function ReportWorkError(entry, message)
+    if entry and type(entry.onError) == "function" then
+        entry.onError(message)
+        return
+    end
+    local handler = geterrorhandler and geterrorhandler()
+    if type(handler) == "function" then handler(message) end
+end
+
+local function EnqueueWorkEntry(entry)
+    workByKey[entry.key] = entry
+    workQueue[#workQueue + 1] = entry
+    worker:Show()
+end
+
+function ns.QueueBudgetedWork(key, work, onComplete, canRun, onError)
+    if type(key) ~= "string" or type(work) ~= "function" then return false end
+    local existing = workByKey[key]
+    if existing then
+        if not existing.thread then
+            existing.work = work
+            existing.onComplete = onComplete
+            existing.canRun = canRun
+            existing.onError = onError
+            return true
+        end
+        -- Coalesce arbitrarily many requests into one latest rerun. The active
+        -- coroutine is allowed to finish so it cannot leave a half-applied UI.
+        existing.rerun = {
+            key = key, work = work, onComplete = onComplete,
+            canRun = canRun, onError = onError,
+        }
+        return true
+    end
+    EnqueueWorkEntry({
+        key = key, work = work, onComplete = onComplete,
+        canRun = canRun, onError = onError,
+    })
+    return true
+end
+
+function ns.WakeBudgetedWork()
+    if #workQueue > 0 then worker:Show() end
+end
+
+worker:SetScript("OnUpdate", function(self)
+    if #workQueue == 0 then self:Hide(); return end
+    activeSliceStartedAt = RuntimeNow()
+    local deferred = 0
+    while #workQueue > 0 and RuntimeNow() - activeSliceStartedAt < RUNTIME_FRAME_BUDGET_MS do
+        local entry = table.remove(workQueue, 1)
+        local runnable = type(entry.canRun) ~= "function" or entry.canRun() ~= false
+        if not runnable then
+            workQueue[#workQueue + 1] = entry
+            deferred = deferred + 1
+            if deferred >= #workQueue then
+                -- Every queued task is currently gated (normally by combat).
+                -- Stop polling every frame; the matching state event wakes us.
+                self:Hide()
+                break
+            end
+        else
+            deferred = 0
+            if not entry.thread then entry.thread = coroutine.create(entry.work) end
+            activeWork = entry
+            local callStartedAt = RuntimeNow()
+            local resumed = { coroutine.resume(entry.thread) }
+            local callElapsed = RuntimeNow() - callStartedAt
+            entry.activeElapsed = (entry.activeElapsed or 0) + callElapsed
+            activeWork = nil
+            if callElapsed > RUNTIME_FRAME_BUDGET_MS and ns.RecordProfileDuration then
+                ns.RecordProfileDuration("runtime-overrun:" .. entry.key,
+                    callElapsed, "single resume exceeded frame budget")
+            end
+            local ok = table.remove(resumed, 1)
+            if not ok then
+                workByKey[entry.key] = nil
+                if entry.rerun then EnqueueWorkEntry(entry.rerun) end
+                ReportWorkError(entry, resumed[1])
+            elseif coroutine.status(entry.thread) == "dead" then
+                workByKey[entry.key] = nil
+                -- Publish a coalesced rerun before invoking completion code. If
+                -- that callback requests the same key, it updates this pending
+                -- rerun instead of creating an orphaned duplicate queue entry.
+                if entry.rerun then EnqueueWorkEntry(entry.rerun) end
+                ns.RecordProfileDuration(entry.key, entry.activeElapsed or 0, "budgeted work")
+                if type(entry.onComplete) == "function" then
+                    entry.onComplete(unpack(resumed))
+                end
+            else
+                workQueue[#workQueue + 1] = entry
+                -- Yielding means this work consumed its slice. Never resume it
+                -- twice in the same frame even if the timer granularity rounds
+                -- the measured duration down.
+                break
+            end
+        end
+    end
+    activeWork = nil
+    activeSliceStartedAt = nil
+    if #workQueue == 0 then self:Hide() end
+end)
+
+function ns.GetRuntimeFrameBudget()
+    return RUNTIME_FRAME_BUDGET_MS
+end
+
+-- Lua's table.sort is a single C call and cannot yield. Providers use this
+-- bottom-up merge sort for potentially variable result sets so comparison and
+-- allocation work remains inside the shared frame budget.
+function ns.BudgetedSort(values, less)
+    if type(values) ~= "table" or #values < 2 or type(less) ~= "function" then return values end
+    local count, width = #values, 1
+    local source, target = values, {}
+    while width < count do
+        local left = 1
+        while left <= count do
+            local middle = math.min(left + width, count + 1)
+            local right = math.min(left + width * 2, count + 1)
+            local a, b = left, middle
+            for index = left, right - 1 do
+                if a < middle and (b >= right or not less(source[b], source[a])) then
+                    target[index] = source[a]
+                    a = a + 1
+                else
+                    target[index] = source[b]
+                    b = b + 1
+                end
+                ns.YieldForBudget()
+            end
+            left = right
+        end
+        source, target = target, source
+        width = width * 2
+        ns.YieldForBudget()
+    end
+    if source ~= values then
+        for index = 1, count do
+            values[index] = source[index]
+            ns.YieldForBudget()
+        end
+    end
+    return values
 end
 
 -- Aura events cover applications, removals and stack changes. The only timed
@@ -606,6 +777,8 @@ function ns.RegisterProvider(id, order, build, options)
         combatSafe = type(options) == "table" and options.combatSafe == true,
         dirty = true,
         invalidationReason = "registration",
+        generation = 1,
+        queued = false,
     }
     providers[#providers + 1] = provider
     providersByID[id] = provider
@@ -614,6 +787,53 @@ function ns.RegisterProvider(id, order, build, options)
         return a.order < b.order
     end)
     return true
+end
+
+local QueueProvider
+
+QueueProvider = function(provider)
+    if not providerRuntimeActive or not provider or not provider.dirty or provider.queued then return end
+    provider.queued = true
+    local executionGeneration
+    ns.QueueBudgetedWork("provider:" .. provider.id, function()
+        -- Capture at execution time so login/zone event bursts coalesce before
+        -- a cold provider starts instead of forcing a guaranteed stale pass.
+        local generation = provider.generation
+        executionGeneration = generation
+        local reason = provider.invalidationReason
+        local result = provider.build(reason)
+        return result, generation
+    end, function(result, builtGeneration)
+        provider.queued = false
+        if provider.generation == builtGeneration and type(result) == "table" then
+            local previous = provider.lastResult
+            provider.lastResult = result
+            provider.dirty = false
+            if ns.QueueProviderPresentation then
+                ns.QueueProviderPresentation(provider.id, previous, result)
+            elseif ns.RequestRender then
+                ns.RequestRender("provider committed: " .. provider.id)
+            end
+        elseif provider.dirty then
+            QueueProvider(provider)
+        end
+    end, function()
+        return provider.combatSafe or not IsCombatRestricted()
+    end, function(message)
+        provider.queued = false
+        if provider.generation == executionGeneration then
+            provider.dirty = false
+        else
+            QueueProvider(provider)
+        end
+        ReportWorkError(nil, message)
+    end)
+end
+
+function ns.ActivateProviderRuntime()
+    if providerRuntimeActive then return end
+    providerRuntimeActive = true
+    for index = 1, #providers do QueueProvider(providers[index]) end
 end
 
 function ns.InvalidateProvider(id, reason)
@@ -629,6 +849,8 @@ function ns.InvalidateProvider(id, reason)
     end
     provider.dirty = true
     provider.invalidationReason = reason
+    provider.generation = (provider.generation or 0) + 1
+    QueueProvider(provider)
     return true
 end
 
@@ -644,8 +866,7 @@ end
 
 function ns.InvalidateAllProviders(reason)
     for index = 1, #providers do
-        providers[index].dirty = true
-        providers[index].invalidationReason = reason or "all"
+        ns.InvalidateProvider(providers[index].id, reason or "all")
     end
 end
 
@@ -653,17 +874,20 @@ local function AppendProviderResult(snapshot, result)
     if type(result) ~= "table" then return end
     local sections = result.id and { result } or result
     for j = 1, #sections do
+        if ns.YieldForBudget then ns.YieldForBudget() end
         local section = sections[j]
         if type(section) == "table" and section.id then
             snapshot.sections[#snapshot.sections + 1] = section
             if section.forceVisible then snapshot.forceVisible = true end
             if type(section.statuses) == "table" then
                 for k = 1, #section.statuses do
+                    if ns.YieldForBudget then ns.YieldForBudget() end
                     snapshot.statuses[#snapshot.statuses + 1] = section.statuses[k]
                 end
             end
             if type(section.rows) == "table" then
                 for k = 1, #section.rows do
+                    if ns.YieldForBudget then ns.YieldForBudget() end
                     local state = section.rows[k].state
                     if state == "missing" or state == "warning" then snapshot.actionable = true end
                 end
@@ -677,29 +901,12 @@ function ns.BuildSnapshot()
     -- can receive nil or unreadable values in combat even when the state is
     -- still active. Keep each provider's last trustworthy out-of-combat result;
     -- only providers that explicitly opt in may rebuild while combat restricted.
-    local profileStart = ProfileNow()
-    local combatRestricted = IsCombatRestricted()
     local snapshot = { sections = {}, statuses = {}, actionable = false, forceVisible = false }
     for i = 1, #providers do
+        if ns.YieldForBudget then ns.YieldForBudget() end
         local provider = providers[i]
-        local result = provider.lastResult
-        if provider.dirty and (not combatRestricted or provider.combatSafe) then
-            local providerStart = ProfileNow()
-            local invalidationReason = provider.invalidationReason
-            local ok, built = xpcall(function()
-                return provider.build(invalidationReason)
-            end, geterrorhandler())
-            if ok and type(built) == "table" then
-                result = built
-                provider.lastResult = built
-                provider.dirty = false
-            end
-            ns.RecordProfileMetric("provider:" .. provider.id, providerStart,
-                provider.invalidationReason)
-        end
-        AppendProviderResult(snapshot, result)
+        AppendProviderResult(snapshot, provider.lastResult)
     end
-    ns.RecordProfileMetric("BuildSnapshot", profileStart, "render")
     return snapshot
 end
 

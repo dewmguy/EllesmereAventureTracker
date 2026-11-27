@@ -5,6 +5,7 @@ local _, ns = ...
 
 local QUEST_ICON = 134400
 local candidateCache = {}
+local candidateIndexOwner
 local zoneResultCache = {}
 local questStateRevision = 0
 local reverseMap, reverseOverride, questXP
@@ -143,6 +144,7 @@ local function VisitedZones()
                 }
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return result
 end
@@ -200,6 +202,7 @@ local function VisitedAreaSet()
                     or tonumber(key:sub(#prefix + 1))
                 if areaID then result[areaID] = true end
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
     return result
@@ -255,6 +258,7 @@ local function QuestMatchesCharacter(data, questDB, questID, visited, playerLeve
             specialRequirement = true
             break
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if specialRequirement and not data.RequirementsMet(questDB, questID) then return false end
 
@@ -278,6 +282,7 @@ local function ObjectiveItemCount(data, questDB, questID, itemID)
         if type(objective) == "table" and tonumber(objective[1]) == itemID then
             required = math.max(required or 0, tonumber(objective[3]) or 1)
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return required
 end
@@ -307,9 +312,10 @@ local function FutureItemCandidate(itemID, questDB, itemDB)
                 required = math.max(required, count)
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if #quests == 0 then return nil end
-    table.sort(quests, function(a, b)
+    ns.BudgetedSort(quests, function(a, b)
         if a.level ~= b.level then return a.level < b.level end
         return a.name < b.name
     end)
@@ -359,6 +365,7 @@ local function ReadBuybackSnapshot()
                 signature = string.format("%d:%d:%d", itemID, quantity, price),
             }
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return result
 end
@@ -415,6 +422,7 @@ local function ProcessBuybackUpdate()
             if sold and FutureItemCandidate(sold.itemID, questDB, itemDB) then
                 SetFutureItemActive(sold.itemID, sold.quantity)
             end
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
     if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "future quest item sold") end
@@ -423,7 +431,13 @@ end
 local function QueueBuybackUpdate()
     if buybackScanQueued then return end
     buybackScanQueued = true
-    C_Timer.After(0.05, ProcessBuybackUpdate)
+    C_Timer.After(0.05, function()
+        if ns.QueueBudgetedWork then
+            ns.QueueBudgetedWork("merchant-buyback-scan", ProcessBuybackUpdate)
+        else
+            ProcessBuybackUpdate()
+        end
+    end)
 end
 
 local function FindBuybackIndex(itemID)
@@ -516,33 +530,56 @@ local function FutureItemRows(questDB, itemDB)
                 changed = true
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if changed then ns.Set("futureQuestItemsByCharacter", active, true) end
-    table.sort(candidates, function(a, b) return a.name < b.name end)
+    ns.BudgetedSort(candidates, function(a, b) return a.name < b.name end)
 
     local rows = {}
     for index = 1, #candidates do
         local candidate = candidates[index]
         local buybackAvailable = FindBuybackIndex(candidate.itemID) ~= nil
         rows[#rows + 1] = FutureItemRow(candidate, buybackAvailable)
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return rows
 end
 
 local function CandidateIDs(questDB, areaID)
     local key = tostring(areaID)
-    if candidateCache[key] then return candidateCache[key] end
+    if candidateCache.__complete then return candidateCache[key] or {} end
+    while candidateIndexOwner and not candidateCache.__complete do
+        if coroutine.status(candidateIndexOwner) == "dead" then
+            -- A provider error cannot strand every future caller behind a stale
+            -- lock. The next live coroutine takes ownership and rebuilds.
+            candidateIndexOwner = nil
+            break
+        end
+        ns.YieldForBudget(true)
+    end
+    if candidateCache.__complete then return candidateCache[key] or {} end
+    candidateIndexOwner = coroutine.running()
+    -- Build into a private table and publish it atomically, so waiting providers
+    -- never observe a partially populated area index.
+    local buildingCache = {}
     local ids = type(questDB.GetAllIds) == "function" and questDB.GetAllIds() or {}
-    local candidates = {}
     for index = 1, #ids do
         local questID = ids[index]
-        if tonumber(ns.QuestData.Value(questDB, "zoneOrSort", questID)) == areaID then
-            candidates[#candidates + 1] = questID
+        local questAreaID = tonumber(ns.QuestData.Value(questDB, "zoneOrSort", questID))
+        if questAreaID then
+            local areaKey = tostring(questAreaID)
+            local bucket = buildingCache[areaKey]
+            if not bucket then bucket = {}; buildingCache[areaKey] = bucket end
+            bucket[#bucket + 1] = questID
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    candidateCache[key] = candidates
-    return candidates
+    buildingCache.__complete = true
+    candidateCache = buildingCache
+    candidateIndexOwner = nil
+    return candidateCache[key] or {}
 end
+ns.GetQuestCandidateIDs = CandidateIDs
 
 local function AuraApplications(spellID)
     if ns.IsCombatRestricted and ns.IsCombatRestricted() then return nil end
@@ -656,7 +693,6 @@ local function QuestRow(candidate)
 end
 
 local function CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
-    local profileStart = debugprofilestop and debugprofilestop() or nil
     local candidates, totalXP, totalMoney, moneyKnown = {}, 0, 0, false
     local ids = CandidateIDs(questDB, zone.areaID)
     for index = 1, #ids do
@@ -687,16 +723,13 @@ local function CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplie
                 }
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    table.sort(candidates, function(a, b)
+    ns.BudgetedSort(candidates, function(a, b)
         if a.score ~= b.score then return a.score > b.score end
         if a.questLevel ~= b.questLevel then return a.questLevel < b.questLevel end
         return a.name < b.name
     end)
-    if ns.RecordProfileMetric then
-        ns.RecordProfileMetric("CandidatesForZone", profileStart,
-            tostring(zone.areaID), #ids)
-    end
     return candidates, totalXP, totalMoney, moneyKnown
 end
 
@@ -764,9 +797,10 @@ local function Build()
             zone.moneyKnown = moneyKnown
             populated[#populated + 1] = zone
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if #populated == 0 and #rows == 0 then return {} end
-    table.sort(populated, function(a, b)
+    ns.BudgetedSort(populated, function(a, b)
         local aCurrent, bCurrent = a.areaID == currentAreaID, b.areaID == currentAreaID
         if aCurrent ~= bCurrent then return aCurrent end
         if a.lastVisited ~= b.lastVisited then return a.lastVisited > b.lastVisited end
@@ -793,8 +827,10 @@ local function Build()
         if expanded then
             for candidateIndex = 1, #zone.candidates do
                 rows[#rows + 1] = QuestRow(zone.candidates[candidateIndex])
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end
+        if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return {
         id = "zone-quests",
@@ -822,9 +858,16 @@ events:SetScript("OnEvent", function(_, event, ...)
         buybackSnapshot = {}
         C_Timer.After(0, function()
             if not merchantOpen then return end
-            buybackSnapshot = ReadBuybackSnapshot()
-            merchantInitialized = true
-            if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "merchant opened") end
+            if ns.QueueBudgetedWork then
+                ns.QueueBudgetedWork("merchant-initial-scan", function()
+                    return ReadBuybackSnapshot()
+                end, function(snapshot)
+                    if not merchantOpen then return end
+                    buybackSnapshot = snapshot
+                    merchantInitialized = true
+                    if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "merchant opened") end
+                end)
+            end
         end)
     elseif event == "MERCHANT_UPDATE" then
         QueueBuybackUpdate()
@@ -833,6 +876,7 @@ events:SetScript("OnEvent", function(_, event, ...)
         buybackSnapshot = {}
     elseif event == "ADDON_LOADED" and (...) == "QuestieDB" then
         candidateCache, reverseMap, reverseOverride, questXP = {}, nil, nil, nil
+        candidateIndexOwner = nil
         zoneResultCache = {}
         questStateRevision = questStateRevision + 1
     elseif event == "ZONE_CHANGED_NEW_AREA" or event == "PLAYER_ENTERING_WORLD"
