@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.1 establishes the addon structure and a playable first pass:
+Version 0.3.2 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -36,8 +36,8 @@ Version 0.3.1 establishes the addon structure and a playable first pass:
 - combat-safe state retention so restricted aura reads do not become false
   missing-buff warnings;
 - a role-aware Well Fed recommendation that prefers suitable food already in
-  the bags, can eat that exact item when clicked, then falls back to a supported
-  learned Cooking recipe;
+  the bags, can eat that exact item through a secure out-of-combat hardware
+  click, then falls back to a supported learned Cooking recipe;
 - Camp Benefits equivalence for Incense Candle/Intellect and First Aid
   Kit/Fortitude;
 - an explicit per-character activity role because Forever does not reliably
@@ -148,9 +148,13 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `Data/CookingFoods.lua` — Cooking recipe/output discovery seeds
 - `Tracker.lua` — floating tracker window
 - `Options.lua` — supported EllesmereUI plugin settings integration
+- `docs/API_RESTRICTIONS.md` — protected-action and combat-data rules
 
 The addon uses EllesmereUI's public plugin and skinning APIs. It does not edit
 or hook EllesmereUI vendor files.
 
 Third-party data sources and retained notices are recorded in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+Protected actions, combat-sensitive reads and their supported implementation
+patterns are recorded in [`docs/API_RESTRICTIONS.md`](docs/API_RESTRICTIONS.md).

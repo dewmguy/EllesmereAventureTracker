@@ -98,8 +98,8 @@ local iconPool, sectionPool, rowPool = {}, {}, {}
 local skin
 local UpdateLockFade
 local RegisterDragSurface
-local HideSecureCastButtons
-local QueueSecureCastSync
+local HideSecureActionButtons
+local QueueSecureActionSync
 local HasUnlockAnchor
 
 local function ColorValue(key)
@@ -194,37 +194,39 @@ local function ShowTooltip(owner, data)
         if ok and handled then return end
     end
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    local spellTooltip = false
+    local actionTooltip = false
     if data.spellID then
         if GameTooltip.SetSpellByID then
-            spellTooltip = pcall(GameTooltip.SetSpellByID, GameTooltip, data.spellID)
+            actionTooltip = pcall(GameTooltip.SetSpellByID, GameTooltip, data.spellID)
         elseif GameTooltip.SetHyperlink then
-            spellTooltip = pcall(GameTooltip.SetHyperlink, GameTooltip, "spell:" .. tostring(data.spellID))
+            actionTooltip = pcall(GameTooltip.SetHyperlink, GameTooltip, "spell:" .. tostring(data.spellID))
         end
+    elseif data.secureItemID and GameTooltip.SetHyperlink then
+        actionTooltip = pcall(GameTooltip.SetHyperlink, GameTooltip, "item:" .. tostring(data.secureItemID))
     end
-    if not spellTooltip then GameTooltip:SetText(data.label or "Adventure Tracker") end
+    if not actionTooltip then GameTooltip:SetText(data.label or "Adventure Tracker") end
     local detail = data.tooltip or data.detail
     if detail and detail ~= "" then
-        if spellTooltip then GameTooltip:AddLine(" ") end
+        if actionTooltip then GameTooltip:AddLine(" ") end
         GameTooltip:AddLine(detail, 1, 1, 1, true)
     end
     local clickHint = data.onClick and (data.clickHint or "Click to open.")
-        or (owner._secureSpellAction and data.secureClickHint)
+        or (owner._secureAction and data.secureClickHint)
     if clickHint then GameTooltip:AddLine(clickHint, 0.55, 0.82, 1) end
     GameTooltip:Show()
 end
 
-local secureCastPool = {}
-local secureCastSyncQueued = false
+local secureActionPool = {}
+local secureActionSyncQueued = false
 
-local function AcquireSecureCastButton(index)
-    local button = secureCastPool[index]
+local function AcquireSecureActionButton(index)
+    local button = secureActionPool[index]
     if button then return button end
     button = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate")
     button:SetFrameStrata("MEDIUM")
     button:SetFrameLevel(frame:GetFrameLevel() + 40)
     button:RegisterForClicks("LeftButtonUp")
-    button._secureSpellAction = true
+    button._secureAction = true
     button:SetScript("OnEnter", function(self)
         if UpdateLockFade then UpdateLockFade(true) end
         if self.data then ShowTooltip(self, self.data) end
@@ -237,21 +239,22 @@ local function AcquireSecureCastButton(index)
         if ns.RequestRefresh then C_Timer.After(0.1, ns.RequestRefresh) end
     end)
     button:Hide()
-    secureCastPool[index] = button
+    secureActionPool[index] = button
     return button
 end
 
-local function DeactivateSecureCastButton(button)
+local function DeactivateSecureActionButton(button)
     if not button then return end
     if UnregisterStateDriver then pcall(UnregisterStateDriver, button, "visibility") end
     button:SetAttribute("type", nil)
     button:SetAttribute("spell", nil)
+    button:SetAttribute("item", nil)
     button:SetAttribute("unit", nil)
     button.data = nil
     button:Hide()
 end
 
-local function PositionSecureCastButton(button, owner)
+local function PositionSecureActionButton(button, owner)
     if HasUnlockAnchor and HasUnlockAnchor() then return false end
     if not (frame:IsShown() and scrollFrame:IsShown() and owner and owner:IsShown()) then return false end
     local left, right, top, bottom = owner:GetLeft(), owner:GetRight(), owner:GetTop(), owner:GetBottom()
@@ -268,37 +271,64 @@ local function PositionSecureCastButton(button, owner)
     return true
 end
 
-HideSecureCastButtons = function()
+HideSecureActionButtons = function()
     if InCombatLockdown and InCombatLockdown() then return end
-    for index = 1, #secureCastPool do DeactivateSecureCastButton(secureCastPool[index]) end
+    for index = 1, #secureActionPool do DeactivateSecureActionButton(secureActionPool[index]) end
 end
 
-local function SyncSecureCastButtons()
-    secureCastSyncQueued = false
+local function HasSecureAction(data)
+    return data and ((data.castSpellID and data.castSpellName) or data.secureItemID)
+end
+
+local function ConfigureSecureAction(index, owner, data)
+    local button = AcquireSecureActionButton(index)
+    if not PositionSecureActionButton(button, owner) then
+        DeactivateSecureActionButton(button)
+        return
+    end
+    if UnregisterStateDriver then pcall(UnregisterStateDriver, button, "visibility") end
+    button.data = data
+    if data.secureItemID then
+        button:SetAttribute("type", "item")
+        button:SetAttribute("item", "item:" .. tostring(data.secureItemID))
+        button:SetAttribute("spell", nil)
+        button:SetAttribute("unit", nil)
+    else
+        button:SetAttribute("type", "spell")
+        button:SetAttribute("spell", data.castSpellName)
+        button:SetAttribute("item", nil)
+        button:SetAttribute("unit", data.castUnit or "player")
+    end
+    local registered = RegisterStateDriver
+        and pcall(RegisterStateDriver, button, "visibility", "[combat] hide; show")
+    if not registered then button:Show() end
+end
+
+local function SyncSecureActionButtons()
+    secureActionSyncQueued = false
     if InCombatLockdown and InCombatLockdown() then return end
-    for index = 1, math.max(#iconPool, #secureCastPool) do
-        local owner = iconPool[index]
-        local data = owner and owner.data
-        if data and data.castSpellID and data.castSpellName and PositionSecureCastButton(AcquireSecureCastButton(index), owner) then
-            local button = secureCastPool[index]
-            if UnregisterStateDriver then pcall(UnregisterStateDriver, button, "visibility") end
-            button.data = data
-            button:SetAttribute("type", "spell")
-            button:SetAttribute("spell", data.castSpellName)
-            button:SetAttribute("unit", data.castUnit or "player")
-            local registered = RegisterStateDriver
-                and pcall(RegisterStateDriver, button, "visibility", "[combat] hide; show")
-            if not registered then button:Show() end
-        elseif secureCastPool[index] then
-            DeactivateSecureCastButton(secureCastPool[index])
+    local actionIndex = 0
+    local function SyncPool(pool)
+        for ownerIndex = 1, #pool do
+            local owner = pool[ownerIndex]
+            local data = owner and owner.data
+            if HasSecureAction(data) then
+                actionIndex = actionIndex + 1
+                ConfigureSecureAction(actionIndex, owner, data)
+            end
         end
+    end
+    SyncPool(iconPool)
+    SyncPool(rowPool)
+    for index = actionIndex + 1, #secureActionPool do
+        DeactivateSecureActionButton(secureActionPool[index])
     end
 end
 
-QueueSecureCastSync = function()
-    if secureCastSyncQueued or (InCombatLockdown and InCombatLockdown()) then return end
-    secureCastSyncQueued = true
-    C_Timer.After(0, SyncSecureCastButtons)
+QueueSecureActionSync = function()
+    if secureActionSyncQueued or (InCombatLockdown and InCombatLockdown()) then return end
+    secureActionSyncQueued = true
+    C_Timer.After(0, SyncSecureActionButtons)
 end
 
 local function AcquireIcon(index)
@@ -632,7 +662,7 @@ end
 
 local function SetScroll(value)
     scrollFrame:SetVerticalScroll(Clamp(value, 0, MaximumScroll(), 0))
-    if QueueSecureCastSync then QueueSecureCastSync() end
+    if QueueSecureActionSync then QueueSecureActionSync() end
 end
 
 scrollFrame:SetScript("OnMouseWheel", function(self, delta)
@@ -890,7 +920,7 @@ end
 
 local function BeginTrackerDrag(surface)
     if ns.Get("locked") or HasUnlockAnchor() then return end
-    if HideSecureCastButtons then HideSecureCastButtons() end
+    if HideSecureActionButtons then HideSecureActionButtons() end
     surface._trackerDragged = true
     GameTooltip_Hide()
     frame:StartMoving()
@@ -902,7 +932,7 @@ local function EndTrackerDrag(surface)
     ApplyGrowthAnchor()
     SavePosition()
     if ns.RequestRefresh then ns.RequestRefresh() end
-    if QueueSecureCastSync then QueueSecureCastSync() end
+    if QueueSecureActionSync then QueueSecureActionSync() end
     C_Timer.After(0, function() surface._trackerDragged = nil end)
 end
 
@@ -981,7 +1011,7 @@ function ns.RefreshTrackerContextText()
 end
 
 local function Render()
-    if HideSecureCastButtons then HideSecureCastButtons() end
+    if HideSecureActionButtons then HideSecureActionButtons() end
     HidePools()
     SetAttention(collapseButton, nil)
     if not BaseVisibilityAllows() then frame:Hide(); return end
@@ -1119,7 +1149,7 @@ local function Render()
     scrollFrame:SetHeight(viewportHeight)
     frame:SetHeight(ChromeHeight() + viewportHeight)
     SetScroll(scrollFrame:GetVerticalScroll())
-    if QueueSecureCastSync then QueueSecureCastSync() end
+    if QueueSecureActionSync then QueueSecureActionSync() end
     UpdateLockFade()
 end
 
@@ -1185,7 +1215,7 @@ local function RegisterUnlockElement()
                 x = x or 0, y = y or 0,
             }, true)
             if ns.RequestRefresh then ns.RequestRefresh() end
-            if QueueSecureCastSync then QueueSecureCastSync() end
+            if QueueSecureActionSync then QueueSecureActionSync() end
         end,
         loadPos = function()
             local position = ns.Get("position")
@@ -1204,12 +1234,12 @@ local function RegisterUnlockElement()
             }, true)
             SetPosition()
             if ns.RequestRefresh then ns.RequestRefresh() end
-            if QueueSecureCastSync then QueueSecureCastSync() end
+            if QueueSecureActionSync then QueueSecureActionSync() end
         end,
         applyPos = function()
             SetPosition()
             if ns.RequestRefresh then ns.RequestRefresh() end
-            if QueueSecureCastSync then QueueSecureCastSync() end
+            if QueueSecureActionSync then QueueSecureActionSync() end
         end,
     }) }, ADDON_NAME)
     unlockRegistered = true
@@ -1243,7 +1273,7 @@ events:SetScript("OnEvent", function(_, event, ...)
     if (event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE") and ns.ScanProfessionRecipes then
         ns.ScanProfessionRecipes()
     end
-    if event == "PLAYER_REGEN_ENABLED" and HideSecureCastButtons then HideSecureCastButtons() end
+    if event == "PLAYER_REGEN_ENABLED" and HideSecureActionButtons then HideSecureActionButtons() end
     if event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" then
         if ns.ScanClassTrainer then ns.ScanClassTrainer() end
         if ns.ScanProfessionTrainer then ns.ScanProfessionTrainer() end

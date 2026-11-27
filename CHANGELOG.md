@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2 - 2026-11-26
+
+- Replaced the blocked direct food-use API call with out-of-combat secure item
+  actions over both the Well Fed icon and its recommendation row.
+- Generalized the existing secure spell overlay so item and spell actions share
+  the same combat-safe synchronization and state-driver behavior.
+- Added `docs/API_RESTRICTIONS.md` to record protected actions, combat-sensitive
+  reads, safe alternatives and the required in-game test checklist.
+
 ## 0.3.1 - 2026-11-26
 
 - Added an option that lets the tracker use all safe viewport height available
