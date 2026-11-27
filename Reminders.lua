@@ -227,25 +227,58 @@ local function IsTalentButton(button)
     return button and (button == _G.PlayerSpellsMicroButton or button == _G.TalentMicroButton)
 end
 
-local function HideTalentAlert(button)
+local function IsUnspentTalentAlert(text)
+    if type(text) ~= "string" then return false end
+    local localized = _G.TALENT_MICRO_BUTTON_UNSPENT_TALENTS
+    return (type(localized) == "string" and text == localized)
+        or text == "You have unspent Talent points."
+end
+
+local function StopTalentPulse(button)
+    if not button then return end
+    C_Timer.After(0, function()
+        if MicroButtonPulseStop then pcall(MicroButtonPulseStop, button) end
+    end)
+end
+
+local function HideTalentAlert(button, text, force)
     if not ns.Get("hideBlizzardTalentReminder") or not IsTalentButton(button) then return end
-    local alert = _G.MainMenuMicroButtonAlert
-    if alert then alert:Hide() end
-    if button.alert then button.alert:Hide() end
+    if not force and not IsUnspentTalentAlert(text) then return end
+
+    -- Current Forever/Mainline alerts are HelpTips tracked by the microbutton
+    -- manager. Older clients used named alert frames, so retain those fallbacks.
+    if type(_G.MainMenuMicroButton_HideAlert) == "function" then
+        pcall(_G.MainMenuMicroButton_HideAlert, button)
+    elseif HelpTip and HelpTip.HideAllSystem then
+        pcall(HelpTip.HideAllSystem, HelpTip, "MicroButtons")
+    end
+    local legacyAlerts = { _G.MainMenuMicroButtonAlert, _G.TalentMicroButtonAlert, button.alert }
+    for index = 1, 3 do
+        local alert = legacyAlerts[index]
+        if alert and alert.Hide then alert:Hide() end
+    end
+    StopTalentPulse(button)
 end
 
 function ns.ApplyTalentAlertSuppression()
     if not ns.Get("hideBlizzardTalentReminder") then return end
-    local alert = _G.MainMenuMicroButtonAlert
-    if not (alert and alert:IsShown()) then return end
-    local _, relativeTo = alert:GetPoint(1)
-    HideTalentAlert(relativeTo)
+    local button = _G.PlayerSpellsMicroButton or _G.TalentMicroButton
+    if not button then return end
+
+    -- Re-evaluating lets Blizzard identify the highest-priority Player Spells
+    -- alert. Our ShowAlert hook removes only the unspent-talent message.
+    if type(button.EvaluateAlertVisibility) == "function" then
+        pcall(button.EvaluateAlertVisibility, button)
+        return
+    end
+    local hasPoints = UnspentTalents()
+    if hasPoints then HideTalentAlert(button, nil, true) end
 end
 
 local alertHooked = false
 local function InstallAlertHook()
     if alertHooked or type(_G.MainMenuMicroButton_ShowAlert) ~= "function" or not hooksecurefunc then return end
-    hooksecurefunc("MainMenuMicroButton_ShowAlert", function(button) HideTalentAlert(button) end)
+    hooksecurefunc("MainMenuMicroButton_ShowAlert", function(button, text) HideTalentAlert(button, text, false) end)
     alertHooked = true
 end
 InstallAlertHook()

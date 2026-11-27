@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.10 - 2026-11-26
+
+- Fixed the Blizzard unspent-talent notification remaining visible on Forever's
+  current HelpTip-based microbutton UI.
+- The suppression now hides the active Player Spells HelpTip and stops its
+  pulsing button while matching only the unspent-talent message; unrelated
+  Player Spells and microbutton notifications remain available.
+- Retained fallbacks for older named talent-alert frames.
+
 ## 0.1.9 - 2026-11-26
 
 - Kept the faction Rend world buff visible when missing: Alliance characters
