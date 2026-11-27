@@ -166,8 +166,8 @@ local function BuildTracker(pageName, parent, yOffset)
         Toggle("showContext", "Show Zone, Class, Spec and Role", "Shows the current zone, class, specialization and selected activity role above the readiness icons."))
     y = y - h
     _, h = W:DualRow(parent, y,
-        Toggle("maximizePaneHeight", "Allow Full Viewport Height", "Allows content to use all safe screen space in the selected growth direction instead of the normal 75% screen-height limit. The pane's current position and any dynamic EllesmereUI anchor can reduce the available space."),
-        Dropdown("paneGrowthDirection", "Pane Growth Direction", { DOWN = "Down", UP = "Up" }, { "DOWN", "UP" }, "Keeps the pane's top edge fixed when growing down, or its bottom edge fixed when growing up."))
+        Toggle("maximizePaneHeight", "Allow Full Viewport Height", "Allows an unanchored pane to use all safe screen space in the selected growth direction instead of the normal 75% screen-height limit. A dynamic EllesmereUI anchor always uses the safe space between its fixed edge and the viewport."),
+        Dropdown("paneGrowthDirection", "Pane Growth Direction", { DOWN = "Down", UP = "Up" }, { "DOWN", "UP" }, "Keeps an unanchored pane's top edge fixed when growing down, or its bottom edge fixed when growing up. A vertical EllesmereUI anchor determines the anchored pane's growth edge."))
     y = y - h
 
     _, h = W:SectionHeader(parent, "VISIBILITY", y); y = y - h

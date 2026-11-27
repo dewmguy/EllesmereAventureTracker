@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.7 - 2026-11-26
+
+- Made a vertical EllesmereUI dynamic anchor authoritative over the tracker's
+  separate growth-direction setting, preventing a tracker anchored beneath the
+  Damage Meter from growing upward through its anchor.
+- Let dynamically anchored panes use the entire safe span from their fixed edge
+  to the viewport even when Full Viewport Height is disabled, removing the
+  arbitrary 75% screen-height gap while preserving scrolling and the bottom
+  viewport gutter.
+- Reapplied size-aware legacy anchors after tracker-height changes so their
+  linked edge stays fixed as content appears or collapses.
+
 ## 0.3.6 - 2026-11-26
 
 - Added a Main Pane Strata picker with every standard WoW frame-strata level,

@@ -748,32 +748,77 @@ local function GrowthDirection()
     return ns.Get("paneGrowthDirection") == "UP" and "UP" or "DOWN"
 end
 
-local function MaximumPanelHeight()
+local function AnchorVertical(point)
+    point = tostring(point or "CENTER"):upper()
+    if point:find("TOP", 1, true) then return "TOP" end
+    if point:find("BOTTOM", 1, true) then return "BOTTOM" end
+    return "CENTER"
+end
+
+local function UnlockAnchorInfo()
+    local db = _G.EllesmereUIDB
+    local info = db and db.unlockAnchors and db.unlockAnchors[UNLOCK_KEY]
+    return info and info.target and info or nil
+end
+
+-- A vertical EllesmereUI link owns the edge from which the tracker grows.  In
+-- particular, TOP -> BOTTOM must keep the tracker's top below its target even
+-- when the user selected upward growth for an otherwise free-floating pane.
+local function EffectiveGrowthDirection()
+    local info = UnlockAnchorInfo()
+    if info then
+        if info.mode == "POINT" then
+            local sourceEdge = AnchorVertical(info.sourcePoint)
+            if sourceEdge == "TOP" then return "DOWN" end
+            if sourceEdge == "BOTTOM" then return "UP" end
+        else
+            local targetEdge = AnchorVertical(info.side)
+            if targetEdge == "BOTTOM" then return "DOWN" end
+            if targetEdge == "TOP" then return "UP" end
+        end
+    end
+    return GrowthDirection()
+end
+
+local function AvailablePanelHeight()
     local frameScale = math.max(0.01, frame:GetEffectiveScale() or frame:GetScale() or 1)
     local parentScale = math.max(0.01, UIParent and UIParent:GetEffectiveScale() or 1)
     local scaleRatio = frameScale / parentScale
     local screenHeight = UIParent and UIParent:GetHeight() or 768
-    if ns.Get("maximizePaneHeight") ~= true then
-        return math.max(180, math.floor((screenHeight * 0.75) / scaleRatio))
-    end
-
     local screenTop = UIParent and UIParent:GetTop()
     local screenBottom = UIParent and UIParent:GetBottom()
     screenTop = screenTop or screenHeight
     screenBottom = screenBottom or 0
 
-    local fixedEdge = GrowthDirection() == "UP" and frame:GetBottom() or frame:GetTop()
-    if not fixedEdge then return math.max(180, math.floor(screenHeight / scaleRatio)) end
+    local growth = EffectiveGrowthDirection()
+    local fixedEdge = growth == "UP" and frame:GetBottom() or frame:GetTop()
+    if not fixedEdge then return math.max(48, math.floor(screenHeight / scaleRatio)) end
     fixedEdge = fixedEdge * scaleRatio
 
     local available
-    if GrowthDirection() == "UP" then
+    if growth == "UP" then
         available = screenTop - fixedEdge
     else
         available = fixedEdge - screenBottom
     end
     -- Leave a small viewport gutter so borders and shadows are never clipped.
     return math.max(48, math.floor((available - 4) / scaleRatio))
+end
+
+local function MaximumPanelHeight()
+    local available = AvailablePanelHeight()
+    -- A live unlock-mode anchor already imposes the meaningful height limit:
+    -- the space between its fixed edge and the viewport.  Applying the normal
+    -- 75% cap on top of that leaves an arbitrary gap at the far screen edge.
+    if UnlockAnchorInfo() or ns.Get("maximizePaneHeight") == true then
+        return available
+    end
+
+    local frameScale = math.max(0.01, frame:GetEffectiveScale() or frame:GetScale() or 1)
+    local parentScale = math.max(0.01, UIParent and UIParent:GetEffectiveScale() or 1)
+    local screenHeight = UIParent and UIParent:GetHeight() or 768
+    local normalLimit = math.floor((screenHeight * 0.75) / (frameScale / parentScale))
+    return math.max(48, math.min(normalLimit, available))
 end
 
 local function CollapsedHeight()
@@ -916,16 +961,7 @@ local function ApplyWindowStyle()
 end
 
 HasUnlockAnchor = function()
-    local db = _G.EllesmereUIDB
-    local info = db and db.unlockAnchors and db.unlockAnchors[UNLOCK_KEY]
-    return info and info.target and true or false
-end
-
-local function AnchorVertical(point)
-    point = tostring(point or "CENTER"):upper()
-    if point:find("TOP", 1, true) then return "TOP" end
-    if point:find("BOTTOM", 1, true) then return "BOTTOM" end
-    return "CENTER"
+    return UnlockAnchorInfo() and true or false
 end
 
 local function GrowthAnchorPoint(point)
@@ -936,6 +972,10 @@ local function GrowthAnchorPoint(point)
 end
 
 local function ApplyGrowthAnchor()
+    -- EllesmereUI's dynamic link is the position authority.  Rewriting its
+    -- source point here can invert a TOP -> BOTTOM link and grow through the
+    -- element the tracker was deliberately placed beneath.
+    if HasUnlockAnchor() then return false end
     local point, relativeTo, relativePoint, x, y = frame:GetPoint(1)
     if not point then return false end
     local desiredPoint = GrowthAnchorPoint(point)
@@ -965,7 +1005,6 @@ end
 local function SetPosition()
     if HasUnlockAnchor() and EUI.ReapplyOwnAnchor then
         EUI.ReapplyOwnAnchor(UNLOCK_KEY)
-        ApplyGrowthAnchor()
         return
     end
     local position = ns.Get("position")
@@ -1223,6 +1262,12 @@ local function Render()
         math.max(12, MaximumPanelHeight() - ChromeHeight() - fixedHeight))
     scrollFrame:SetHeight(viewportHeight)
     frame:SetHeight(ChromeHeight() + fixedHeight + viewportHeight)
+    -- Center-based legacy links need a fresh size-aware placement after the
+    -- height changes; point links are idempotent and simply preserve their
+    -- explicit source edge.
+    if HasUnlockAnchor() and EUI.ReapplyOwnAnchor then
+        EUI.ReapplyOwnAnchor(UNLOCK_KEY)
+    end
     SetScroll(scrollFrame:GetVerticalScroll())
     if QueueSecureActionSync then QueueSecureActionSync() end
     UpdateLockFade()
