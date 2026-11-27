@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.10 establishes the addon structure and a playable first pass:
+Version 0.3.11 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -154,6 +154,9 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `Flight.lua` — independent in-tracker flight timing, route learning and
   progress-bar data
 - `Status.lua` — contextual activity states, session duration and `/played`
+- `Media/Currency/` — bundled denomination icons independent of client artwork
+- `tools/Generate-CurrencyIcons.ps1` — deterministic source generator for those
+  transparent power-of-two PNG assets
 - `Data/GatheringCatalog.lua` — generated per-zone node types and known-position counts
 - `Data/CookingFoods.lua` — Cooking recipe/output discovery seeds
 - `Tracker.lua` — floating tracker window
