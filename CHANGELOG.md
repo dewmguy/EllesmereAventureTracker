@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.10 - 2026-11-26
+
+- Replaced the tracker's hand-built MoneyFrame texture tags with Forever's
+  client-native coin formatter so the silver and copper denomination icons are
+  emitted through the same working path used by EllesmereUI bags and loot text.
+- Added localized, denomination-colored letter markers as a compatibility
+  fallback when the client currency-formatting API is unavailable.
+
 ## 0.3.9 - 2026-11-26
 
 - Removed the `Session` prefix from the compact session timer while retaining

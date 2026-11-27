@@ -8,12 +8,9 @@ local sessionStartedAt = GetTime and GetTime() or 0
 local sessionMoneyReceived, sessionMoneySpent = 0, 0
 local lastMoney
 
--- Explicit dimensions are required here: the status text is both word-wrapped
--- and hyperlinked, and Forever can collapse the silver/copper textures when an
--- inline texture asks that combination of FontStrings for automatic 0x0 size.
-local GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:1:0|t"
-local SILVER_ICON = "|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:1:0|t"
-local COPPER_ICON = "|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:1:0|t"
+local GOLD_MARKER = "|cffffd100" .. (_G.GOLD_AMOUNT_SYMBOL or "g") .. "|r"
+local SILVER_MARKER = "|cffc7c7cf" .. (_G.SILVER_AMOUNT_SYMBOL or "s") .. "|r"
+local COPPER_MARKER = "|cffed8a3f" .. (_G.COPPER_AMOUNT_SYMBOL or "c") .. "|r"
 local STATUS_LINK_PREFIX = "euiadventure:"
 
 local function IsSecret(value)
@@ -43,13 +40,25 @@ end
 
 local function FormatMoney(value)
     value = math.max(0, math.floor(tonumber(value) or 0))
+    -- Let the client build the texture markup.  Forever's direct silver and
+    -- copper MoneyFrame paths do not resolve in this wrapped hyperlink even
+    -- though its currency formatter emits working denomination icons.
+    local formatter = _G.C_CurrencyInfo and _G.C_CurrencyInfo.GetCoinTextureString
+    if type(formatter) ~= "function" then formatter = _G.GetCoinTextureString end
+    if type(formatter) == "function" then
+        local ok, formatted = pcall(formatter, value, 12)
+        if ok and type(formatted) == "string" and formatted ~= "" and not IsSecret(formatted) then
+            return formatted
+        end
+    end
+
     local gold = math.floor(value / 10000)
     local silver = math.floor((value % 10000) / 100)
     local copper = value % 100
     local parts = {}
-    if gold > 0 then parts[#parts + 1] = FormatNumber(gold) .. GOLD_ICON end
-    if silver > 0 then parts[#parts + 1] = silver .. SILVER_ICON end
-    if copper > 0 or #parts == 0 then parts[#parts + 1] = copper .. COPPER_ICON end
+    if gold > 0 then parts[#parts + 1] = FormatNumber(gold) .. GOLD_MARKER end
+    if silver > 0 then parts[#parts + 1] = silver .. SILVER_MARKER end
+    if copper > 0 or #parts == 0 then parts[#parts + 1] = copper .. COPPER_MARKER end
     return table.concat(parts, " ")
 end
 
