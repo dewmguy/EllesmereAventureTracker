@@ -38,8 +38,54 @@ local function Label(text, tooltip)
     return { type = "label", text = text, tooltip = tooltip }
 end
 
-local TRACKER_KEYS = { "enabled", "locked", "width", "scale", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext" }
+local function AppearanceSet(key, value, refreshPage)
+    ns.Set(key, value, true)
+    if key == "titleBarMode" and value == "hidden" then ns.Set("collapsed", false, true) end
+    if ns.ApplySettings then ns.ApplySettings() end
+    if refreshPage and EUI.RefreshPage then EUI:RefreshPage() end
+end
+
+local function StyleToggle(key, text, tooltip, disabled, refreshPage)
+    return {
+        type = "toggle", text = text, tooltip = tooltip, disabled = disabled,
+        getValue = function() return ns.Get(key) == true end,
+        setValue = function(value) AppearanceSet(key, value, refreshPage) end,
+    }
+end
+
+local function Dropdown(key, text, values, order, tooltip, disabled, refreshPage)
+    return {
+        type = "dropdown", text = text, values = values, order = order,
+        tooltip = tooltip, disabled = disabled,
+        getValue = function() return ns.Get(key) end,
+        setValue = function(value) AppearanceSet(key, value, refreshPage) end,
+    }
+end
+
+local function ColorPicker(key, text, tooltip, hasAlpha, disabled)
+    return {
+        type = "colorpicker", text = text, tooltip = tooltip,
+        hasAlpha = hasAlpha, disabled = disabled,
+        getValue = function()
+            local color = ns.Get(key)
+            local fallback = ns.DEFAULTS[key] or {}
+            if type(color) ~= "table" then color = fallback end
+            return color.r or fallback.r or 1, color.g or fallback.g or 1,
+                color.b or fallback.b or 1, color.a == nil and (fallback.a or 1) or color.a
+        end,
+        setValue = function(r, g, b, a)
+            AppearanceSet(key, { r = r, g = g, b = b, a = a or 1 })
+        end,
+    }
+end
+
+local TRACKER_KEYS = {
+    "enabled", "locked", "width", "scale", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext",
+    "backgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
+    "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
+}
 local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter" }
+local REMINDER_KEYS = { "showTalentReminder", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy" }
 local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionCaps", "showCompletedProfessions", "showProfessionZoneHints" }
@@ -49,36 +95,94 @@ local function BuildTracker(pageName, parent, yOffset)
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
     parent._showRowDivider = true
 
-    _, h = W:SectionHeader(parent, "WINDOW", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        Toggle("enabled", "Enable Adventure Tracker", "Shows the floating Adventure Tracker window."),
-        Toggle("locked", "Lock Window", "Prevents dragging the tracker by its title bar."))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, size, scale and opacity.",
-          onClick = function() ns.ResetKeys({ "position", "width", "scale", "opacity" }) end },
-        Label("Drag by the title bar while unlocked."))
-    y = y - h
+    if pageName == "Window" then
+        _, h = W:SectionHeader(parent, "WINDOW", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("enabled", "Enable Adventure Tracker", "Shows the floating Adventure Tracker window."),
+            Toggle("locked", "Lock Window", "Prevents dragging the tracker by its title bar."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, size, scale and opacity.",
+              onClick = function() ns.ResetKeys({ "position", "width", "scale", "opacity" }) end },
+            { type = "button", text = "Unlock Mode", tooltip = "Opens EllesmereUI Unlock Mode with an Adventure Tracker mover and anchor controls.",
+              onClick = function()
+                  if InCombatLockdown and InCombatLockdown() then return end
+                  if EUI.EnsureLoaded then EUI:EnsureLoaded() end
+                  if EUI.ToggleUnlockMode then EUI:ToggleUnlockMode() end
+              end })
+        y = y - h
 
-    _, h = W:SectionHeader(parent, "SIZE AND APPEARANCE", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        Slider("width", "Window Width", 280, 480, 5, "Width of the Adventure Tracker window."),
-        Slider("scale", "Window Scale", 0.65, 1.50, 0.05, "Overall scale of the Adventure Tracker window."))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        Slider("opacity", "Window Opacity", 0.25, 1.00, 0.05, "Opacity of the whole tracker window."),
-        Toggle("showContext", "Show Zone and Role", "Shows the current zone and selected activity role above the readiness icons."))
-    y = y - h
+        _, h = W:SectionHeader(parent, "SIZE", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("width", "Window Width", 280, 480, 5, "Width of the Adventure Tracker window."),
+            Slider("scale", "Window Scale", 0.65, 1.50, 0.05, "Overall scale of the Adventure Tracker window."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("opacity", "Window Opacity", 0.25, 1.00, 0.05, "Opacity of the whole tracker, multiplied with individual background colors."),
+            Toggle("showContext", "Show Zone and Role", "Shows the current zone and selected activity role above the readiness icons."))
+        y = y - h
 
-    _, h = W:SectionHeader(parent, "VISIBILITY", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        Toggle("hideInCombat", "Hide in Combat", "Hides the tracker while you are in combat."),
-        Toggle("hideInInstances", "Hide in Instances", "Hides the tracker inside dungeons, raids and PvP instances."))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        Toggle("hideWhenReady", "Hide When Nothing Needs Attention", "Hides the entire window when no visible row is missing or nearing expiration."),
-        nil)
-    y = y - h
+        _, h = W:SectionHeader(parent, "VISIBILITY", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("hideInCombat", "Hide in Combat", "Hides the tracker while you are in combat."),
+            Toggle("hideInInstances", "Hide in Instances", "Hides the tracker inside dungeons, raids and PvP instances."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("hideWhenReady", "Hide When Nothing Needs Attention", "Hides the entire window when no visible row is missing or nearing expiration."),
+            Label("Drag the title bar while unlocked, or use Unlock Mode for exact placement and anchoring."))
+        y = y - h
+    else
+        local borderValues, borderOrder = { solid = "Solid" }, { "solid" }
+        if EUI.GetBorderTextureDropdown then borderValues, borderOrder = EUI.GetBorderTextureDropdown() end
+
+        _, h = W:SectionHeader(parent, "BACKGROUND", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("backgroundColor", "Window Background", "Background color and opacity behind the tracker contents.", true),
+            { type = "button", text = "Reset Window Style", tooltip = "Restores all background, border and title bar appearance defaults.",
+              onClick = function()
+                  ns.ResetKeys({ "backgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight",
+                      "titleBarColor", "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor" })
+              end })
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "BORDER", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Dropdown("borderTexture", "Border Style", borderValues, borderOrder, "Solid and installed EllesmereUI or SharedMedia border styles."),
+            Slider("borderSize", "Border Size", 0, 4, 1, "Set to zero to hide the window border."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("borderColor", "Border Color", "Border color and opacity.", true, function() return (tonumber(ns.Get("borderSize")) or 0) <= 0 end),
+            nil)
+        y = y - h
+
+        local titleHidden = function() return ns.Get("titleBarMode") == "hidden" end
+        local titleNotFilled = function() return ns.Get("titleBarMode") ~= "filled" end
+        local titleTextHidden = function() return titleHidden() or not ns.Get("showTitleText") end
+        _, h = W:SectionHeader(parent, "TITLE BAR", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Dropdown("titleBarMode", "Title Bar", { filled = "Filled", transparent = "Transparent", hidden = "Hidden" },
+                { "filled", "transparent", "hidden" }, "Hidden removes the title, drag surface and minimize glyph; Unlock Mode remains available.", nil, true),
+            Slider("titleBarHeight", "Title Bar Height", 20, 40, 1, "Height of the title bar and its drag surface.", titleHidden))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("titleBarColor", "Title Bar Color", "Filled title bar color and opacity.", true, titleNotFilled),
+            StyleToggle("showTitleText", "Show Title Text", "Shows Adventure Tracker in the title bar.", titleHidden, true))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("titleTextColor", "Title and Minimize Color", "Color shared by the title and Quest Tracker-style minimize glyph.", true, titleHidden),
+            Slider("titleFontSize", "Title Font Size", 9, 20, 1, "Font size shared by the title and minimize glyph.", titleHidden))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Dropdown("titleAlignment", "Title Alignment", { LEFT = "Left", CENTER = "Center", RIGHT = "Right" },
+                { "LEFT", "CENTER", "RIGHT" }, "Horizontal title alignment.", titleTextHidden),
+            nil)
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("titleSeparatorSize", "Bottom Separator", 0, 4, 1, "Optional divider beneath the title bar.", titleHidden),
+            ColorPicker("titleSeparatorColor", "Separator Color", "Title-bar divider color and opacity.", true,
+                function() return titleHidden() or (tonumber(ns.Get("titleSeparatorSize")) or 0) <= 0 end))
+        y = y - h
+    end
     return math.abs(y)
 end
 
@@ -113,7 +217,7 @@ local function BuildReadiness(pageName, parent, yOffset)
             Label("Green = ready; amber = partial or expiring; red = missing.", "Gray means unavailable, violet means unreadable, and blue is informational."),
             Label("Only actionable items expand into rows by default."))
         y = y - h
-    else
+    elseif pageName == "Class & Role" then
         _, h = W:SectionHeader(parent, "ACTIVITY ROLE", y); y = y - h
         local roleValues = ns.ROLE_LABELS
         local roleOrder = { "SOLO", "TANK", "HEALER", "PHYSICAL", "CASTER" }
@@ -136,6 +240,22 @@ local function BuildReadiness(pageName, parent, yOffset)
         _, h = W:DualRow(parent, y,
             Label("Camp Benefits can satisfy matching buff families.", "The first preview recognizes Incense Candle as Intellect coverage and First Aid Kit as Fortitude coverage."),
             Label("More camp and world-buff families will be added from verified Forever data."))
+        y = y - h
+    else
+        _, h = W:SectionHeader(parent, "TALENT POINTS", y); y = y - h
+        local suppressBlizzard = Toggle("hideBlizzardTalentReminder", "Hide Blizzard Talent Callout",
+            "Suppresses only Blizzard's unspent-talent callout that points at the microbar. Other microbutton alerts are unchanged.")
+        suppressBlizzard.setValue = function(value)
+            ns.Set("hideBlizzardTalentReminder", value)
+            if value and ns.ApplyTalentAlertSuppression then ns.ApplyTalentAlertSuppression() end
+        end
+        _, h = W:DualRow(parent, y,
+            Toggle("showTalentReminder", "Adventure Tracker Reminder", "Shows an actionable row while class or hero talent points are unspent."),
+            suppressBlizzard)
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Label("The reminder opens the Talents window when clicked."),
+            Label("Blizzard's reminder is hidden because the EllesmereUI microbar may not be visible."))
         y = y - h
     end
     return math.abs(y)
@@ -250,14 +370,17 @@ local function Register()
             {
                 key = "tracker", title = "Tracker",
                 description = "Window layout, placement and visibility.",
-                pages = { "Window" }, buildPage = BuildTracker,
+                pages = { "Window", "Appearance" }, buildPage = BuildTracker,
                 onReset = function() ns.ResetKeys(TRACKER_KEYS) end,
             },
             {
                 key = "readiness", title = "Readiness",
                 description = "Camp, rest, food and class preparation.",
-                pages = { "Essentials", "Class & Role" }, buildPage = BuildReadiness,
-                onReset = function() ns.ResetKeys(READINESS_KEYS) end,
+                pages = { "Essentials", "Class & Role", "Reminders" }, buildPage = BuildReadiness,
+                onReset = function()
+                    ns.ResetKeys(READINESS_KEYS)
+                    ns.ResetKeys(REMINDER_KEYS)
+                end,
             },
             {
                 key = "world-buffs", title = "World Buffs",

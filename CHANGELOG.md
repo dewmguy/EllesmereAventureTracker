@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.5 - 2026-11-26
+
+- Added full tracker-window appearance controls for background color and alpha,
+  border style, size, color and alpha, plus title-bar mode, height, color,
+  title visibility, alignment, separator and text color.
+- Replaced the boxed minimize control with the Quest Tracker's unboxed `+` / `-`
+  treatment and replaced the text lock control with the Damage Meter's
+  hover-faded lock icon behavior.
+- Registered Adventure Tracker with EllesmereUI Unlock Mode for precise
+  placement, width adjustment and anchor relationships.
+- Added an actionable unspent class/hero talent reminder and an option to hide
+  only Blizzard's matching callout to the hidden Player Spells microbutton.
+
 ## 0.1.4 - 2026-11-26
 
 - Added Mining, Herbalism, Skinning and Fishing skill rows alongside crafting

@@ -8,9 +8,12 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.4 establishes the addon structure and a playable first pass:
+Version 0.1.5 establishes the addon structure and a playable first pass:
 
-- a draggable, lockable and collapsible EllesmereUI-skinned window;
+- a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
+  mover, precise anchoring and width adjustment;
+- customizable background, border and title-bar presentation, a Quest
+  Tracker-style minimize glyph and a Damage Meter-style lock control;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
   states;
 - live Camp Benefits, Well-Rested, food, class-buff and weapon-enhancement
@@ -26,6 +29,8 @@ Version 0.1.4 establishes the addon structure and a playable first pass:
 - a separate World Buffs submenu and tracker section for active timers and
   opt-in missing-buff acquisition sources;
 - unspent Legacy point reminders and a current-zone provider boundary;
+- an unspent talent reminder that can replace Blizzard's callout to the hidden
+  Player Spells microbutton;
 - profession Legacy checkpoints, gathering and Fishing skill progress,
   trainer-cap reminders and coordinate-free zone node summaries;
 - a researched zone-gathering design for ranked herbs and ore, observed
@@ -68,6 +73,7 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 ## Project layout
 
 - `Core.lua` — saved settings, provider registry and slash commands
+- `Reminders.lua` — talent reminders and scoped Blizzard-callout suppression
 - `Readiness.lua` — preparation and buff-family interpretation
 - `WorldBuffs.lua` — world-buff presence, timers and acquisition sources
 - `Legacy.lua` — Legacy points and current-zone provider
