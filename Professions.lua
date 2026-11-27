@@ -1349,11 +1349,15 @@ end
 
 local function Build(invalidationReason)
     local inventoryOnly = invalidationReason == "BAG_UPDATE_DELAYED"
+    if ns.BeginProfessionRouteBuild then ns.BeginProfessionRouteBuild(inventoryOnly) end
     if not inventoryOnly then
         stableProfessionRows = {}
         if ns.ResetProfessionRouteSelections then ns.ResetProfessionRouteSelections() end
     end
-    if not ns.Get("showProfessions") then return {} end
+    if not ns.Get("showProfessions") then
+        if ns.FinalizeProfessionRouteBuild then ns.FinalizeProfessionRouteBuild() end
+        return {}
+    end
     local professions = ProfessionList()
     local zoneName, mapID = ns.GetZoneName()
     local sections = {}
@@ -1372,7 +1376,16 @@ local function Build(invalidationReason)
         end
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
+    if ns.FinalizeProfessionRouteBuild then ns.FinalizeProfessionRouteBuild() end
     return sections
 end
 
 ns.RegisterProvider("professions", 30, Build)
+
+function ns.OnProfessionProviderCommitted()
+    if ns.CommitProfessionRouteBuild then ns.CommitProfessionRouteBuild() end
+end
+
+function ns.OnProfessionProviderDiscarded()
+    if ns.DiscardProfessionRouteBuild then ns.DiscardProfessionRouteBuild() end
+end

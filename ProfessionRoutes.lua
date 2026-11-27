@@ -7,6 +7,9 @@ local trainingCache = {}
 local utilityCache
 local LearnedMap
 local selectedRouteByProfession = {}
+local stagedRouteByProfession
+local committedRouteInventorySignature = ""
+local stagedRouteInventorySignature
 
 local EASY_SOURCES = {
     auto = true,
@@ -343,9 +346,9 @@ local function RefreshCandidateInventory(candidate)
     return candidate
 end
 
-function ns.GetProfessionRouteInventorySignature()
+local function RouteInventorySignature(routes)
     local values = {}
-    for skillLineID, candidate in pairs(selectedRouteByProfession) do
+    for skillLineID, candidate in pairs(routes or {}) do
         local reagents = {}
         for _, reagent in ipairs(candidate.entry and candidate.entry.reagents or {}) do
             local itemID = tonumber(reagent.itemID)
@@ -363,8 +366,46 @@ function ns.GetProfessionRouteInventorySignature()
     return table.concat(values, ";")
 end
 
+function ns.GetProfessionRouteInventorySignature()
+    return RouteInventorySignature(selectedRouteByProfession)
+end
+
+function ns.GetCommittedProfessionRouteInventorySignature()
+    return committedRouteInventorySignature
+end
+
 function ns.ResetProfessionRouteSelections()
-    selectedRouteByProfession = {}
+    local target = stagedRouteByProfession or selectedRouteByProfession
+    wipe(target)
+end
+
+function ns.BeginProfessionRouteBuild(reuseSelected)
+    stagedRouteByProfession = {}
+    stagedRouteInventorySignature = nil
+    if reuseSelected then
+        for key, candidate in pairs(selectedRouteByProfession) do
+            stagedRouteByProfession[key] = candidate
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
+    end
+end
+
+function ns.FinalizeProfessionRouteBuild()
+    stagedRouteInventorySignature = RouteInventorySignature(stagedRouteByProfession or {})
+end
+
+function ns.CommitProfessionRouteBuild()
+    if not stagedRouteByProfession then return end
+    selectedRouteByProfession = stagedRouteByProfession
+    committedRouteInventorySignature = stagedRouteInventorySignature
+        or RouteInventorySignature(selectedRouteByProfession)
+    stagedRouteByProfession = nil
+    stagedRouteInventorySignature = nil
+end
+
+function ns.DiscardProfessionRouteBuild()
+    stagedRouteByProfession = nil
+    stagedRouteInventorySignature = nil
 end
 
 local function MissingMaterials(candidate)
@@ -450,12 +491,13 @@ end
 
 function ns.AddProfessionRouteRow(rows, profession, professions, mapID, zoneName, reuseSelected)
     local routeKey = tostring(profession.skillLineID)
-    local candidate = reuseSelected and selectedRouteByProfession[routeKey] or nil
+    local routeSelections = stagedRouteByProfession or selectedRouteByProfession
+    local candidate = reuseSelected and routeSelections[routeKey] or nil
     if candidate then
         candidate = RefreshCandidateInventory(candidate)
     else
         candidate = PickCandidate(profession, mapID)
-        selectedRouteByProfession[routeKey] = candidate
+        routeSelections[routeKey] = candidate
     end
     if not candidate then return false end
 

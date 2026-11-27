@@ -1811,6 +1811,31 @@ local function QueueBagSignatureUpdate(initializeOnly)
     end)
 end
 
+function ns.OnProviderCommitted(providerID)
+    if providerID == "professions" and ns.GetCommittedProfessionRouteInventorySignature then
+        professionInventorySignature = ns.GetCommittedProfessionRouteInventorySignature()
+    end
+end
+
+local function QueueProfessionLoginRecovery()
+    if not (C_Timer and C_Timer.After and ns.QueueBudgetedWork) then return end
+    C_Timer.After(2, function()
+        ns.QueueBudgetedWork("profession-login-readiness", function()
+            if not ns.Get("showProfessions") or not ns.GetProfessionList
+                or not ns.GetProviderRuntimeState then return false end
+            local professions = ns.GetProfessionList()
+            local result, dirty, queued, lastError = ns.GetProviderRuntimeState("professions")
+            local hasSections = type(result) == "table" and (result.id ~= nil or #result > 0)
+            return #professions > 0 and not hasSections and not dirty and not queued, lastError
+        end, function(shouldRetry, lastError)
+            if shouldRetry then
+                ns.RequestRefresh("professions", lastError and "profession provider recovery"
+                    or "profession API became ready")
+            end
+        end)
+    end)
+end
+
 local professionScanTimer
 local function EnqueueProfessionCacheScan()
     if not ns.QueueBudgetedWork then return end
@@ -2072,6 +2097,7 @@ events:SetScript("OnEvent", function(_, event, ...)
         if ns.ActivateProviderRuntime then ns.ActivateProviderRuntime() end
         ns.ApplySettings()
         QueueBagSignatureUpdate(true)
+        QueueProfessionLoginRecovery()
         -- Re-measure once WoW has resolved the saved point. Ongoing aura state is
         -- event-driven; exact warning-threshold transitions use one-shot timers.
         C_Timer.After(0, function()

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.1 - 2026-11-27
+
+- Fixed profession recommendations disappearing after reload when the new
+  time-sliced profession build and bag-signature worker interleaved. Selected
+  profession routes now build in a private staging table and become visible
+  only when the matching provider generation is successfully committed.
+- Committed each profession route set together with the exact reagent inventory
+  signature used to build it. Bag changes compare against that stable baseline
+  instead of observing a partially reset or partially populated route set and
+  repeatedly invalidating the provider.
+- Discarded staged profession state when a provider result becomes stale or
+  errors, while retaining the last committed routes for inventory filtering.
+- Added one bounded post-login recovery: if WoW reports learned professions but
+  the completed provider has no sections, Adventure Tracker retries that
+  provider once after the profession API has settled. It does not poll.
+
 ## 0.9.0 - 2026-11-27
 
 - Rebuilt the runtime around one shared 0.35 ms frame-work budget. Provider

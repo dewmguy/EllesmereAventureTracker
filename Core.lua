@@ -806,21 +806,33 @@ QueueProvider = function(provider)
     end, function(result, builtGeneration)
         provider.queued = false
         if provider.generation == builtGeneration and type(result) == "table" then
+            if provider.id == "professions" and ns.OnProfessionProviderCommitted then
+                ns.OnProfessionProviderCommitted()
+            end
             local previous = provider.lastResult
             provider.lastResult = result
             provider.dirty = false
+            provider.lastError = nil
+            if ns.OnProviderCommitted then ns.OnProviderCommitted(provider.id) end
             if ns.QueueProviderPresentation then
                 ns.QueueProviderPresentation(provider.id, previous, result)
             elseif ns.RequestRender then
                 ns.RequestRender("provider committed: " .. provider.id)
             end
-        elseif provider.dirty then
-            QueueProvider(provider)
+        else
+            if provider.id == "professions" and ns.OnProfessionProviderDiscarded then
+                ns.OnProfessionProviderDiscarded()
+            end
+            if provider.dirty then QueueProvider(provider) end
         end
     end, function()
         return provider.combatSafe or not IsCombatRestricted()
     end, function(message)
         provider.queued = false
+        provider.lastError = tostring(message or "unknown provider error")
+        if provider.id == "professions" and ns.OnProfessionProviderDiscarded then
+            ns.OnProfessionProviderDiscarded()
+        end
         if provider.generation == executionGeneration then
             provider.dirty = false
         else
@@ -828,6 +840,12 @@ QueueProvider = function(provider)
         end
         ReportWorkError(nil, message)
     end)
+end
+
+function ns.GetProviderRuntimeState(id)
+    local provider = providersByID[id]
+    if not provider then return nil end
+    return provider.lastResult, provider.dirty == true, provider.queued == true, provider.lastError
 end
 
 function ns.ActivateProviderRuntime()

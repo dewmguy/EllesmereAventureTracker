@@ -15,6 +15,10 @@ presentation timers into repeated database queries.
   provider build, a successful build atomically commits `lastResult`, and
   `BuildSnapshot` composes only committed cache entries. Rendering must never
   call `provider.build` or wait for a provider to finish.
+- Derived state used by another worker follows the same commit boundary. The
+  profession provider stages selected routes and their reagent signature while
+  building; bag-signature work sees only the last committed route set. A stale
+  or failed provider generation discards its staging table.
 - Work keys coalesce event bursts into the latest pending rerun. Structural
   result changes queue one time-sliced pane layout; results with identical
   section, status and row geometry patch their visible keyed elements in place.
