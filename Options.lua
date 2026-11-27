@@ -262,7 +262,7 @@ local function BuildReadiness(pageName, parent, yOffset)
         _, h = W:DualRow(parent, y,
             Toggle("showClassTrainerSkills", "Available Class-Trainer Skills",
                 "Lists every skill currently available at the last class trainer visited and totals their training cost."),
-            Label("Visit a class trainer once to scan. The list refreshes as skills are learned."))
+            Label("Visit a class trainer once to scan. Click the summary row to expand the individual skills."))
         y = y - h
     end
     return math.abs(y)

@@ -91,6 +91,10 @@ local function StateColor(state)
 end
 
 local function ShowTooltip(owner, data)
+    if type(data.tooltipFunc) == "function" then
+        local ok, handled = pcall(data.tooltipFunc, owner)
+        if ok and handled then return end
+    end
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     GameTooltip:SetText(data.label or "Adventure Tracker")
     local detail = data.tooltip or data.detail

@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.10 establishes the addon structure and a playable first pass:
+Version 0.1.11 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
   mover, precise anchoring and width adjustment;
@@ -34,7 +34,9 @@ Version 0.1.10 establishes the addon structure and a playable first pass:
 - an unspent talent reminder that can replace Blizzard's callout to the hidden
   Player Spells microbutton;
 - a per-character class-trainer scan that lists every currently available
-  skill, its price and the total cost to learn them all;
+  skill, its price and the total cost to learn them all, with a clickable
+  summary that expands or collapses the individual list and trainer details on
+  skill hover;
 - profession Legacy checkpoints kept in the Legacy section;
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;

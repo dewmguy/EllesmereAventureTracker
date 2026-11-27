@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.11 - 2026-11-26
+
+- Made the available class-trainer skill list collapsible by clicking its total
+  summary row.
+- The summary and total cost remain visible while the individual skills are
+  collapsed, and expansion state is remembered separately for each character.
+- New characters start with the individual list collapsed to keep the tracker
+  compact.
+- Hovering an expanded untrained skill now shows its real trainer tooltip when
+  available, with cached skill details after leaving the trainer, rather than
+  repeating the training cost already printed on the row.
+
 ## 0.1.10 - 2026-11-26
 
 - Fixed the Blizzard unspent-talent notification remaining visible on Forever's

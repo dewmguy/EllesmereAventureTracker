@@ -67,6 +67,54 @@ local function TrainerCache()
     return all[ns.CharacterKey()]
 end
 
+local function TrainerSkillsExpanded()
+    local all = ns.DB().classTrainerExpandedByCharacter
+    return type(all) == "table" and all[ns.CharacterKey()] == true
+end
+
+local function ToggleTrainerSkills()
+    local db = ns.DB()
+    if type(db.classTrainerExpandedByCharacter) ~= "table" then
+        db.classTrainerExpandedByCharacter = {}
+    end
+    local key = ns.CharacterKey()
+    db.classTrainerExpandedByCharacter[key] = not TrainerSkillsExpanded()
+    if ns.RequestRefresh then ns.RequestRefresh() end
+end
+
+local function CleanTrainerTooltipText(value)
+    if type(value) ~= "string" or IsSecret(value) then return "" end
+    return value:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
+end
+
+local function TrainerTooltipText(index, serviceName)
+    local parts, seen = {}, {}
+    local function Add(value)
+        local text = CleanTrainerTooltipText(value)
+        if text ~= "" and text ~= serviceName and not seen[text] then
+            parts[#parts + 1] = text
+            seen[text] = true
+        end
+    end
+    if C_TooltipInfo and C_TooltipInfo.GetTrainerService then
+        local ok, tooltip = pcall(C_TooltipInfo.GetTrainerService, index)
+        if ok and type(tooltip) == "table" and not IsSecret(tooltip) then
+            for _, line in ipairs(tooltip.lines or {}) do
+                if type(line) == "table" and not IsSecret(line) then
+                    Add(line.leftText)
+                    Add(line.rightText)
+                end
+            end
+        end
+    end
+    if #parts == 0 and type(GetTrainerServiceDescription) == "function" then
+        local ok, description = pcall(GetTrainerServiceDescription, index)
+        description = ok and CleanTrainerTooltipText(description) or ""
+        if description ~= "" then parts[1] = description end
+    end
+    return #parts > 0 and table.concat(parts, "\n") or nil
+end
+
 local function AvailableTrainerService(index)
     if type(GetTrainerServiceInfo) ~= "function" then return nil end
     local ok, name, second, third = pcall(GetTrainerServiceInfo, index)
@@ -93,7 +141,33 @@ local function AvailableTrainerService(index)
     end
     if IsSecret(subText) or type(subText) ~= "string" then subText = nil end
     if IsSecret(icon) or (type(icon) ~= "number" and type(icon) ~= "string") then icon = nil end
-    return { name = name, subText = subText, icon = icon or 136243, cost = cost }
+    return {
+        name = name,
+        subText = subText,
+        icon = icon or 136243,
+        cost = cost,
+        trainerIndex = index,
+        tooltipText = TrainerTooltipText(index, name),
+    }
+end
+
+local function ShowLiveTrainerTooltip(owner, service)
+    if not (owner and service and service.trainerIndex and GameTooltip and GameTooltip.SetTrainerService) then return false end
+    if type(GetNumTrainerServices) ~= "function" or type(GetTrainerServiceInfo) ~= "function" then return false end
+    if type(IsTradeskillTrainer) == "function" then
+        local tradeOK, isTrade = pcall(IsTradeskillTrainer)
+        if not tradeOK or IsSecret(isTrade) or isTrade then return false end
+    end
+    local countOK, count = pcall(GetNumTrainerServices)
+    if not countOK or IsSecret(count) or service.trainerIndex > (tonumber(count) or 0) then return false end
+    local infoOK, currentName = pcall(GetTrainerServiceInfo, service.trainerIndex)
+    if not infoOK or IsSecret(currentName) or currentName ~= service.name then return false end
+
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT", 35)
+    local tooltipOK = pcall(GameTooltip.SetTrainerService, GameTooltip, service.trainerIndex)
+    if not tooltipOK then return false end
+    GameTooltip:Show()
+    return true
 end
 
 function ns.ScanClassTrainer()
@@ -177,32 +251,41 @@ local function Build()
                     icon = 136243,
                 }
             else
+                local expanded = TrainerSkillsExpanded()
                 rows[#rows + 1] = {
                     key = "class-training-total",
-                    label = string.format("%d class-trainer skill%s available", #services, #services == 1 and "" or "s"),
+                    label = string.format("%s %d class-trainer skill%s available",
+                        expanded and "−" or "+", #services, #services == 1 and "" or "s"),
                     detail = string.format("Total training cost: %s%s", FormatMoney(total),
                         stale and " • rescan after leveling" or ""),
-                    tooltip = string.format("Last scanned from %s at level %d. Learn every listed skill for %s.%s",
+                    tooltip = string.format("Last scanned from %s at level %d. Learn every listed skill for %s. %s%s",
                         cache.trainerName or "a class trainer", tonumber(cache.level) or 0, FormatMoney(total),
-                        stale and " Visit a class trainer to include newly available skills." or ""),
+                        stale and "Visit a class trainer to include newly available skills. " or "",
+                        expanded and "Collapse the individual skill list." or "Expand the individual skill list."),
+                    clickHint = expanded and "Click to collapse class-trainer skills."
+                        or "Click to expand class-trainer skills.",
+                    onClick = ToggleTrainerSkills,
                     state = "warning",
                     icon = 136243,
                 }
-                for index = 1, #services do
-                    local service = services[index]
-                    local label = service.name or "Unknown skill"
-                    if service.subText and service.subText ~= "" then
-                        label = string.format("%s (%s)", label, service.subText)
+                if expanded then
+                    for index = 1, #services do
+                        local service = services[index]
+                        local label = service.name or "Unknown skill"
+                        if service.subText and service.subText ~= "" then
+                            label = string.format("%s (%s)", label, service.subText)
+                        end
+                        rows[#rows + 1] = {
+                            key = "class-training-" .. index,
+                            label = label,
+                            detail = "Cost: " .. FormatMoney(service.cost),
+                            tooltip = service.tooltipText or string.format("Untrained skill available from %s.",
+                                cache.trainerName or "your class trainer"),
+                            tooltipFunc = function(owner) return ShowLiveTrainerTooltip(owner, service) end,
+                            state = "warning",
+                            icon = service.icon or 136243,
+                        }
                     end
-                    rows[#rows + 1] = {
-                        key = "class-training-" .. index,
-                        label = label,
-                        detail = "Cost: " .. FormatMoney(service.cost),
-                        tooltip = string.format("Available from %s. Training cost: %s.",
-                            cache.trainerName or "your class trainer", FormatMoney(service.cost)),
-                        state = "warning",
-                        icon = service.icon or 136243,
-                    }
                 end
             end
         end
