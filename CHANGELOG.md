@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.9 - 2026-11-27
+
+- Fixed lock/unlock marking every provider dirty, immediately rebuilding the
+  full tracker and then performing a second queued render. The lock button,
+  settings toggle and slash commands now update only the saved lock state,
+  icon and hover fade without a provider build or pane render.
+- Replaced the generic setting-wide invalidation with explicit scopes. Pure
+  interaction settings perform no render, presentation settings reuse cached
+  provider results, and feature settings invalidate only their character,
+  readiness, world-buff, Legacy, quest, profession, instance or flight owner.
+- Changed slider application to invalidate its scoped provider once and use the
+  immediate settings render, avoiding a second delayed render.
+- Removed unnecessary pane renders from EllesmereUI Unlock Mode position save,
+  reset and apply callbacks. A real dynamic-anchor geometry change retains its
+  single debounced height recalculation.
+
 ## 0.8.8 - 2026-11-27
 
 - Replaced blanket loot invalidation with a compact inventory signature for

@@ -11,7 +11,12 @@ local function Toggle(key, text, tooltip, refreshPage)
         tooltip = tooltip,
         getValue = function() return ns.Get(key) == true end,
         setValue = function(value)
-            ns.Set(key, value)
+            if key == "locked" then
+                ns.Set(key, value, true)
+                if ns.ApplyLockState then ns.ApplyLockState() end
+            else
+                ns.Set(key, value)
+            end
             if refreshPage and EUI.RefreshPage then EUI:RefreshPage() end
         end,
     }
@@ -28,7 +33,8 @@ local function Slider(key, text, minimum, maximum, step, tooltip, disabled)
         disabled = disabled,
         getValue = function() return ns.Get(key) end,
         setValue = function(value)
-            ns.Set(key, value)
+            ns.Set(key, value, true)
+            if ns.InvalidateForSetting then ns.InvalidateForSetting(key) end
             if ns.ApplySettings then ns.ApplySettings() end
         end,
     }

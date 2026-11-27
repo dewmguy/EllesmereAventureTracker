@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.8.8 establishes the addon structure and a playable first pass:
+Version 0.8.9 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -119,6 +119,10 @@ Version 0.8.8 establishes the addon structure and a playable first pass:
   before reading schematics, and trainer windows compare a cheap service
   signature before collecting tooltips; unchanged records survive reloads and
   relogs and are not rescanned merely because a window opened or updated;
+- settings use explicit data scopes: locking and position changes update only
+  interaction state, appearance and collapse changes render cached rows, and
+  feature settings invalidate only their owning provider instead of every
+  quest, profession, instance and readiness calculation;
 - independent flight bar texture, fill, background, border, font, outline,
   text-size, text-color and icon controls;
 - contextual In Flight, In Combat, Resting, Mounted, instance, life and

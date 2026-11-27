@@ -1053,6 +1053,11 @@ UpdateLockFade = function()
     end
 end
 
+function ns.ApplyLockState()
+    UpdateLockIcon()
+    UpdateLockFade()
+end
+
 local function ApplyWindowStyle()
     local r, g, b, a = ColorValue("backgroundColor")
     local backgroundOpacity = Clamp(ns.Get("opacity"), 0, 1, 0.96)
@@ -1245,8 +1250,8 @@ collapseButton:SetScript("OnLeave", function(self)
 end)
 
 lockButton:SetScript("OnClick", function()
-    ns.Set("locked", not ns.Get("locked"))
-    ns.ApplySettings()
+    ns.Set("locked", not ns.Get("locked"), true)
+    ns.ApplyLockState()
     if EUI.HideWidgetTooltip then EUI.HideWidgetTooltip() end
     if EUI.ShowWidgetTooltip then EUI.ShowWidgetTooltip(lockButton, ns.Get("locked") and "Locked" or "Unlocked") end
 end)
@@ -1563,7 +1568,6 @@ local function RegisterUnlockElement()
                 point = point, relativePoint = relativePoint or point,
                 x = x or 0, y = y or 0,
             }, true)
-            if ns.RequestRefresh then ns.RequestRefresh(false, "unlock position") end
             if QueueSecureActionSync then QueueSecureActionSync() end
         end,
         loadPos = function()
@@ -1582,12 +1586,10 @@ local function RegisterUnlockElement()
                 x = position.x, y = position.y,
             }, true)
             SetPosition()
-            if ns.RequestRefresh then ns.RequestRefresh(false, "unlock position reset") end
             if QueueSecureActionSync then QueueSecureActionSync() end
         end,
         applyPos = function()
             SetPosition()
-            if ns.RequestRefresh then ns.RequestRefresh(false, "unlock position applied") end
             if QueueSecureActionSync then QueueSecureActionSync() end
         end,
     }) }, ADDON_NAME)

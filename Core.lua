@@ -297,9 +297,105 @@ function ns.Get(key)
     return value
 end
 
+local NO_RENDER_SETTINGS = { locked = true, position = true }
+local RENDER_ONLY_SETTINGS = {}
+for _, key in ipairs({
+    "enabled", "collapsed", "width", "scale", "frameStrata", "maximizePaneHeight",
+    "paneGrowthDirection", "paneHeightLimitMode", "paneHeightLimitPercent", "paneHeightLimitPixels",
+    "opacity", "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor",
+    "entryBackgroundColor", "entryHoverBackgroundColor", "borderTexture", "borderSize", "borderColor",
+    "titleBarMode", "titleBarHeight", "titleBarColor", "titleTextColorMode", "titleTextColor",
+    "textFont", "textOutline", "titleFontSize", "contextFontSize", "statusTextAlignment",
+    "contextTextColorMode", "contextTextColor", "sectionFontSize", "sectionTextColorMode",
+    "sectionTextColor", "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor",
+    "entryDetailFontSize", "entryDetailTextColorMode", "entryDetailTextColor", "badgeFontSize",
+    "badgeTextColorMode", "badgeTextColor", "badgeAnchor", "badgeOffsetX", "badgeOffsetY",
+    "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
+    "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
+    "readinessIconSize", "readinessIconSpacing", "readinessIconBorderTexture", "readinessIconBorderSize",
+    "readinessIconReadyBorderColor", "readinessIconWarningBorderColor", "readinessIconMissingBorderColor",
+    "readinessIconUnavailableBorderColor", "readinessIconUnknownBorderColor", "readinessIconInfoBorderColor",
+    "showStatuses", "showFlightStatus", "showCombatStatus", "showRestingStatus", "showMountedStatus",
+    "showInstanceStatus", "showPresenceStatus", "showLifeStatus", "showPlaytime", "showSessionPlaytime",
+    "showTotalPlaytime", "showGoldStatus",
+}) do RENDER_ONLY_SETTINGS[key] = true end
+
+local SETTING_PROVIDERS = {}
+local function RegisterSettingProviders(providers, keys)
+    for _, key in ipairs(keys) do SETTING_PROVIDERS[key] = providers end
+end
+RegisterSettingProviders({ "character-reminders" }, {
+    "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder",
+})
+RegisterSettingProviders({ "readiness" }, {
+    "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs",
+    "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness",
+    "lastClassBuffSpellsByCharacter", "roleCriticalAlerts", "roleAlertMinDuration", "trackPartyClassBuffs",
+})
+SETTING_PROVIDERS.roleByCharacter = { "readiness", "professions", "instances" }
+RegisterSettingProviders({ "world-buffs" }, {
+    "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs",
+    "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes",
+})
+RegisterSettingProviders({ "legacy" }, {
+    "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit",
+})
+RegisterSettingProviders({ "zone-quests" }, {
+    "showZoneQuests", "zoneQuestExpandedByCharacter", "zoneQuestVisitedByCharacter",
+    "warnFutureQuestItems", "futureQuestItemsByCharacter",
+})
+RegisterSettingProviders({ "professions" }, {
+    "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear",
+    "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts",
+    "showProfessionAttainableRecipes", "showObservedGathering", "professionRecipeCatalogExpandedByCharacter",
+    "showCompletedProfessions", "showProfessionZoneHints",
+})
+RegisterSettingProviders({ "instances" }, {
+    "showInstances", "showInstanceRunTimer", "showInstanceBossTimer", "showInstanceQuests",
+    "showInstanceLoot", "instanceQuestLimit", "instanceLootLimit",
+})
+RegisterSettingProviders({ "flight-timer" }, {
+    "showFlightTimer", "flightTimerShowDestination", "flightTimerShowElapsed", "flightTimerShowRemaining",
+    "flightTimerShowTotal", "flightTimerLearnTimes", "flightTimerShowIcon", "flightTimerBarHeight",
+    "flightTimerBarTexture", "flightTimerFillColorMode", "flightTimerFillColor", "flightTimerBackgroundColor",
+    "flightTimerBorderTexture", "flightTimerBorderSize", "flightTimerBorderColor", "flightTimerFont",
+    "flightTimerFontOutline", "flightTimerDestinationFontSize", "flightTimerTimeFontSize",
+    "flightTimerDestinationColorMode", "flightTimerDestinationColor", "flightTimerTimeColorMode",
+    "flightTimerTimeColor",
+})
+
+local function SettingScope(key)
+    if NO_RENDER_SETTINGS[key] then return "none" end
+    if RENDER_ONLY_SETTINGS[key] then return "render" end
+    return SETTING_PROVIDERS[key]
+end
+
+function ns.InvalidateForSetting(key, reason)
+    local scope = SettingScope(key)
+    if scope == "none" or scope == "render" then return scope end
+    if type(scope) == "table" and ns.InvalidateProviders then
+        ns.InvalidateProviders(scope, reason or ("setting: " .. tostring(key)))
+    elseif ns.InvalidateAllProviders then
+        ns.InvalidateAllProviders(reason or ("setting: " .. tostring(key)))
+    end
+    return scope
+end
+
+function ns.RefreshForSetting(key)
+    local scope = SettingScope(key)
+    if scope == "none" then return end
+    if ns.RequestRefresh then
+        if scope == "render" then
+            ns.RequestRefresh(false, "setting: " .. tostring(key))
+        else
+            ns.RequestRefresh(scope, "setting: " .. tostring(key))
+        end
+    end
+end
+
 function ns.Set(key, value, quiet)
     DB()[key] = value
-    if not quiet and ns.RequestRefresh then ns.RequestRefresh() end
+    if not quiet then ns.RefreshForSetting(key) end
 end
 
 function ns.ResetKeys(keys)
@@ -621,11 +717,11 @@ SlashCmdList.EUIADVENTURETRACKER = function(message)
     if command == "options" or command == "config" then
         ns.OpenOptions("tracker", "Window")
     elseif command == "lock" then
-        ns.Set("locked", true)
-        if ns.ApplySettings then ns.ApplySettings() end
+        ns.Set("locked", true, true)
+        if ns.ApplyLockState then ns.ApplyLockState() end
     elseif command == "unlock" then
-        ns.Set("locked", false)
-        if ns.ApplySettings then ns.ApplySettings() end
+        ns.Set("locked", false, true)
+        if ns.ApplyLockState then ns.ApplyLockState() end
     elseif command == "reset" then
         ns.ResetKeys({ "position", "scale", "width" })
     elseif command == "profile" then

@@ -6,6 +6,10 @@ presentation timers into repeated database queries.
 
 ## Runtime rules
 
+- Settings are scoped by effect. Lock and position state never render or dirty
+  providers; presentation state renders cached results; feature state dirties
+  only its owning provider. A generic option must not default to rebuilding all
+  data providers merely because its value changed.
 - Providers cache their last result and rebuild only after an explicit relevant
   invalidation. A cached out-of-combat result is retained when combat data is
   restricted.
