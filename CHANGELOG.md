@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.12 - 2026-11-26
+
+- Kept the compact status-row text stable while its session or gold hyperlink
+  is hovered, preventing once-per-second timer updates from invalidating WoW's
+  hyperlink hover and immediately dismissing the tooltip.
+- Continued refreshing the active tooltip's session or money details while the
+  row is frozen, then caught the visible status text up as soon as the cursor
+  actually leaves the hyperlink.
+
 ## 0.3.11 - 2026-11-26
 
 - Bundled project-local gold, silver and copper coin textures after confirming

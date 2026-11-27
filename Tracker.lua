@@ -104,9 +104,25 @@ contextText:SetTextColor(0.67, 0.72, 0.75)
 contextText:SetWordWrap(true)
 if contextButton.SetFontString then contextButton:SetFontString(contextText) end
 contextButton:SetScript("OnHyperlinkEnter", function(self, link)
+    self._statusHoverLink = link
     if ns.ShowStatusLinkTooltip then ns.ShowStatusLinkTooltip(self, link) end
 end)
-contextButton:SetScript("OnHyperlinkLeave", function() GameTooltip_Hide() end)
+contextButton:SetScript("OnHyperlinkLeave", function(self)
+    self._statusHoverLink = nil
+    GameTooltip_Hide()
+    -- Let a neighboring hyperlink receive OnHyperlinkEnter before catching the
+    -- row up; otherwise refreshing here can move that link out from under the
+    -- cursor during the transition.
+    C_Timer.After(0, function()
+        if not self._statusHoverLink and ns.RefreshTrackerContextText then
+            ns.RefreshTrackerContextText()
+        end
+    end)
+end)
+contextButton:SetScript("OnHide", function(self)
+    self._statusHoverLink = nil
+    if not GameTooltip.IsOwned or GameTooltip:IsOwned(self) then GameTooltip_Hide() end
+end)
 
 local playtimeText = fixedFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 playtimeText:SetJustifyH("LEFT")
@@ -1113,11 +1129,25 @@ local function CurrentContextLines()
     return nil, nil
 end
 
+local function UpdateContextButtonText(contextLine)
+    -- Replacing hyperlinked text invalidates WoW's current hyperlink hover,
+    -- even when only a timer digit changed. Keep its geometry stable until the
+    -- real mouse-leave event, while still refreshing the tooltip data.
+    if contextButton._statusHoverLink then
+        local ownsTooltip = not GameTooltip.IsOwned or GameTooltip:IsOwned(contextButton)
+        if ownsTooltip and ns.ShowStatusLinkTooltip then
+            ns.ShowStatusLinkTooltip(contextButton, contextButton._statusHoverLink)
+        end
+    else
+        contextButton:SetText(contextLine)
+    end
+end
+
 function ns.RefreshTrackerContextText()
     if not (frame:IsShown() and fixedFrame:IsShown()) then return end
     local contextLine, playtimeLine = CurrentContextLines()
     if contextButton:IsShown() and contextLine then
-        contextButton:SetText(contextLine)
+        UpdateContextButtonText(contextLine)
         local minimum = math.max(19, Clamp(ns.Get("contextFontSize"), 8, 24, 11) + 8)
         local expected = math.max(minimum, math.ceil(contextText:GetStringHeight() or 0) + 5)
         if math.abs((contextButton:GetHeight() or 0) - expected) > 0.5 and ns.RequestRefresh then
@@ -1162,7 +1192,7 @@ local function Render()
         contextButton:ClearAllPoints()
         contextButton:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, fixedY)
         contextButton:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", contextRight, fixedY)
-        contextButton:SetText(contextLine)
+        UpdateContextButtonText(contextLine)
         contextText:Show()
         local height = math.max(contextLineHeight, math.ceil(contextText:GetStringHeight() or 0) + 5)
         contextButton:SetHeight(height)
