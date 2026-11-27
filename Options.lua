@@ -172,7 +172,7 @@ local READINESS_KEYS = {
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit" }
-local QUEST_KEYS = { "showZoneQuests", "zoneQuestExpandedByCharacter" }
+local QUEST_KEYS = { "showZoneQuests", "zoneQuestExpandedByCharacter", "zoneQuestVisitedByCharacter" }
 local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showProfessionAttainableRecipes", "showObservedGathering", "professionRecipeCatalogExpandedByCharacter", "showCompletedProfessions", "showProfessionZoneHints" }
 local INSTANCE_KEYS = { "showInstances", "showInstanceRunTimer", "showInstanceBossTimer", "showInstanceQuests", "showInstanceLoot", "instanceQuestLimit", "instanceLootLimit" }
 local FLIGHT_KEYS = {
@@ -487,8 +487,8 @@ local function BuildReadiness(pageName, parent, yOffset)
         _, h = W:SectionHeader(parent, "CLASS TRAINING", y); y = y - h
         _, h = W:DualRow(parent, y,
             Toggle("showClassTrainerSkills", "Available Class-Trainer Skills",
-                "Lists every skill currently available at the last class trainer visited and totals their training cost."),
-            Label("Visit a class trainer once to scan. Click the summary row to expand the individual skills."))
+                "Lists every skill currently available from the bundled Forever class-training catalog and totals their training cost."),
+            Label("Click the summary row to expand the individual skills. Trainer visits quietly refine live prices and descriptions."))
         y = y - h
     end
     return math.abs(y)
@@ -530,21 +530,21 @@ local function BuildQuests(pageName, parent, yOffset)
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
     parent._showRowDivider = true
 
-    _, h = W:SectionHeader(parent, "CURRENT-ZONE QUESTS", y); y = y - h
+    _, h = W:SectionHeader(parent, "QUEST PROGRESS", y); y = y - h
     _, h = W:DualRow(parent, y,
-        Toggle("showZoneQuests", "Known Missing Quests",
-            "Lists eligible, incomplete quests assigned to the current zone that are not already in your quest log.", true),
+        Toggle("showZoneQuests", "Visited-Zone Quest Progress",
+            "Lists eligible, incomplete quests in zones this character has entered on foot and that are not already in the quest log.", true),
         Label((_G.LibQuestieDB and "QuestieDB detected." or "QuestieDB is not installed or enabled."),
             "QuestieDB is an optional runtime provider; Adventure Tracker does not copy its database or expose map data."))
     y = y - h
 
     _, h = W:SectionHeader(parent, "PRESENTATION RULES", y); y = y - h
     _, h = W:DualRow(parent, y,
-        Label("The most relevant quest stays visible; click the additional-quests row to expand the complete eligible list."),
+        Label("Each visited zone has one summary row with its quest count and combined rewards; click it to expand every available quest."),
         Label("NPC-started quests show only the giver. Item-started quests show only the item and mobs that drop it."))
     y = y - h
     _, h = W:DualRow(parent, y,
-        Label("Repeatable, breadcrumb-conflicted, unavailable chain steps, unknown starters and object-only starts are excluded."),
+        Label("Flight-path pass-throughs, repeatable quests, unavailable chain steps, unknown starters and object-only starts are excluded."),
         Label("No coordinates, routes, objectives, pins, arrows or waypoint guidance are shown."))
     y = y - h
     return math.abs(y)
@@ -882,8 +882,8 @@ local function Register()
             },
             {
                 key = "quests", title = "Quests",
-                description = "Eligible missing quests in the current zone without Questie-style guidance.",
-                pages = { "Current Zone" }, buildPage = BuildQuests,
+                description = "Expandable quest progress for zones this character has actually visited.",
+                pages = { "Progress" }, buildPage = BuildQuests,
                 onReset = function() ns.ResetKeys(QUEST_KEYS) end,
             },
             {

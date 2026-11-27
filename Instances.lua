@@ -541,7 +541,7 @@ local function BuildQuestRows()
                     key = "instance-quest-" .. tostring(questID),
                     label = questLevel > 0 and string.format("%s (Level %d)", name, questLevel) or name,
                     detail = source,
-                    tooltip = source .. "\n\nKnown available quest. Adventure Tracker intentionally does not show coordinates, routes or objectives.",
+                    tooltip = source,
                     state = "info",
                     icon = icon or QUEST_ICON,
                 }

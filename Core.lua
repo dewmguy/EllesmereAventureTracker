@@ -110,6 +110,7 @@ local DEFAULTS = {
 
     showZoneQuests = true,
     zoneQuestExpandedByCharacter = {},
+    zoneQuestVisitedByCharacter = {},
 
     showProfessions = true,
     showProfessionProgress = true,

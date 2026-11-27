@@ -67,6 +67,9 @@ local function TrainerCache()
     return all[ns.CharacterKey()]
 end
 
+local StaticTrainerServices, MarkCatalogSeen
+local staticServiceCache
+
 local function TrainerSkillsExpanded()
     local all = ns.DB().classTrainerExpandedByCharacter
     return type(all) == "table" and all[ns.CharacterKey()] == true
@@ -81,11 +84,13 @@ local function ToggleTrainerSkills()
     local expanding = not TrainerSkillsExpanded()
     db.classTrainerExpandedByCharacter[key] = expanding
     if expanding then
+        if MarkCatalogSeen then MarkCatalogSeen() end
         local cache = TrainerCache()
         if cache then
             cache.newServiceKeys = nil
             cache.newServiceCount = 0
         end
+        staticServiceCache = nil
     end
     if ns.RequestRefresh then ns.RequestRefresh() end
 end
@@ -201,6 +206,212 @@ local function TrainerServiceKey(service)
     return (service.name or "") .. "\031" .. (service.subText or "")
 end
 
+local function AbilityKnownRaw(spellID)
+    spellID = tonumber(spellID)
+    if not spellID then return false end
+    if C_SpellBook and C_SpellBook.IsSpellInSpellBook and Enum and Enum.SpellBookSpellBank then
+        local ok, known = pcall(C_SpellBook.IsSpellInSpellBook, spellID, Enum.SpellBookSpellBank.Player, false)
+        if ok and not IsSecret(known) and known then return true end
+    end
+    if C_SpellBook and C_SpellBook.IsSpellKnown and Enum and Enum.SpellBookSpellBank then
+        local ok, known = pcall(C_SpellBook.IsSpellKnown, spellID, Enum.SpellBookSpellBank.Player)
+        if ok and not IsSecret(known) and known then return true end
+    end
+    if type(IsPlayerSpell) == "function" then
+        local ok, known = pcall(IsPlayerSpell, spellID)
+        if ok and not IsSecret(known) and known then return true end
+    end
+    if type(IsSpellKnown) == "function" then
+        local ok, known = pcall(IsSpellKnown, spellID)
+        if ok and not IsSecret(known) and known then return true end
+    end
+    return false
+end
+
+local function CatalogAbilityKnown(classData, spellID)
+    if AbilityKnownRaw(spellID) then return true end
+    for _, group in ipairs(classData.overriddenGroups or {}) do
+        local spellIndex, highestKnown = nil, 0
+        for index, groupedID in ipairs(group) do
+            if groupedID == spellID then spellIndex = index end
+            if AbilityKnownRaw(groupedID) then highestKnown = math.max(highestKnown, index) end
+        end
+        if spellIndex and spellIndex <= highestKnown then return true end
+    end
+    return false
+end
+
+local function SkillRank(skillLineID)
+    if type(GetNumSkillLines) ~= "function" or type(GetSkillLineInfo) ~= "function" then return nil end
+    local ok, count = pcall(GetNumSkillLines)
+    if not ok or IsSecret(count) then return nil end
+    for index = 1, math.max(0, tonumber(count) or 0) do
+        local info = { pcall(GetSkillLineInfo, index) }
+        if info[1] then
+            local isHeader, rank = info[3], info[5]
+            local reportedID = tonumber(info[14]) or tonumber(info[15])
+            if not isHeader and reportedID == tonumber(skillLineID) then return tonumber(rank) or 0 end
+        end
+    end
+end
+
+local function CatalogEntryMatchesCharacter(entry)
+    local faction = UnitFactionGroup and UnitFactionGroup("player")
+    if entry.faction and entry.faction ~= faction then return false end
+    local _, _, raceID = UnitRace and UnitRace("player")
+    if entry.race and tonumber(entry.race) ~= tonumber(raceID) then return false end
+    if type(entry.races) == "table" then
+        local matched = false
+        for _, allowedRace in ipairs(entry.races) do
+            if tonumber(allowedRace) == tonumber(raceID) then matched = true break end
+        end
+        if not matched then return false end
+    end
+    for _, requirement in ipairs(entry.skills or {}) do
+        local rank = SkillRank(requirement.skill)
+        if not rank or rank < (tonumber(requirement.level) or 1) then return false end
+    end
+    return true
+end
+
+local function CatalogPrerequisitesMet(classData, entry)
+    if entry.requiredTalentId and not CatalogAbilityKnown(classData, entry.requiredTalentId) then return false end
+    for _, spellID in ipairs(entry.requiredIds or {}) do
+        if not CatalogAbilityKnown(classData, spellID) then return false end
+    end
+    return true
+end
+
+local function SpellDetails(spellID)
+    local name, subText, icon
+    if C_Spell and C_Spell.GetSpellInfo then
+        local ok, info = pcall(C_Spell.GetSpellInfo, spellID)
+        if ok and type(info) == "table" and not IsSecret(info) then
+            name, icon = info.name, info.iconID or info.originalIconID
+        end
+    end
+    if (not name or name == "") and type(GetSpellInfo) == "function" then
+        local ok, legacyName, legacySubText, legacyIcon = pcall(GetSpellInfo, spellID)
+        if ok and not IsSecret(legacyName) then
+            name, subText, icon = legacyName, legacySubText, legacyIcon
+        end
+    end
+    if (not subText or subText == "") and C_Spell and C_Spell.GetSpellSubtext then
+        local ok, value = pcall(C_Spell.GetSpellSubtext, spellID)
+        if ok and not IsSecret(value) then subText = value end
+    end
+    if not icon and C_Spell and C_Spell.GetSpellTexture then
+        local ok, value = pcall(C_Spell.GetSpellTexture, spellID)
+        if ok and not IsSecret(value) then icon = value end
+    end
+    if (not name or name == "") and C_Spell and C_Spell.RequestLoadSpellData then
+        pcall(C_Spell.RequestLoadSpellData, spellID)
+    end
+    return name or ("Spell " .. tostring(spellID)), subText, icon or 136243
+end
+
+StaticTrainerServices = function()
+    if staticServiceCache then return staticServiceCache end
+    local _, classToken = UnitClass("player")
+    local classData = ns.ClassTrainingData and ns.ClassTrainingData[classToken]
+    if type(classData) ~= "table" or type(classData.spellsByLevel) ~= "table" then return nil end
+    local level = tonumber(UnitLevel("player")) or 0
+    local services = {}
+    for requiredLevel, entries in pairs(classData.spellsByLevel) do
+        requiredLevel = tonumber(requiredLevel) or math.huge
+        if requiredLevel <= level then
+            for _, entry in ipairs(entries) do
+                if CatalogEntryMatchesCharacter(entry)
+                    and not CatalogAbilityKnown(classData, entry.id)
+                    and CatalogPrerequisitesMet(classData, entry) then
+                    local name, subText, icon = SpellDetails(entry.id)
+                    services[#services + 1] = {
+                        name = name,
+                        subText = subText,
+                        icon = icon,
+                        cost = math.max(0, tonumber(entry.cost) or 0),
+                        spellID = tonumber(entry.id),
+                        requiredLevel = requiredLevel,
+                        catalog = true,
+                    }
+                end
+            end
+        end
+    end
+
+    local cache = TrainerCache()
+    local liveByKey = {}
+    if type(cache) == "table" and tonumber(cache.level) == level then
+        for _, service in ipairs(cache.services or {}) do liveByKey[TrainerServiceKey(service)] = service end
+    end
+    local catalogKeys = {}
+    for _, service in ipairs(services) do
+        local key = TrainerServiceKey(service)
+        catalogKeys[key] = true
+        local live = liveByKey[key]
+        if live then
+            service.cost = math.max(0, tonumber(live.cost) or service.cost)
+            service.icon = live.icon or service.icon
+            service.tooltipText = live.tooltipText
+        end
+    end
+    if type(cache) == "table" and tonumber(cache.level) == level then
+        for _, live in ipairs(cache.services or {}) do
+            local key = TrainerServiceKey(live)
+            if not catalogKeys[key] then
+                services[#services + 1] = {
+                    name = live.name,
+                    subText = live.subText,
+                    icon = live.icon,
+                    cost = math.max(0, tonumber(live.cost) or 0),
+                    trainerIndex = live.trainerIndex,
+                    tooltipText = live.tooltipText,
+                    requiredLevel = level,
+                    liveNew = type(cache.newServiceKeys) == "table" and cache.newServiceKeys[key] == true,
+                }
+            end
+        end
+    end
+    table.sort(services, function(a, b)
+        if a.requiredLevel ~= b.requiredLevel then return a.requiredLevel < b.requiredLevel end
+        if a.name ~= b.name then return a.name < b.name end
+        return (a.spellID or 0) < (b.spellID or 0)
+    end)
+    staticServiceCache = services
+    return services
+end
+
+local function CatalogSeenTable(create)
+    local db = ns.DB()
+    if create and type(db.classTrainerSeenByCharacter) ~= "table" then db.classTrainerSeenByCharacter = {} end
+    local all = db.classTrainerSeenByCharacter
+    if type(all) ~= "table" then return nil end
+    local key = ns.CharacterKey()
+    if create and type(all[key]) ~= "table" then all[key] = {} end
+    return all[key]
+end
+
+MarkCatalogSeen = function()
+    local services = StaticTrainerServices and StaticTrainerServices()
+    if type(services) ~= "table" then return end
+    local seen = CatalogSeenTable(true)
+    for _, service in ipairs(services) do
+        if service.spellID then seen[tostring(service.spellID)] = true end
+    end
+end
+
+local function NewCatalogServiceCount(services)
+    local seen, count = CatalogSeenTable(false), 0
+    for _, service in ipairs(services or {}) do
+        if service.spellID and not (seen and seen[tostring(service.spellID)]) then
+            count = count + 1
+        elseif service.liveNew then
+            count = count + 1
+        end
+    end
+    return count
+end
+
 function ns.ScanClassTrainer()
     if not ns.Get("showClassTrainerSkills") or ns.IsCombatRestricted() then return false end
     if type(IsTradeskillTrainer) ~= "function" or type(GetNumTrainerServices) ~= "function" then return false end
@@ -264,6 +475,7 @@ function ns.ScanClassTrainer()
         newServiceKeys = newServiceKeys,
         newServiceCount = newServiceCount,
     }
+    staticServiceCache = nil
     return true
 end
 
@@ -285,69 +497,53 @@ local function Build()
     end
 
     if ns.Get("showClassTrainerSkills") then
-        local cache = TrainerCache()
-        if not cache then
+        local services = StaticTrainerServices and StaticTrainerServices()
+        if type(services) ~= "table" then
+            local cache = TrainerCache()
+            services = type(cache) == "table" and type(cache.services) == "table" and cache.services or {}
+        end
+        if #services > 0 then
+            local total = 0
+            for _, service in ipairs(services) do total = total + math.max(0, tonumber(service.cost) or 0) end
+            local expanded = TrainerSkillsExpanded()
+            if expanded and MarkCatalogSeen then MarkCatalogSeen() end
+            local newServiceCount = NewCatalogServiceCount(services)
             rows[#rows + 1] = {
-                key = "class-training-scan",
-                label = "Class training not scanned",
-                detail = "Visit a class trainer once to load available skills and their total cost.",
-                state = "info",
+                key = "class-training-total",
+                label = string.format("%s %d class-trainer skill%s available",
+                    expanded and "−" or "+", #services, #services == 1 and "" or "s"),
+                detail = string.format("Total training cost: %s%s", FormatMoney(total),
+                    newServiceCount > 0 and string.format(" • %d newly available", newServiceCount) or ""),
+                tooltip = string.format("Learn every listed skill for %s. %s",
+                    FormatMoney(total), expanded and "Collapse the individual skill list."
+                        or "Expand the individual skill list."),
+                clickHint = expanded and "Click to collapse class-trainer skills."
+                    or "Click to expand class-trainer skills.",
+                onClick = ToggleTrainerSkills,
+                state = "warning",
+                attention = not expanded and newServiceCount > 0 and "warning" or nil,
                 icon = 136243,
             }
-        else
-            local services = type(cache.services) == "table" and cache.services or {}
-            local total = tonumber(cache.total) or 0
-            local currentLevel = tonumber(UnitLevel("player")) or 0
-            local stale = currentLevel ~= (tonumber(cache.level) or 0)
-            if #services == 0 then
-                rows[#rows + 1] = {
-                    key = "class-training-total",
-                    label = "No class training available",
-                    detail = stale and "Visit a class trainer to refresh after leveling."
-                        or string.format("Checked with %s.", cache.trainerName or "your class trainer"),
-                    state = stale and "info" or "ready",
-                    icon = 136243,
-                }
-            else
-                local expanded = TrainerSkillsExpanded()
-                local newServiceCount = math.max(0, tonumber(cache.newServiceCount) or 0)
-                rows[#rows + 1] = {
-                    key = "class-training-total",
-                    label = string.format("%s %d class-trainer skill%s available",
-                        expanded and "−" or "+", #services, #services == 1 and "" or "s"),
-                    detail = string.format("Total training cost: %s%s%s", FormatMoney(total),
-                        newServiceCount > 0 and string.format(" • %d newly available", newServiceCount) or "",
-                        stale and " • rescan after leveling" or ""),
-                    tooltip = string.format("Last scanned from %s at level %d. Learn every listed skill for %s. %s%s",
-                        cache.trainerName or "a class trainer", tonumber(cache.level) or 0, FormatMoney(total),
-                        stale and "Visit a class trainer to include newly available skills. " or "",
-                        expanded and "Collapse the individual skill list." or "Expand the individual skill list."),
-                    clickHint = expanded and "Click to collapse class-trainer skills."
-                        or "Click to expand class-trainer skills.",
-                    onClick = ToggleTrainerSkills,
-                    state = "warning",
-                    attention = not expanded and newServiceCount > 0 and "warning" or nil,
-                    icon = 136243,
-                }
-                if expanded then
-                    for index = 1, #services do
-                        local service = services[index]
-                        local label = service.name or "Unknown skill"
-                        if service.subText and service.subText ~= "" then
-                            label = string.format("%s (%s)", label, service.subText)
-                        end
-                        rows[#rows + 1] = {
-                            key = "class-training-" .. index,
-                            label = label,
-                            detail = "Cost: " .. FormatMoney(service.cost),
-                            tooltip = service.tooltipText or string.format("Untrained skill available from %s.",
-                                cache.trainerName or "your class trainer"),
-                            tooltipFunc = function(owner) return ShowLiveTrainerTooltip(owner, service) end,
-                            state = "warning",
-                            icon = service.icon or 136243,
-                            indentLevel = 1,
-                        }
+            if expanded then
+                for index = 1, #services do
+                    local service = services[index]
+                    local label = service.name or "Unknown skill"
+                    if service.subText and service.subText ~= "" then
+                        label = string.format("%s (%s)", label, service.subText)
                     end
+                    rows[#rows + 1] = {
+                        key = "class-training-" .. tostring(service.spellID or index),
+                        label = label,
+                        detail = "Cost: " .. FormatMoney(service.cost),
+                        tooltip = service.spellID and "" or service.tooltipText,
+                        tooltipFunc = not service.spellID and function(owner)
+                            return ShowLiveTrainerTooltip(owner, service)
+                        end or nil,
+                        spellID = service.spellID,
+                        state = "warning",
+                        icon = service.icon or 136243,
+                        indentLevel = 1,
+                    }
                 end
             end
         end
@@ -362,6 +558,18 @@ local function Build()
 end
 
 ns.RegisterProvider("character-reminders", 5, Build)
+
+local catalogEvents = CreateFrame("Frame")
+for _, event in ipairs({
+    "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED",
+    "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED", "SPELL_DATA_LOAD_RESULT",
+}) do
+    pcall(catalogEvents.RegisterEvent, catalogEvents, event)
+end
+catalogEvents:SetScript("OnEvent", function()
+    staticServiceCache = nil
+    if ns.RequestRefresh then ns.RequestRefresh() end
+end)
 
 -------------------------------------------------------------------------------
 -- Blizzard points its talent alert at PlayerSpellsMicroButton. EllesmereUI can

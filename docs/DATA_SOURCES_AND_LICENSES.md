@@ -3,10 +3,11 @@
 Date: 2026-11-27
 
 This document records which external resources Adventure Tracker may use and
-how. It is an engineering policy and inventory. Version 0.6.0 ships a
-coordinate-free Forever Nodes aggregate, Cooking recipe/output discovery seeds
-an attributed build-stamped recipe catalogue, and OneCast-derived Fishing
-thresholds; retained notices are in the root `THIRD_PARTY_NOTICES.md`.
+how. It is an engineering policy and inventory. Version 0.7.0 ships a
+coordinate-free Forever Nodes aggregate, Cooking recipe/output discovery seeds,
+an attributed build-stamped recipe catalogue, a static Forever class-training
+catalogue and OneCast-derived Fishing thresholds; retained notices are in the
+root `THIRD_PARTY_NOTICES.md`.
 
 ## Rules
 
@@ -88,6 +89,25 @@ thresholds; retained notices are in the root `THIRD_PARTY_NOTICES.md`.
 - Extended in 0.4.0 and 0.5.0 for current-zone quest eligibility and runtime
   recipe-item vendor, mob-drop, object-loot and quest-reward relationships.
   The recipe index is built in coroutine batches and retains no coordinates.
+- Extended in 0.7.0 for character-visited zone summaries and player-level
+  aggregate XP from QuestieDB's public QuestXP support table. Coin rewards are
+  read from the live client API by quest ID and are not copied from QuestieDB.
+
+### What's Training?
+
+- Source: <https://github.com/fusionpit/WhatsTraining>
+- Declared licence: MIT, copyright 2019.
+- Intended use: a static class-trainer spell, level, prerequisite and base-cost
+  catalogue so Adventure Tracker never asks the player to visit a trainer just
+  to populate addon data.
+- Included beginning in 0.7.0 as `Data/ClassTraining/`, pinned to revision
+  `59763c2105428ccf99926919824c23d850bfbaa4`.
+- Boundary: Adventure Tracker imports only the nine Forever class tables. It
+  does not copy What's Training's interface, navigation, weapon-master data,
+  profession catalogue, saved variables or ignored-spell system. Live trainer
+  reads remain a quiet price/description refinement.
+- Required notice: the What's Training MIT text in
+  `THIRD_PARTY_NOTICES.md` and an attribution header on every imported table.
 
 ### Dwarf Explorer's Bible
 

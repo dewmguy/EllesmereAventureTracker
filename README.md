@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.6.0 establishes the addon structure and a playable first pass:
+Version 0.7.0 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -60,11 +60,11 @@ Version 0.6.0 establishes the addon structure and a playable first pass:
   level, class, professions and existing progress;
 - an unspent talent reminder that can replace Blizzard's callout to the hidden
   Player Spells microbutton and breathes yellow until every point is spent;
-- a per-character class-trainer scan that lists every currently available
-  skill, its price and the total cost to learn them all, with a clickable
-  summary that expands or collapses the individual list, the full native
-  trainer tooltip while the trainer is open, and a cached skill description
-  afterward;
+- a bundled, attributed Forever class-training catalog that lists every
+  currently available skill, its price and the total cost to learn them all
+  without requiring a trainer visit, with a clickable summary, indented skill
+  rows and native spell tooltips; live trainer visits quietly refine matching
+  prices without becoming setup objectives;
 - a one-time yellow breathing alert when a collapsed class-training list gains
   newly available skills, cleared as soon as the list is opened;
 - configurable red breathing alerts for missing long-lived role preparation,
@@ -82,9 +82,10 @@ Version 0.6.0 establishes the addon structure and a playable first pass:
   runtime provider, limited to eligible quests that are incomplete and absent
   from the quest log, with only a quest giver or starting item and its dropping
   mobs shown;
-- a separate current-zone missing-quest section using the same conservative
-  QuestieDB filtering, with the best candidate kept visible and the complete
-  eligible list expandable without exposing locations, routes or objectives;
+- a Quest Progress section with one expandable summary per zone the character
+  has actually entered outside flight-path travel, combined player-level XP
+  and coin rewards, and the same conservative QuestieDB filtering without
+  exposing locations, routes or objectives;
 - Encounter Journal upgrade suggestions filtered for the current class and
   specialization and then limited to drops whose item level beats the relevant
   equipped slot;
@@ -176,7 +177,8 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `Professions.lua` — rank goals, learned-recipe plans, gear and local resources
 - `Instances.lua` — run and boss timers, QuestieDB quest suggestions and
   Encounter Journal upgrade drops
-- `Quests.lua` — eligible current-zone missing quests without route guidance
+- `Quests.lua` — visited-zone quest progress and aggregate rewards without
+  route guidance
 - `Flight.lua` — independent in-tracker flight timing, route learning and
   progress-bar data
 - `Status.lua` — contextual activity states, session duration and `/played`
@@ -185,6 +187,7 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
   transparent power-of-two PNG assets
 - `Data/GatheringCatalog.lua` — generated per-zone node types and known-position counts
 - `Data/CookingFoods.lua` — Cooking recipe/output discovery seeds
+- `Data/ClassTraining/` — attributed static Forever class-trainer catalog
 - `Data/RecipeCatalog.lua` — attributed build-stamped recipe and reagent facts
 - `RecipeCatalog.lua` — learned-state, source, synergy and upgrade evaluation
 - `Tracker.lua` — floating tracker window
