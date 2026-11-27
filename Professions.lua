@@ -944,17 +944,7 @@ local function AddTrainerRecipeRows(rows, profession)
 
     local services = type(cache.services) == "table" and cache.services or {}
     local stale = (tonumber(cache.rank) or 0) ~= profession.rank
-    if #services == 0 then
-        rows[#rows + 1] = {
-            key = "trainer-recipes-none-" .. tostring(profession.skillLineID),
-            label = "No unlearned trainer recipes available",
-            detail = stale and "Visit a trainer to refresh after gaining profession skill."
-                or string.format("Checked with %s.", cache.trainerName or "your profession trainer"),
-            state = stale and "info" or "ready",
-            icon = profession.icon,
-        }
-        return
-    end
+    if #services == 0 then return end
 
     local expanded = ProfessionTrainerExpanded(profession.skillLineID)
     rows[#rows + 1] = {

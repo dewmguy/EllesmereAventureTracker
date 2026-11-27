@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.2 establishes the addon structure and a playable first pass:
+Version 0.3.3 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -23,7 +23,8 @@ Version 0.3.2 establishes the addon structure and a playable first pass:
   alerted section headers and recommendation entries;
 - mouse-wheel scrolling when the tracker contents exceed its screen-relative
   maximum height, with optional full-viewport sizing and explicit upward or
-  downward pane growth;
+  downward pane growth; context/status lines and readiness icons remain fixed
+  while recommendation sections scroll underneath;
 - one combined Tracker settings page with customizable pane padding, independent
   pane/section/entry backgrounds, font face, outline, text sizes and text colors,
   plus border and title-bar presentation;

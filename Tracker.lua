@@ -72,9 +72,17 @@ lockTexture:SetAllPoints()
 lockTexture:SetDesaturated(true)
 lockTexture:SetVertexColor(1, 1, 1)
 
+-- Context, activity status and readiness icons stay fixed while recommendation
+-- sections use the independent scroll frame below them.
+local fixedFrame = CreateFrame("Frame", nil, frame)
+fixedFrame:SetPoint("TOPLEFT", 8, -34)
+fixedFrame:SetPoint("TOPRIGHT", -8, -34)
+fixedFrame:SetHeight(1)
+fixedFrame:EnableMouse(true)
+
 local scrollFrame = CreateFrame("ScrollFrame", nil, frame)
-scrollFrame:SetPoint("TOPLEFT", 8, -34)
-scrollFrame:SetPoint("TOPRIGHT", -8, -34)
+scrollFrame:SetPoint("TOPLEFT", fixedFrame, "BOTTOMLEFT")
+scrollFrame:SetPoint("TOPRIGHT", fixedFrame, "BOTTOMRIGHT")
 scrollFrame:EnableMouseWheel(true)
 
 local content = CreateFrame("Frame", nil, scrollFrame)
@@ -82,14 +90,14 @@ content:SetPoint("TOPLEFT")
 content:SetSize(1, 1)
 scrollFrame:SetScrollChild(content)
 
-local contextText = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+local contextText = fixedFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 contextText:SetPoint("TOPLEFT", 2, 0)
 contextText:SetPoint("TOPRIGHT", -2, 0)
 contextText:SetJustifyH("LEFT")
 contextText:SetTextColor(0.67, 0.72, 0.75)
 contextText:SetWordWrap(true)
 
-local playtimeText = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+local playtimeText = fixedFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 playtimeText:SetJustifyH("LEFT")
 playtimeText:SetTextColor(0.67, 0.72, 0.75)
 playtimeText:SetWordWrap(true)
@@ -256,10 +264,12 @@ end
 
 local function PositionSecureActionButton(button, owner)
     if HasUnlockAnchor and HasUnlockAnchor() then return false end
-    if not (frame:IsShown() and scrollFrame:IsShown() and owner and owner:IsShown()) then return false end
+    if not (frame:IsShown() and owner and owner:IsShown()) then return false end
+    local clipFrame = owner._trackerFixedAction and fixedFrame or scrollFrame
+    if not clipFrame:IsShown() then return false end
     local left, right, top, bottom = owner:GetLeft(), owner:GetRight(), owner:GetTop(), owner:GetBottom()
-    local scrollLeft, scrollRight = scrollFrame:GetLeft(), scrollFrame:GetRight()
-    local scrollTop, scrollBottom = scrollFrame:GetTop(), scrollFrame:GetBottom()
+    local scrollLeft, scrollRight = clipFrame:GetLeft(), clipFrame:GetRight()
+    local scrollTop, scrollBottom = clipFrame:GetTop(), clipFrame:GetBottom()
     if not (left and right and top and bottom and scrollLeft and scrollRight and scrollTop and scrollBottom) then return false end
     if right <= scrollLeft or left >= scrollRight or bottom >= scrollTop or top <= scrollBottom then return false end
     local uiScale = math.max(0.01, UIParent:GetEffectiveScale() or 1)
@@ -334,7 +344,8 @@ end
 local function AcquireIcon(index)
     local button = iconPool[index]
     if button then return button end
-    button = CreateFrame("Button", nil, content, "BackdropTemplate")
+    button = CreateFrame("Button", nil, fixedFrame, "BackdropTemplate")
+    button._trackerFixedAction = true
     button:SetSize(31, 31)
     button:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 2 })
     button.icon = button:CreateTexture(nil, "ARTWORK")
@@ -665,9 +676,13 @@ local function SetScroll(value)
     if QueueSecureActionSync then QueueSecureActionSync() end
 end
 
-scrollFrame:SetScript("OnMouseWheel", function(self, delta)
-    SetScroll(self:GetVerticalScroll() - delta * 40)
-end)
+local function ScrollRecommendations(_, delta)
+    SetScroll(scrollFrame:GetVerticalScroll() - delta * 40)
+end
+
+scrollFrame:SetScript("OnMouseWheel", ScrollRecommendations)
+fixedFrame:EnableMouseWheel(true)
+fixedFrame:SetScript("OnMouseWheel", ScrollRecommendations)
 
 local function TitleBarMode()
     local mode = ns.Get("titleBarMode")
@@ -838,22 +853,25 @@ local function ApplyWindowStyle()
     headerSeparator:SetColorTexture(sr, sg, sb, sa)
     headerSeparator:SetShown(mode ~= "hidden" and separatorSize > 0)
 
-    scrollFrame:ClearAllPoints()
     local padding = PanePadding()
     local topInset = headerHeight + padding
-    scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, -topInset)
-    scrollFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -padding, -topInset)
+    fixedFrame:ClearAllPoints()
+    fixedFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, -topInset)
+    fixedFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -padding, -topInset)
+    scrollFrame:ClearAllPoints()
+    scrollFrame:SetPoint("TOPLEFT", fixedFrame, "BOTTOMLEFT")
+    scrollFrame:SetPoint("TOPRIGHT", fixedFrame, "BOTTOMRIGHT")
     if mode == "hidden" then
-        collapseButton:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", 0, math.min(4, padding))
+        collapseButton:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", 0, math.min(4, padding))
     end
     content:ClearAllPoints()
     content:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT")
     contextText:ClearAllPoints()
-    contextText:SetPoint("TOPLEFT", content, "TOPLEFT", 2, 0)
-    contextText:SetPoint("TOPRIGHT", content, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
+    contextText:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, 0)
+    contextText:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
     playtimeText:ClearAllPoints()
-    playtimeText:SetPoint("TOPLEFT", content, "TOPLEFT", 2, 0)
-    playtimeText:SetPoint("TOPRIGHT", content, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
+    playtimeText:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, 0)
+    playtimeText:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
     UpdateLockIcon()
     UpdateLockFade()
 end
@@ -945,6 +963,7 @@ end
 
 RegisterDragSurface(frame)
 RegisterDragSurface(header)
+RegisterDragSurface(fixedFrame)
 RegisterDragSurface(scrollFrame)
 RegisterDragSurface(content)
 
@@ -1004,7 +1023,7 @@ local function CurrentContextLines()
 end
 
 function ns.RefreshTrackerContextText()
-    if not (frame:IsShown() and scrollFrame:IsShown()) then return end
+    if not (frame:IsShown() and fixedFrame:IsShown()) then return end
     local contextLine, playtimeLine = CurrentContextLines()
     if contextText:IsShown() and contextLine then contextText:SetText(contextLine) end
     if playtimeText:IsShown() and playtimeLine then playtimeText:SetText(playtimeLine) end
@@ -1028,6 +1047,7 @@ local function Render()
     local collapsed = ns.Get("collapsed") == true
     collapseButton.text:SetText(collapsed and "+" or "−")
     SetAttention(collapseButton, collapsed and SnapshotAttention(snapshot) or nil, 1)
+    fixedFrame:SetShown(not collapsed)
     scrollFrame:SetShown(not collapsed)
     if collapsed then
         frame:SetHeight(CollapsedHeight())
@@ -1035,28 +1055,28 @@ local function Render()
         return
     end
 
-    local y = 0
+    local fixedY = 0
     local contextLine, playtimeLine
     contextLine, playtimeLine = CurrentContextLines()
     local contextLineHeight = math.max(19, Clamp(ns.Get("contextFontSize"), 8, 24, 11) + 8)
     local contextRight = TitleBarMode() == "hidden" and -28 or -2
     if contextLine then
         contextText:ClearAllPoints()
-        contextText:SetPoint("TOPLEFT", content, "TOPLEFT", 2, y)
-        contextText:SetPoint("TOPRIGHT", content, "TOPRIGHT", contextRight, y)
+        contextText:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, fixedY)
+        contextText:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", contextRight, fixedY)
         contextText:SetText(contextLine)
         contextText:Show()
-        y = y - math.max(contextLineHeight, math.ceil(contextText:GetStringHeight() or 0) + 5)
+        fixedY = fixedY - math.max(contextLineHeight, math.ceil(contextText:GetStringHeight() or 0) + 5)
     else
         contextText:Hide()
     end
     if playtimeLine then
         playtimeText:ClearAllPoints()
-        playtimeText:SetPoint("TOPLEFT", content, "TOPLEFT", 2, y)
-        playtimeText:SetPoint("TOPRIGHT", content, "TOPRIGHT", contextRight, y)
+        playtimeText:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, fixedY)
+        playtimeText:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", contextRight, fixedY)
         playtimeText:SetText(playtimeLine)
         playtimeText:Show()
-        y = y - math.max(contextLineHeight, math.ceil(playtimeText:GetStringHeight() or 0) + 5)
+        fixedY = fixedY - math.max(contextLineHeight, math.ceil(playtimeText:GetStringHeight() or 0) + 5)
     else
         playtimeText:Hide()
     end
@@ -1071,16 +1091,19 @@ local function Render()
             local button = AcquireIcon(i)
             button.data = data
             button:ClearAllPoints()
-            button:SetPoint("TOPLEFT", content, "TOPLEFT", startX + (i - 1) * (size + spacing), y)
+            button:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", startX + (i - 1) * (size + spacing), fixedY)
             button.icon:SetTexture(data.icon or 134400)
             button.badge:SetText(data.badge or "")
             button:SetBackdropBorderColor(StateColor(data.state))
             SetAttention(button, data.attention, 2)
             button:Show()
         end
-        y = y - 40
+        fixedY = fixedY - 40
     end
 
+    local fixedHeight = math.max(1, math.abs(fixedY))
+    fixedFrame:SetHeight(fixedHeight)
+    local y = 0
     local sectionIndex, rowIndex = 0, 0
     for i = 1, #snapshot.sections do
         local section = snapshot.sections[i]
@@ -1145,9 +1168,10 @@ local function Render()
     content:SetHeight(contentHeight)
     ApplyTextAppearance()
     for index = 1, rowIndex do ApplyDataTypography(rowPool[index], rowPool[index].data) end
-    local viewportHeight = math.min(contentHeight, math.max(12, MaximumPanelHeight() - ChromeHeight()))
+    local viewportHeight = math.min(contentHeight,
+        math.max(12, MaximumPanelHeight() - ChromeHeight() - fixedHeight))
     scrollFrame:SetHeight(viewportHeight)
-    frame:SetHeight(ChromeHeight() + viewportHeight)
+    frame:SetHeight(ChromeHeight() + fixedHeight + viewportHeight)
     SetScroll(scrollFrame:GetVerticalScroll())
     if QueueSecureActionSync then QueueSecureActionSync() end
     UpdateLockFade()

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3 - 2026-11-26
+
+- Kept the context/status lines and readiness buff icons fixed at the top of the
+  expanded pane while recommendation sections and entries scroll below them.
+- Hid the profession trainer-recipe row when the last scan contains no
+  currently available unlearned recipes.
+
 ## 0.3.2 - 2026-11-26
 
 - Replaced the blocked direct food-use API call with out-of-combat secure item
