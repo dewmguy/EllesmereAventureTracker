@@ -1,0 +1,55 @@
+# Third-Party Notices
+
+## Forever Nodes and GatherLite
+
+`Data/GatheringCatalog.lua` is a coordinate-free aggregate generated from
+Forever Nodes `Data.lua` at revision
+`60d61b4f477a23d02d9707399fe8f1a7d2525d10`. It retains node names, required
+skills and counts of unique known positions by map. It contains no source
+coordinates.
+
+Forever Nodes is copyright © 2026 Lvcid and distributed under the MIT License:
+
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
+
+Forever Nodes states that its node data is converted from GatherLite 8.4.6 by
+Wuild. GatherLite is copyright © 2019 Wuild and distributed under the same MIT
+License text above. The Forever Nodes credits describe that database as a
+Wowhead import; Adventure Tracker therefore ships only its derived zone counts,
+not the coordinates or a mapping interface.
+
+Sources:
+
+- <https://github.com/LvcidLabs/ForeverNodes>
+- <https://github.com/LvcidLabs/ForeverNodes/blob/main/LICENSE>
+- <https://github.com/LvcidLabs/ForeverNodes/blob/main/CREDITS.txt>
+
+## OneCast
+
+`Data/CookingFoods.lua` contains recipe-spell and product-item identifiers
+cross-checked against OneCast `Cooking.lua`. OneCast generated those factual
+mappings from WoW Forever client data. OneCast is by rynmon and is declared MIT
+licensed on CurseForge.
+
+Sources:
+
+- <https://github.com/rynmon/OneCast>
+- <https://www.curseforge.com/wow/addons/onecast/license>
+
+World of Warcraft game data and names are © Blizzard Entertainment, Inc.

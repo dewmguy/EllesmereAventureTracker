@@ -3,9 +3,9 @@
 Date: 2026-11-26
 
 This document records which external resources Adventure Tracker may use and
-how. It is an engineering policy, not a claim that every candidate dataset is
-already bundled. At version 0.1.2, the repository contains no copied third-party
-data pack.
+how. It is an engineering policy and inventory. Version 0.1.4 ships a
+coordinate-free Forever Nodes aggregate and Cooking recipe/output discovery
+seeds; their retained notices are in the root `THIRD_PARTY_NOTICES.md`.
 
 ## Rules
 
@@ -35,6 +35,8 @@ data pack.
   also under an MIT notice retained in `CREDITS.txt`.
 - Intended use: build-time aggregation of herb, ore and fishing-pool node types,
   required skill and unique known-position counts by zone.
+- Included beginning in 0.1.4 as `Data/GatheringCatalog.lua`, pinned to revision
+  `60d61b4f477a23d02d9707399fe8f1a7d2525d10`.
 - Boundary: no coordinates, pins or routes are shipped or shown. The upstream
   file says its converted database originated as a Wowhead import, so only the
   minimal zone aggregate is selected and the provenance is disclosed.

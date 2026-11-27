@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.3 establishes the addon structure and a playable first pass:
+Version 0.1.4 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible EllesmereUI-skinned window;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
@@ -17,6 +17,8 @@ Version 0.1.3 establishes the addon structure and a playable first pass:
   checks;
 - combat-safe state retention so restricted aura reads do not become false
   missing-buff warnings;
+- a role-aware Well Fed recommendation that prefers suitable food already in
+  the bags, then a supported learned Cooking recipe;
 - Camp Benefits equivalence for Incense Candle/Intellect and First Aid
   Kit/Fortitude;
 - an explicit per-character activity role because Forever does not reliably
@@ -24,8 +26,8 @@ Version 0.1.3 establishes the addon structure and a playable first pass:
 - a separate World Buffs submenu and tracker section for active timers and
   opt-in missing-buff acquisition sources;
 - unspent Legacy point reminders and a current-zone provider boundary;
-- profession Legacy checkpoints, trainer-cap reminders and honest contextual
-  gathering hints;
+- profession Legacy checkpoints, gathering and Fishing skill progress,
+  trainer-cap reminders and coordinate-free zone node summaries;
 - a researched zone-gathering design for ranked herbs and ore, observed
   skinning materials, available fish and recommended effective Fishing skill;
 - an `Adventure Tracker` sidebar section in EllesmereUI with Tracker,
@@ -70,8 +72,13 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `WorldBuffs.lua` — world-buff presence, timers and acquisition sources
 - `Legacy.lua` — Legacy points and current-zone provider
 - `Professions.lua` — skill checkpoints and zone opportunities
+- `Data/GatheringCatalog.lua` — generated per-zone node types and known-position counts
+- `Data/CookingFoods.lua` — Cooking recipe/output discovery seeds
 - `Tracker.lua` — floating tracker window
 - `Options.lua` — supported EllesmereUI plugin settings integration
 
 The addon uses EllesmereUI's public plugin and skinning APIs. It does not edit
 or hook EllesmereUI vendor files.
+
+Third-party data sources and retained notices are recorded in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

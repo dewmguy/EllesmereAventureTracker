@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.4 - 2026-11-26
+
+- Added Mining, Herbalism, Skinning and Fishing skill rows alongside crafting
+  profession progress.
+- Fixed Fishing being skipped when `GetProfessions()` contains an empty
+  Archaeology slot.
+- Added coordinate-free herb, ore and fishing-pool summaries generated from a
+  pinned Forever Nodes snapshot. Duskwood now lists its vein types from most to
+  least known locations.
+- Changed a missing Well Fed row to recommend the strongest role-appropriate
+  combat food in the character's bags, otherwise the strongest supported
+  learned Cooking recipe.
+- Added third-party notices and a reproducible Node.js gathering-data generator.
+
 ## 0.1.3 - 2026-11-26
 
 - Fixed active buffs and other readiness checks briefly turning red when combat

@@ -318,12 +318,16 @@ local eventNames = {
     "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA",
     "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "SPELLS_CHANGED", "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
     "CHAT_MSG_SKILL", "UNIT_INVENTORY_CHANGED", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
+    "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "ITEM_DATA_LOAD_RESULT", "SPELL_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED",
     "TRAIT_TREE_CURRENCY_INFO_UPDATED", "TRAIT_CONFIG_UPDATED", "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "ACHIEVEMENT_EARNED",
 }
 for i = 1, #eventNames do pcall(events.RegisterEvent, events, eventNames[i]) end
 pcall(events.RegisterUnitEvent, events, "UNIT_AURA", "player")
-events:SetScript("OnEvent", function(_, event, unit)
-    if unit and unit ~= "player" then return end
+events:SetScript("OnEvent", function(_, event, ...)
+    if event == "UNIT_AURA" then
+        local unit = ...
+        if unit and unit ~= "player" then return end
+    end
     if event == "PLAYER_LOGIN" then
         ns.ApplySettings()
         C_Timer.NewTicker(10, ns.RequestRefresh)

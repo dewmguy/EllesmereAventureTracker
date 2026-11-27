@@ -7,6 +7,7 @@ local CAMP_BENEFITS = 1229741
 local SLEEPING_BAG_BUFF = 429959
 local SLEEPING_BAG_ITEM = 211527
 local WELL_FED = 19705
+local NUTRITIOUS_FOOD = 1248377
 local FOOD_BUFFS = { 19705, 18192, 18194, 22730, 25661, 18125, 18141 }
 
 local CLASS_REQUIREMENTS = {
@@ -120,6 +121,221 @@ end
 local function ItemTexture(itemID)
     if C_Item and C_Item.GetItemIconByID then return C_Item.GetItemIconByID(itemID) end
     return GetItemIcon and GetItemIcon(itemID)
+end
+
+local FOOD_WEIGHTS = {
+    SOLO = { strength = 4, agility = 4, intellect = 4, stamina = 2, spirit = 1, attackPower = 3, spellPower = 3, healing = 2, crit = 2, mana5 = 1 },
+    TANK = { strength = 2, agility = 2, intellect = 1, stamina = 6, spirit = 1, attackPower = 1, spellPower = 1, healing = 1, crit = 1, mana5 = 1 },
+    HEALER = { strength = 0, agility = 0, intellect = 6, stamina = 1, spirit = 4, attackPower = 0, spellPower = 5, healing = 6, crit = 2, mana5 = 4 },
+    PHYSICAL = { strength = 6, agility = 6, intellect = 0, stamina = 1, spirit = 0, attackPower = 4, spellPower = 0, healing = 0, crit = 3, mana5 = 0 },
+    CASTER = { strength = 0, agility = 0, intellect = 6, stamina = 1, spirit = 2, attackPower = 0, spellPower = 5, healing = 2, crit = 3, mana5 = 2 },
+}
+
+local FOOD_STAT_DEFS = {
+    { key = "strength", label = "Strength", phrases = { "strength" } },
+    { key = "agility", label = "Agility", phrases = { "agility" } },
+    { key = "intellect", label = "Intellect", phrases = { "intellect" } },
+    { key = "stamina", label = "Stamina", phrases = { "stamina" } },
+    { key = "spirit", label = "Spirit", phrases = { "spirit" } },
+    { key = "attackPower", label = "Attack Power", phrases = { "attack power" } },
+    { key = "spellPower", label = "Spell Power", phrases = { "spell power", "spell damage" } },
+    { key = "healing", label = "Healing", phrases = { "healing" } },
+    { key = "crit", label = "Critical Strike", phrases = { "critical strike", "critical hit" } },
+    { key = "mana5", label = "Mana/5", phrases = { "mana every 5", "mana per 5" } },
+}
+
+local function CleanTooltipText(value)
+    if type(value) ~= "string" or IsSecret(value) then return "" end
+    return value:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
+end
+
+local function TooltipText(tooltip)
+    if IsSecret(tooltip) or type(tooltip) ~= "table" then return nil end
+    local parts = {}
+    for _, line in ipairs(tooltip.lines or {}) do
+        if type(line) == "table" and not IsSecret(line) then
+            local left = CleanTooltipText(line.leftText)
+            local right = CleanTooltipText(line.rightText)
+            if left ~= "" then parts[#parts + 1] = left end
+            if right ~= "" then parts[#parts + 1] = right end
+        end
+    end
+    return table.concat(parts, "\n")
+end
+
+local function ItemTooltipText(itemID)
+    if not (C_TooltipInfo and C_TooltipInfo.GetItemByID) then return nil end
+    local ok, tooltip = pcall(C_TooltipInfo.GetItemByID, itemID)
+    if not ok then return nil end
+    return TooltipText(tooltip)
+end
+
+local function MaxStatValue(text, phrases)
+    local best = 0
+    for i = 1, #phrases do
+        local phrase = phrases[i]
+        local before = text:match("(%d+)%s+" .. phrase)
+        local after = text:match(phrase .. "%s+by%s+(%d+)")
+        best = math.max(best, tonumber(before) or 0, tonumber(after) or 0)
+    end
+    return best
+end
+
+local foodCache = {}
+local function EvaluateCombatFood(itemID)
+    local role = ns.GetRole()
+    foodCache[role] = foodCache[role] or {}
+    if foodCache[role][itemID] then return foodCache[role][itemID] end
+
+    local ok, name, _, _, itemLevel, requiredLevel, _, _, _, _, icon = pcall(C_Item.GetItemInfo, itemID)
+    if not ok or not name or IsSecret(name) then
+        if C_Item and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(itemID) end
+        return nil
+    end
+    requiredLevel = tonumber(requiredLevel) or 0
+    if requiredLevel > (UnitLevel("player") or 0) then return nil end
+
+    local text = ItemTooltipText(itemID)
+    if not text then return nil end
+    local familyName = SpellName(NUTRITIOUS_FOOD)
+    if not familyName and C_Spell and C_Spell.RequestLoadSpellData then
+        C_Spell.RequestLoadSpellData(NUTRITIOUS_FOOD)
+    end
+    local foodSpell
+    if C_Item and C_Item.GetItemSpell then
+        local spellOK, spellName = pcall(C_Item.GetItemSpell, itemID)
+        if spellOK and not IsSecret(spellName) then foodSpell = spellName end
+    end
+    local lower = text:lower()
+    if not ((familyName and foodSpell == familyName) or lower:find("well fed", 1, true)) then return nil end
+
+    local weights = FOOD_WEIGHTS[role] or FOOD_WEIGHTS.SOLO
+    local stats, score, effect = {}, 0, {}
+    for i = 1, #FOOD_STAT_DEFS do
+        local def = FOOD_STAT_DEFS[i]
+        local value = MaxStatValue(lower, def.phrases)
+        if value > 0 then
+            stats[def.key] = value
+            score = score + value * (weights[def.key] or 0)
+            effect[#effect + 1] = string.format("+%d %s", value, def.label)
+        end
+    end
+    local sharedStamina = tonumber(lower:match("(%d+)%s+stamina%s+and%s+spirit"))
+    if sharedStamina and sharedStamina > 0 and not stats.spirit then
+        stats.spirit = sharedStamina
+        score = score + sharedStamina * (weights.spirit or 0)
+        effect[#effect + 1] = string.format("+%d Spirit", sharedStamina)
+    end
+    if score <= 0 then return nil end
+    local result = {
+        itemID = itemID,
+        name = name,
+        icon = icon or ItemTexture(itemID),
+        itemLevel = tonumber(itemLevel) or 0,
+        requiredLevel = requiredLevel,
+        score = score,
+        effect = #effect > 0 and table.concat(effect, ", ") or "combat benefit",
+    }
+    foodCache[role][itemID] = result
+    return result
+end
+
+local function BetterFood(candidate, best)
+    if not candidate then return best end
+    if not best or candidate.score > best.score
+        or (candidate.score == best.score and candidate.requiredLevel > best.requiredLevel)
+        or (candidate.score == best.score and candidate.requiredLevel == best.requiredLevel and candidate.itemLevel > best.itemLevel) then
+        return candidate
+    end
+    return best
+end
+
+local function BestBagCombatFood()
+    if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemID) then return nil end
+    local counts = {}
+    for bag = 0, NUM_BAG_SLOTS or 4 do
+        local slots = C_Container.GetContainerNumSlots(bag) or 0
+        for slot = 1, slots do
+            local itemID = C_Container.GetContainerItemID(bag, slot)
+            if itemID then
+                local info = C_Container.GetContainerItemInfo and C_Container.GetContainerItemInfo(bag, slot)
+                counts[itemID] = (counts[itemID] or 0) + (info and info.stackCount or 1)
+            end
+        end
+    end
+    local best
+    for itemID, count in pairs(counts) do
+        local food = EvaluateCombatFood(itemID)
+        if food then
+            food.count = count
+            best = BetterFood(food, best)
+        end
+    end
+    return best
+end
+
+local function RecipeKnown(recipeID, info)
+    if info then
+        local learned = info.learned
+        if not IsSecret(learned) and learned ~= nil then return learned == true end
+    end
+    if C_SpellBook and C_SpellBook.IsSpellKnown then
+        local ok, known = pcall(C_SpellBook.IsSpellKnown, recipeID)
+        if ok and not IsSecret(known) and known then return true end
+    end
+    if IsPlayerSpell then
+        local ok, known = pcall(IsPlayerSpell, recipeID)
+        if ok and not IsSecret(known) and known then return true end
+    end
+    return false
+end
+
+local function RecipeOutput(recipeID)
+    if C_TradeSkillUI and C_TradeSkillUI.GetRecipeItemLink then
+        local ok, link = pcall(C_TradeSkillUI.GetRecipeItemLink, recipeID)
+        if ok and link and not IsSecret(link) and C_Item and C_Item.GetItemInfoInstant then
+            local itemID = C_Item.GetItemInfoInstant(link)
+            if itemID then return itemID end
+        end
+    end
+    if C_TradeSkillUI and C_TradeSkillUI.GetRecipeSchematic then
+        local ok, schematic = pcall(C_TradeSkillUI.GetRecipeSchematic, recipeID, false)
+        if ok and type(schematic) == "table" and not IsSecret(schematic.outputItemID) then
+            return schematic.outputItemID
+        end
+    end
+end
+
+local function BestCraftedCombatFood()
+    local recipes = {}
+    for recipeID, itemID in pairs(ns.CookingFoodRecipes or {}) do recipes[recipeID] = itemID end
+    if C_TradeSkillUI and C_TradeSkillUI.GetAllRecipeIDs then
+        local ok, ids = pcall(C_TradeSkillUI.GetAllRecipeIDs)
+        if ok and not IsSecret(ids) and type(ids) == "table" then
+            for i = 1, #ids do
+                local recipeID = ids[i]
+                if not IsSecret(recipeID) then recipes[recipeID] = recipes[recipeID] or RecipeOutput(recipeID) end
+            end
+        end
+    end
+
+    local best
+    for recipeID, itemID in pairs(recipes) do
+        local info
+        if C_TradeSkillUI and C_TradeSkillUI.GetRecipeInfo then
+            local ok, value = pcall(C_TradeSkillUI.GetRecipeInfo, recipeID)
+            if ok and type(value) == "table" then info = value end
+        end
+        if itemID and RecipeKnown(recipeID, info) then
+            local food = EvaluateCombatFood(itemID)
+            if food then
+                food.recipeID = recipeID
+                food.recipeName = (info and info.name) or SpellName(recipeID) or food.name
+                best = BetterFood(food, best)
+            end
+        end
+    end
+    return best
 end
 
 local function IsAtMaxLevel()
@@ -245,7 +461,20 @@ local function BuildFood(statuses, rows, warnSeconds)
         status.state, remaining = TimedState(aura, warnSeconds)
         status.detail = DurationDetail("A food buff is active", remaining)
     else
-        status.state, status.detail = "missing", "Eat suitable buff food before heading out."
+        status.state = "missing"
+        local bagFood = BestBagCombatFood()
+        if bagFood then
+            status.icon = bagFood.icon or status.icon
+            status.detail = string.format("Eat %s (%d in bags) • %s.", bagFood.name, bagFood.count or 1, bagFood.effect)
+        else
+            local crafted = BestCraftedCombatFood()
+            if crafted then
+                status.icon = crafted.icon or status.icon
+                status.detail = string.format("Cook %s • %s.", crafted.name, crafted.effect)
+            else
+                status.detail = "No suitable combat food found in bags or learned Cooking recipes."
+            end
+        end
     end
     statuses[#statuses + 1] = status
     if status.state ~= "ready" or ns.Get("showCompletedReadiness") then rows[#rows + 1] = status end

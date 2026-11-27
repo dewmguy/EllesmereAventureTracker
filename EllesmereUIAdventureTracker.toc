@@ -4,13 +4,15 @@
 ## Group: EllesmereUI
 ## Notes: A contextual pre-adventure checklist for WoW Forever.
 ## Author: Jeremy Tilden
-## Version: 0.1.3
+## Version: 0.1.4
 ## Dependencies: EllesmereUI
 ## OptionalDeps: EllesmereUIAuraBuffReminders, EllesmereUIQuestTracker, EllesmereUIForeverEssentials
 ## SavedVariables: EllesmereUIAdventureTrackerDB
 ## IconTexture: Interface\AddOns\EllesmereUI\media\eg-logo.tga
 
 Core.lua
+Data\CookingFoods.lua
+Data\GatheringCatalog.lua
 Readiness.lua
 WorldBuffs.lua
 Legacy.lua

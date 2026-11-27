@@ -426,7 +426,7 @@ Data/GatheringCatalog.lua           MIT-derived zone node aggregates
 Data/ObservedGathering.lua          separate CC BY-SA observed-data pack
 Data/FishingLevels.lua              attributed baseline and Forever overrides
 tools/build_recipes.py              reproducible DB2 generator
-tools/build_gathering.py            reproducible, pinned aggregate generator
+tools/build_gathering.mjs           reproducible, pinned aggregate generator
 tests/                               pure Lua ranking and eligibility fixtures
 ~~~
 
@@ -471,8 +471,10 @@ Targets:
 
 ### 0.4.0 — Gathering and fishing by zone
 
-- generated herb, ore and fishing-pool zone summaries with no coordinates;
-- most-to-least known-position ordering with explicit coverage wording;
+- generated herb, ore and fishing-pool zone summaries with no coordinates
+  (foundation shipped in 0.1.4);
+- most-to-least known-position ordering with explicit coverage wording
+  (foundation shipped in 0.1.4);
 - confirmed observed fish and skinning summaries with sample sizes;
 - recommended effective Fishing skill and current-skill gap;
 - source, snapshot and licence attribution in settings and tooltips.

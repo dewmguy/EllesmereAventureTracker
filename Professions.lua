@@ -19,13 +19,31 @@ local GATHERING_HINTS = {
     [356] = "Local waters in %s may advance Fishing or supply Cooking materials.",
 }
 
+local GATHERING_KINDS = {
+    [182] = "herb", -- Herbalism
+    [186] = "ore",  -- Mining
+    [393] = "skin", -- Skinning
+    [356] = "fish", -- Fishing
+}
+
 local CHECKPOINTS = { 150, 225, 300 }
 
 local function ProfessionList()
     if not GetProfessions or not GetProfessionInfo then return {} end
-    local books = { GetProfessions() }
+    local ok, primary1, primary2, archaeology, fishing, cooking, firstAid = pcall(GetProfessions)
+    if not ok then return {} end
+    -- GetProfessions has nil slots (normally Archaeology on Forever). Iterating
+    -- to #books can stop at that hole and omit Fishing, Cooking or First Aid.
+    local books = {
+        [1] = primary1,
+        [2] = primary2,
+        [3] = archaeology,
+        [4] = fishing,
+        [5] = cooking,
+        [6] = firstAid,
+    }
     local result = {}
-    for i = 1, #books do
+    for i = 1, 6 do
         local index = books[i]
         if index then
             local ok, name, icon, rank, maxRank, numSpells, spellOffset, skillLineID = pcall(GetProfessionInfo, index)
@@ -44,6 +62,37 @@ local function ProfessionList()
     return result
 end
 
+local function GatheringSummary(mapID, kind)
+    if kind ~= "herb" and kind ~= "ore" and kind ~= "fish" then return nil end
+    local catalog = ns.GatheringCatalog
+    local zoneData = catalog and catalog.zones and mapID and catalog.zones[mapID]
+    local entries = zoneData and zoneData[kind]
+    if type(entries) ~= "table" or #entries == 0 then return nil end
+    local parts = {}
+    local shown = math.min(3, #entries)
+    for i = 1, shown do
+        local node = entries[i]
+        parts[#parts + 1] = string.format("%s (%d)", node.name, node.count)
+    end
+    local more = #entries - shown
+    local suffix = more > 0 and string.format(" +%d more", more) or ""
+    return table.concat(parts, ", ") .. suffix .. " • known locations, most to least."
+end
+
+local function AddGatheringProgress(rows, profession)
+    local cap = profession.maxRank > 0 and profession.maxRank or 300
+    local remaining = math.max(0, cap - profession.rank)
+    rows[#rows + 1] = {
+        key = "skill-" .. tostring(profession.skillLineID),
+        label = string.format("%s %d/%d", profession.name, profession.rank, cap),
+        detail = remaining > 0
+            and string.format("%d skill point%s to the current rank cap.", remaining, remaining == 1 and "" or "s")
+            or "Current profession rank complete.",
+        state = remaining == 0 and "ready" or (remaining <= 10 and "warning" or "info"),
+        icon = profession.icon,
+    }
+end
+
 local function NextCheckpoint(rank)
     for i = 1, #CHECKPOINTS do
         if rank < CHECKPOINTS[i] then return CHECKPOINTS[i] end
@@ -54,7 +103,7 @@ local function Build()
     if not ns.Get("showProfessions") then return {} end
     local professions = ProfessionList()
     local progressRows, localRows = {}, {}
-    local zone = ns.GetZoneName()
+    local zone, mapID = ns.GetZoneName()
 
     for i = 1, #professions do
         local profession = professions[i]
@@ -62,8 +111,8 @@ local function Build()
             and profession.rank >= profession.maxRank and profession.maxRank < 300 then
             progressRows[#progressRows + 1] = {
                 key = "cap-" .. tostring(profession.skillLineID),
-                label = profession.name .. " is capped",
-                detail = string.format("%d/%d • visit a trainer for the next rank.", profession.rank, profession.maxRank),
+                label = string.format("%s %d/%d is capped", profession.name, profession.rank, profession.maxRank),
+                detail = "Visit a trainer for the next profession rank.",
                 state = "missing",
                 icon = profession.icon,
             }
@@ -87,13 +136,17 @@ local function Build()
                     icon = profession.icon,
                 }
             end
+        elseif ns.Get("showProfessionProgress") and GATHERING_KINDS[profession.skillLineID] then
+            AddGatheringProgress(progressRows, profession)
         end
 
         if ns.Get("showProfessionZoneHints") and GATHERING_HINTS[profession.skillLineID] then
+            local kind = GATHERING_KINDS[profession.skillLineID]
+            local summary = GatheringSummary(mapID, kind)
             localRows[#localRows + 1] = {
                 key = "local-" .. tostring(profession.skillLineID),
-                label = profession.name .. " in " .. zone,
-                detail = string.format(GATHERING_HINTS[profession.skillLineID], zone),
+                label = (summary and (profession.name .. " nodes in ") or (profession.name .. " in ")) .. zone,
+                detail = summary or string.format(GATHERING_HINTS[profession.skillLineID], zone),
                 state = "info",
                 icon = profession.icon,
             }
