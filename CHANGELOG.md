@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.12 - 2026-11-26
+
+- Added per-profession trainer scans for currently available unlearned recipes
+  and profession abilities, with individual prices and a total training cost.
+- Added a compact, per-character disclosure row to every supported profession;
+  click it to expand or collapse that profession's trainer offerings.
+- Profession-rank services remain in the existing rank guidance instead of
+  being duplicated in the recipe list.
+- Added live trainer-service tooltips with cached details after leaving the
+  trainer, matching the class-training presentation.
+
 ## 0.1.11 - 2026-11-26
 
 - Made the available class-trainer skill list collapsible by clicking its total

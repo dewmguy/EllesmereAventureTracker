@@ -88,7 +88,7 @@ local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trac
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals" }
-local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showCompletedProfessions", "showProfessionZoneHints" }
+local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showCompletedProfessions", "showProfessionZoneHints" }
 
 local function BuildTracker(pageName, parent, yOffset)
     local W, y, h = EUI.Widgets, yOffset
@@ -347,6 +347,13 @@ local function BuildProfessions(pageName, parent, yOffset)
         _, h = W:DualRow(parent, y,
             Toggle("showProfessionCaps", "Trainer Rank Reminders", "Shows as soon as the next profession rank is trainable, not only after reaching the current cap."),
             Toggle("showCompletedProfessions", "Show Completed Professions", "Keeps professions visible after their final rank is complete."))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "TRAINER RECIPES", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showProfessionTrainerRecipes", "Available Unlearned Recipes",
+                "Shows a collapsible list and total cost for recipes currently learnable from the last trainer visited for each profession."),
+            Label("Visit each profession trainer once to scan its current offerings and prices."))
         y = y - h
 
         _, h = W:SectionHeader(parent, "LIVE RECIPE DATA", y); y = y - h

@@ -10,6 +10,15 @@ local CRAFTING_PROFESSIONS = {
     [197] = true, -- Tailoring
     [202] = true, -- Engineering
     [333] = true, -- Enchanting
+    [185] = true, -- Cooking
+    [129] = true, -- First Aid
+}
+
+local TRAINER_PROFESSIONS = {
+    [164] = true, [165] = true, [171] = true, [197] = true,
+    [202] = true, [333] = true, [185] = true, [129] = true,
+    [182] = true, [186] = true, [393] = true, [356] = true,
+    [794] = true,
 }
 
 local GATHERING_HINTS = {
@@ -182,6 +191,243 @@ local function RecipeCache(skillLineID)
     local root = ns.DB().professionRecipeCache
     local character = type(root) == "table" and root[ns.CharacterKey()]
     return type(character) == "table" and character[tostring(skillLineID)] or nil
+end
+
+local function FormatMoney(amount)
+    amount = math.max(0, math.floor(tonumber(amount) or 0))
+    if amount == 0 then return "Free" end
+    local gold = math.floor(amount / 10000)
+    local silver = math.floor((amount % 10000) / 100)
+    local copper = amount % 100
+    local parts = {}
+    if gold > 0 then parts[#parts + 1] = string.format("%dg", gold) end
+    if silver > 0 or gold > 0 then parts[#parts + 1] = string.format("%ds", silver) end
+    if copper > 0 or #parts == 0 then parts[#parts + 1] = string.format("%dc", copper) end
+    return table.concat(parts, " ")
+end
+
+local function ProfessionTrainerCache(skillLineID)
+    local root = ns.DB().professionTrainerCache
+    local character = type(root) == "table" and root[ns.CharacterKey()]
+    return type(character) == "table" and character[tostring(skillLineID)] or nil
+end
+
+local function ProfessionTrainerExpanded(skillLineID)
+    local root = ns.DB().professionTrainerExpandedByCharacter
+    local character = type(root) == "table" and root[ns.CharacterKey()]
+    return type(character) == "table" and character[tostring(skillLineID)] == true
+end
+
+local function ToggleProfessionTrainer(skillLineID)
+    local db = ns.DB()
+    if type(db.professionTrainerExpandedByCharacter) ~= "table" then
+        db.professionTrainerExpandedByCharacter = {}
+    end
+    local characterKey = ns.CharacterKey()
+    if type(db.professionTrainerExpandedByCharacter[characterKey]) ~= "table" then
+        db.professionTrainerExpandedByCharacter[characterKey] = {}
+    end
+    local character = db.professionTrainerExpandedByCharacter[characterKey]
+    local cacheKey = tostring(skillLineID)
+    character[cacheKey] = not ProfessionTrainerExpanded(skillLineID)
+    if ns.RequestRefresh then ns.RequestRefresh() end
+end
+
+local function CleanTrainerTooltipText(value)
+    if type(value) ~= "string" or (_G.issecretvalue and _G.issecretvalue(value)) then return "" end
+    return value:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
+end
+
+local function TrainerTooltipText(index, serviceName)
+    local parts, seen = {}, {}
+    local function Add(value)
+        local text = CleanTrainerTooltipText(value)
+        if text ~= "" and text ~= serviceName and not seen[text] then
+            parts[#parts + 1] = text
+            seen[text] = true
+        end
+    end
+    if C_TooltipInfo and C_TooltipInfo.GetTrainerService then
+        local ok, tooltip = pcall(C_TooltipInfo.GetTrainerService, index)
+        if ok and type(tooltip) == "table" and not (_G.issecretvalue and _G.issecretvalue(tooltip)) then
+            for _, line in ipairs(tooltip.lines or {}) do
+                if type(line) == "table" and not (_G.issecretvalue and _G.issecretvalue(line)) then
+                    Add(line.leftText)
+                    Add(line.rightText)
+                end
+            end
+        end
+    end
+    if #parts == 0 and type(GetTrainerServiceDescription) == "function" then
+        local ok, description = pcall(GetTrainerServiceDescription, index)
+        description = ok and CleanTrainerTooltipText(description) or ""
+        if description ~= "" then parts[1] = description end
+    end
+    return #parts > 0 and table.concat(parts, "\n") or nil
+end
+
+local function NormalizeProfessionName(value)
+    if type(value) ~= "string" or (_G.issecretvalue and _G.issecretvalue(value)) then return nil end
+    return value:lower():gsub("^%s+", ""):gsub("%s+$", "")
+end
+
+local function MatchProfession(professions, value)
+    local wanted = NormalizeProfessionName(value)
+    if not wanted then return nil end
+    for i = 1, #professions do
+        local profession = professions[i]
+        local name = NormalizeProfessionName(profession.name)
+        if name and (wanted == name or wanted:find(name, 1, true)) then return profession end
+    end
+end
+
+local function TrainerServiceProfession(index, serviceName, professions)
+    if type(GetTrainerServiceSkillReq) == "function" then
+        local ok, skillName, rank = pcall(GetTrainerServiceSkillReq, index)
+        if ok then
+            local profession = MatchProfession(professions, skillName)
+            if profession then return profession, tonumber(rank) or 0 end
+        end
+    end
+    if type(GetTrainerServiceSkillLine) == "function" then
+        local ok, skillName = pcall(GetTrainerServiceSkillLine, index)
+        if ok then
+            local profession = MatchProfession(professions, skillName)
+            if profession then return profession, 0 end
+        end
+    end
+    return MatchProfession(professions, serviceName), 0
+end
+
+local function TrainerService(index)
+    if type(GetTrainerServiceInfo) ~= "function" then return nil end
+    local ok, name, second, third = pcall(GetTrainerServiceInfo, index)
+    if not ok or type(name) ~= "string" or (_G.issecretvalue and _G.issecretvalue(name)) then return nil end
+
+    local serviceType, subText, icon
+    if second == "available" or second == "unavailable" or second == "used" or second == "header" then
+        serviceType, icon = second, third
+    else
+        subText, serviceType = second, third
+        if type(GetTrainerServiceIcon) == "function" then
+            local iconOK, value = pcall(GetTrainerServiceIcon, index)
+            if iconOK and not (_G.issecretvalue and _G.issecretvalue(value)) then icon = value end
+        end
+    end
+    if type(subText) ~= "string" or (_G.issecretvalue and _G.issecretvalue(subText)) then subText = nil end
+    if type(icon) ~= "number" and type(icon) ~= "string" then icon = nil end
+
+    local cost, isProfession = 0, false
+    if type(GetTrainerServiceCost) == "function" then
+        local costOK, value, professionService = pcall(GetTrainerServiceCost, index)
+        if costOK then
+            if not (_G.issecretvalue and _G.issecretvalue(value)) then cost = math.max(0, tonumber(value) or 0) end
+            isProfession = professionService == true
+        end
+    end
+    return {
+        name = name,
+        subText = subText,
+        serviceType = serviceType,
+        icon = icon,
+        cost = cost,
+        isProfession = isProfession,
+        trainerIndex = index,
+    }
+end
+
+local PROFESSION_RANK_NAMES = { "apprentice", "journeyman", "expert", "artisan", "master" }
+local function IsProfessionRankService(service, profession, stepIndex)
+    if service.isProfession or service.trainerIndex == stepIndex then return true end
+    local serviceName = NormalizeProfessionName(service.name) or ""
+    local professionName = NormalizeProfessionName(profession.name) or ""
+    if professionName == "" or not serviceName:find(professionName, 1, true) then return false end
+    for i = 1, #PROFESSION_RANK_NAMES do
+        if serviceName:find(PROFESSION_RANK_NAMES[i], 1, true) then return true end
+    end
+    return false
+end
+
+function ns.ScanProfessionTrainer()
+    if not ns.Get("showProfessionTrainerRecipes") or ns.IsCombatRestricted() then return false end
+    if type(IsTradeskillTrainer) ~= "function" or type(GetNumTrainerServices) ~= "function" then return false end
+    local tradeOK, isTrade = pcall(IsTradeskillTrainer)
+    if not tradeOK or not isTrade then return false end
+    if type(GetTrainerServiceTypeFilter) == "function" then
+        local filterOK, showingAvailable = pcall(GetTrainerServiceTypeFilter, "available")
+        if filterOK and showingAvailable == false then return false end
+    end
+
+    local countOK, count = pcall(GetNumTrainerServices)
+    if not countOK then return false end
+    count = math.max(0, math.floor(tonumber(count) or 0))
+    local stepIndex
+    if type(GetTrainerServiceStepIndex) == "function" then
+        local stepOK, value = pcall(GetTrainerServiceStepIndex)
+        if stepOK then stepIndex = tonumber(value) end
+    end
+
+    local professions = ProfessionList()
+    local buckets = {}
+    for index = 1, count do
+        local service = TrainerService(index)
+        if service then
+            local profession, requiredSkill = TrainerServiceProfession(index, service.name, professions)
+            if profession and TRAINER_PROFESSIONS[profession.skillLineID] then
+                local cacheKey = tostring(profession.skillLineID)
+                local bucket = buckets[cacheKey]
+                if not bucket then
+                    bucket = { profession = profession, services = {}, total = 0 }
+                    buckets[cacheKey] = bucket
+                end
+                if service.serviceType == "available" and not IsProfessionRankService(service, profession, stepIndex) then
+                    service.requiredSkill = requiredSkill
+                    service.icon = service.icon or profession.icon
+                    service.tooltipText = TrainerTooltipText(index, service.name)
+                    bucket.services[#bucket.services + 1] = service
+                    bucket.total = bucket.total + service.cost
+                end
+            end
+        end
+    end
+    if not next(buckets) then return false end
+
+    local trainerName = UnitName and UnitName("npc")
+    if type(trainerName) ~= "string" or (_G.issecretvalue and _G.issecretvalue(trainerName)) then
+        trainerName = "Profession trainer"
+    end
+    local db = ns.DB()
+    if type(db.professionTrainerCache) ~= "table" then db.professionTrainerCache = {} end
+    local characterKey = ns.CharacterKey()
+    if type(db.professionTrainerCache[characterKey]) ~= "table" then db.professionTrainerCache[characterKey] = {} end
+    local character = db.professionTrainerCache[characterKey]
+    for cacheKey, bucket in pairs(buckets) do
+        character[cacheKey] = {
+            professionName = bucket.profession.name,
+            rank = bucket.profession.rank,
+            trainerName = trainerName,
+            services = bucket.services,
+            total = bucket.total,
+        }
+    end
+    return true
+end
+
+local function ShowLiveTrainerTooltip(owner, service)
+    if not (owner and service and service.trainerIndex and GameTooltip and GameTooltip.SetTrainerService) then return false end
+    if type(IsTradeskillTrainer) ~= "function" or type(GetNumTrainerServices) ~= "function"
+        or type(GetTrainerServiceInfo) ~= "function" then return false end
+    local tradeOK, isTrade = pcall(IsTradeskillTrainer)
+    if not tradeOK or not isTrade then return false end
+    local countOK, count = pcall(GetNumTrainerServices)
+    if not countOK or service.trainerIndex > (tonumber(count) or 0) then return false end
+    local infoOK, currentName = pcall(GetTrainerServiceInfo, service.trainerIndex)
+    if not infoOK or currentName ~= service.name then return false end
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT", 35)
+    local tooltipOK = pcall(GameTooltip.SetTrainerService, GameTooltip, service.trainerIndex)
+    if not tooltipOK then return false end
+    GameTooltip:Show()
+    return true
 end
 
 function ns.ScanProfessionRecipes()
@@ -682,6 +928,69 @@ local function AddScanPrompt(rows, profession, stale)
     }
 end
 
+local function AddTrainerRecipeRows(rows, profession)
+    if not ns.Get("showProfessionTrainerRecipes") then return end
+    local cache = ProfessionTrainerCache(profession.skillLineID)
+    if not cache then
+        rows[#rows + 1] = {
+            key = "trainer-recipes-scan-" .. tostring(profession.skillLineID),
+            label = "Trainer recipes not scanned",
+            detail = string.format("Visit a %s trainer once to load available recipes and prices.", profession.name),
+            state = "info",
+            icon = profession.icon,
+        }
+        return
+    end
+
+    local services = type(cache.services) == "table" and cache.services or {}
+    local stale = (tonumber(cache.rank) or 0) ~= profession.rank
+    if #services == 0 then
+        rows[#rows + 1] = {
+            key = "trainer-recipes-none-" .. tostring(profession.skillLineID),
+            label = "No unlearned trainer recipes available",
+            detail = stale and "Visit a trainer to refresh after gaining profession skill."
+                or string.format("Checked with %s.", cache.trainerName or "your profession trainer"),
+            state = stale and "info" or "ready",
+            icon = profession.icon,
+        }
+        return
+    end
+
+    local expanded = ProfessionTrainerExpanded(profession.skillLineID)
+    rows[#rows + 1] = {
+        key = "trainer-recipes-total-" .. tostring(profession.skillLineID),
+        label = string.format("%s %d trainer recipe%s available",
+            expanded and "−" or "+", #services, #services == 1 and "" or "s"),
+        detail = string.format("Total training cost: %s%s", FormatMoney(cache.total),
+            stale and " • rescan after gaining skill" or ""),
+        tooltip = string.format("Last scanned from %s at %d %s. Learn every listed recipe for %s. %s%s",
+            cache.trainerName or "a profession trainer", tonumber(cache.rank) or 0, profession.name,
+            FormatMoney(cache.total), stale and "Visit a trainer to include newly available recipes. " or "",
+            expanded and "Collapse the individual recipe list." or "Expand the individual recipe list."),
+        clickHint = expanded and "Click to collapse trainer recipes." or "Click to expand trainer recipes.",
+        onClick = function() ToggleProfessionTrainer(profession.skillLineID) end,
+        state = "warning",
+        icon = profession.icon,
+    }
+    if not expanded then return end
+
+    for index = 1, #services do
+        local service = services[index]
+        local label = service.name or "Unknown recipe"
+        if service.subText and service.subText ~= "" then label = string.format("%s (%s)", label, service.subText) end
+        rows[#rows + 1] = {
+            key = string.format("trainer-recipe-%s-%d", tostring(profession.skillLineID), index),
+            label = label,
+            detail = "Cost: " .. FormatMoney(service.cost),
+            tooltip = service.tooltipText or string.format("Unlearned recipe available from %s.",
+                cache.trainerName or "your profession trainer"),
+            tooltipFunc = function(owner) return ShowLiveTrainerTooltip(owner, service) end,
+            state = "warning",
+            icon = service.icon or profession.icon,
+        }
+    end
+end
+
 local function BuildProfessionRows(profession, professions, mapID)
     local rows = {}
     if CRAFTING_PROFESSIONS[profession.skillLineID] then
@@ -700,6 +1009,8 @@ local function BuildProfessionRows(profession, professions, mapID)
     elseif GATHERING_KINDS[profession.skillLineID] then
         AddRankPlan(rows, profession, mapID)
     end
+
+    if TRAINER_PROFESSIONS[profession.skillLineID] then AddTrainerRecipeRows(rows, profession) end
 
     if ns.Get("showProfessionZoneHints") and GATHERING_HINTS[profession.skillLineID] then
         local kind = GATHERING_KINDS[profession.skillLineID]
@@ -722,7 +1033,8 @@ local function Build()
     local sections = {}
     for i = 1, #professions do
         local profession = professions[i]
-        if CRAFTING_PROFESSIONS[profession.skillLineID] or GATHERING_KINDS[profession.skillLineID] then
+        if CRAFTING_PROFESSIONS[profession.skillLineID] or GATHERING_KINDS[profession.skillLineID]
+            or TRAINER_PROFESSIONS[profession.skillLineID] then
             local rows = BuildProfessionRows(profession, professions, mapID)
             if #rows > 0 then
                 sections[#sections + 1] = {

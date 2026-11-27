@@ -586,11 +586,13 @@ events:SetScript("OnEvent", function(_, event, ...)
     if (event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE") and ns.ScanProfessionRecipes then
         ns.ScanProfessionRecipes()
     end
-    if (event == "TRAINER_SHOW" or event == "TRAINER_UPDATE") and ns.ScanClassTrainer then
-        ns.ScanClassTrainer()
+    if event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" then
+        if ns.ScanClassTrainer then ns.ScanClassTrainer() end
+        if ns.ScanProfessionTrainer then ns.ScanProfessionTrainer() end
         if event == "TRAINER_SHOW" then
             C_Timer.After(0, function()
                 if ns.ScanClassTrainer and ns.ScanClassTrainer() then ns.RequestRefresh() end
+                if ns.ScanProfessionTrainer and ns.ScanProfessionTrainer() then ns.RequestRefresh() end
             end)
         end
     end

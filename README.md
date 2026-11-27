@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.11 establishes the addon structure and a playable first pass:
+Version 0.1.12 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
   mover, precise anchoring and width adjustment;
@@ -40,6 +40,8 @@ Version 0.1.11 establishes the addon structure and a playable first pass:
 - profession Legacy checkpoints kept in the Legacy section;
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;
+- collapsible per-profession lists of currently available unlearned trainer
+  recipes, their individual prices and the total cost to learn them all;
 - learned-recipe scanning that recommends a dependable next skill-up, turns
   Mining materials into a concrete ore/bar plan, and favors materials available
   in the current zone;

@@ -63,6 +63,7 @@ local DEFAULTS = {
     showProfessionSynergy = true,
     showProfessionGear = true,
     showProfessionCaps = true,
+    showProfessionTrainerRecipes = true,
     showCompletedProfessions = false,
     showProfessionZoneHints = true,
 }
