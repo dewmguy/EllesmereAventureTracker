@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 - 2026-11-26
+
+- Added an option that lets the tracker use all safe viewport height available
+  from its current fixed edge instead of the normal 75% screen-height limit.
+- Added explicit upward or downward pane growth. Down keeps the top edge fixed;
+  up keeps the bottom edge fixed, including when the pane is dynamically
+  anchored through EllesmereUI unlock mode.
+
 ## 0.3.0 - 2026-11-26
 
 - Added a compact flight-master timer inside the tracker with destination,

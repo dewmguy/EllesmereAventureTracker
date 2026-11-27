@@ -655,10 +655,36 @@ local function ChromeHeight()
     return TitleBarHeight() + PanePadding() * 2
 end
 
+local function GrowthDirection()
+    return ns.Get("paneGrowthDirection") == "UP" and "UP" or "DOWN"
+end
+
 local function MaximumPanelHeight()
-    local scale = math.max(0.01, frame:GetScale() or 1)
+    local frameScale = math.max(0.01, frame:GetEffectiveScale() or frame:GetScale() or 1)
+    local parentScale = math.max(0.01, UIParent and UIParent:GetEffectiveScale() or 1)
+    local scaleRatio = frameScale / parentScale
     local screenHeight = UIParent and UIParent:GetHeight() or 768
-    return math.max(180, math.floor((screenHeight * 0.75) / scale))
+    if ns.Get("maximizePaneHeight") ~= true then
+        return math.max(180, math.floor((screenHeight * 0.75) / scaleRatio))
+    end
+
+    local screenTop = UIParent and UIParent:GetTop()
+    local screenBottom = UIParent and UIParent:GetBottom()
+    screenTop = screenTop or screenHeight
+    screenBottom = screenBottom or 0
+
+    local fixedEdge = GrowthDirection() == "UP" and frame:GetBottom() or frame:GetTop()
+    if not fixedEdge then return math.max(180, math.floor(screenHeight / scaleRatio)) end
+    fixedEdge = fixedEdge * scaleRatio
+
+    local available
+    if GrowthDirection() == "UP" then
+        available = screenTop - fixedEdge
+    else
+        available = fixedEdge - screenBottom
+    end
+    -- Leave a small viewport gutter so borders and shadows are never clipped.
+    return math.max(48, math.floor((available - 4) / scaleRatio))
 end
 
 local function CollapsedHeight()
@@ -808,20 +834,58 @@ HasUnlockAnchor = function()
     return info and info.target and true or false
 end
 
+local function AnchorVertical(point)
+    point = tostring(point or "CENTER"):upper()
+    if point:find("TOP", 1, true) then return "TOP" end
+    if point:find("BOTTOM", 1, true) then return "BOTTOM" end
+    return "CENTER"
+end
+
+local function GrowthAnchorPoint(point)
+    point = tostring(point or "CENTER"):upper()
+    local horizontal = point:find("LEFT", 1, true) and "LEFT"
+        or (point:find("RIGHT", 1, true) and "RIGHT" or "")
+    return (GrowthDirection() == "UP" and "BOTTOM" or "TOP") .. horizontal
+end
+
+local function ApplyGrowthAnchor()
+    local point, relativeTo, relativePoint, x, y = frame:GetPoint(1)
+    if not point then return false end
+    local desiredPoint = GrowthAnchorPoint(point)
+    if point == desiredPoint then return false end
+
+    local height = frame:GetHeight() or 0
+    local oldVertical = AnchorVertical(point)
+    local delta = 0
+    if GrowthDirection() == "UP" then
+        if oldVertical == "TOP" then delta = -height
+        elseif oldVertical == "CENTER" then delta = -height * 0.5 end
+    else
+        if oldVertical == "BOTTOM" then delta = height
+        elseif oldVertical == "CENTER" then delta = height * 0.5 end
+    end
+
+    frame:ClearAllPoints()
+    frame:SetPoint(desiredPoint, relativeTo or UIParent, relativePoint or desiredPoint, x or 0, (y or 0) + delta)
+    return true
+end
+
+local function SavePosition()
+    local point, _, relativePoint, x, y = frame:GetPoint(1)
+    ns.Set("position", { point = point, relativePoint = relativePoint, x = x, y = y }, true)
+end
+
 local function SetPosition()
     if HasUnlockAnchor() and EUI.ReapplyOwnAnchor then
         EUI.ReapplyOwnAnchor(UNLOCK_KEY)
+        ApplyGrowthAnchor()
         return
     end
     local position = ns.Get("position")
     if type(position) ~= "table" then position = ns.DEFAULTS.position end
     frame:ClearAllPoints()
     frame:SetPoint(position.point or "TOPRIGHT", UIParent, position.relativePoint or position.point or "TOPRIGHT", position.x or -330, position.y or -220)
-end
-
-local function SavePosition()
-    local point, _, relativePoint, x, y = frame:GetPoint(1)
-    ns.Set("position", { point = point, relativePoint = relativePoint, x = x, y = y }, true)
+    if ApplyGrowthAnchor() then SavePosition() end
 end
 
 local function BeginTrackerDrag(surface)
@@ -835,7 +899,9 @@ end
 local function EndTrackerDrag(surface)
     if not surface._trackerDragged then return end
     frame:StopMovingOrSizing()
+    ApplyGrowthAnchor()
     SavePosition()
+    if ns.RequestRefresh then ns.RequestRefresh() end
     if QueueSecureCastSync then QueueSecureCastSync() end
     C_Timer.After(0, function() surface._trackerDragged = nil end)
 end
@@ -928,6 +994,7 @@ local function Render()
     local contentWidth = math.max(1, width - padding * 2)
     frame:SetWidth(width)
     content:SetWidth(contentWidth)
+    if ApplyGrowthAnchor() and not HasUnlockAnchor() then SavePosition() end
     local collapsed = ns.Get("collapsed") == true
     collapseButton.text:SetText(collapsed and "+" or "−")
     SetAttention(collapseButton, collapsed and SnapshotAttention(snapshot) or nil, 1)
@@ -1117,6 +1184,7 @@ local function RegisterUnlockElement()
                 point = point, relativePoint = relativePoint or point,
                 x = x or 0, y = y or 0,
             }, true)
+            if ns.RequestRefresh then ns.RequestRefresh() end
             if QueueSecureCastSync then QueueSecureCastSync() end
         end,
         loadPos = function()
@@ -1135,10 +1203,12 @@ local function RegisterUnlockElement()
                 x = position.x, y = position.y,
             }, true)
             SetPosition()
+            if ns.RequestRefresh then ns.RequestRefresh() end
             if QueueSecureCastSync then QueueSecureCastSync() end
         end,
         applyPos = function()
             SetPosition()
+            if ns.RequestRefresh then ns.RequestRefresh() end
             if QueueSecureCastSync then QueueSecureCastSync() end
         end,
     }) }, ADDON_NAME)

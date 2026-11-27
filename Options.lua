@@ -79,7 +79,7 @@ local function ColorPicker(key, text, tooltip, hasAlpha, disabled)
 end
 
 local TRACKER_KEYS = {
-    "enabled", "locked", "width", "scale", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
+    "enabled", "locked", "width", "scale", "maximizePaneHeight", "paneGrowthDirection", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
     "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor", "entryBackgroundColor", "entryHoverBackgroundColor",
     "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
     "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "contextTextColor",
@@ -120,8 +120,8 @@ local function BuildTracker(pageName, parent, yOffset)
         Toggle("locked", "Lock Window", "Prevents dragging the tracker from its pane surfaces."))
     y = y - h
     _, h = W:DualRow(parent, y,
-        { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, width and scale.",
-          onClick = function() ns.ResetKeys({ "position", "width", "scale" }) end },
+        { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, width, scale and growth behavior.",
+          onClick = function() ns.ResetKeys({ "position", "width", "scale", "maximizePaneHeight", "paneGrowthDirection" }) end },
         { type = "button", text = "Reset Appearance", tooltip = "Restores spacing, backgrounds, border, title bar and text defaults.",
           onClick = function()
               ns.ResetKeys({ "opacity", "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor",
@@ -141,6 +141,10 @@ local function BuildTracker(pageName, parent, yOffset)
     _, h = W:DualRow(parent, y,
         Slider("panePadding", "Pane Padding", 0, 24, 1, "Space between the pane edges and tracker contents on all sides."),
         Toggle("showContext", "Show Zone, Class, Spec and Role", "Shows the current zone, class, specialization and selected activity role above the readiness icons."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("maximizePaneHeight", "Allow Full Viewport Height", "Allows content to use all safe screen space in the selected growth direction instead of the normal 75% screen-height limit. The pane's current position and any dynamic EllesmereUI anchor can reduce the available space."),
+        Dropdown("paneGrowthDirection", "Pane Growth Direction", { DOWN = "Down", UP = "Up" }, { "DOWN", "UP" }, "Keeps the pane's top edge fixed when growing down, or its bottom edge fixed when growing up."))
     y = y - h
 
     _, h = W:SectionHeader(parent, "VISIBILITY", y); y = y - h

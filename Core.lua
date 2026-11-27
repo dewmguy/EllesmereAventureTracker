@@ -15,6 +15,8 @@ local DEFAULTS = {
     collapsed = false,
     width = 340,
     scale = 1.0,
+    maximizePaneHeight = false,
+    paneGrowthDirection = "DOWN",
     opacity = 0.96,
     panePadding = 8,
     backgroundColor = { r = 0.025, g = 0.032, b = 0.04, a = 0.94 },
