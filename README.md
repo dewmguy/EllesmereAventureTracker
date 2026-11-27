@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.20 establishes the addon structure and a playable first pass:
+Version 0.4.0 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -55,7 +55,9 @@ Version 0.3.20 establishes the addon structure and a playable first pass:
 - a separate World Buffs submenu and tracker section for active timers and
   acquisition hints, with the faction Rend buff retained while missing and
   other missing buffs opt-in;
-- unspent Legacy point reminders and a current-zone provider boundary;
+- unspent Legacy point reminders, profession checkpoints and live point-bearing
+  Legacy Challenge recommendations ranked for the current zone, instance,
+  level, class, professions and existing progress;
 - an unspent talent reminder that can replace Blizzard's callout to the hidden
   Player Spells microbutton and breathes yellow until every point is spent;
 - a per-character class-trainer scan that lists every currently available
@@ -80,6 +82,9 @@ Version 0.3.20 establishes the addon structure and a playable first pass:
   runtime provider, limited to eligible quests that are incomplete and absent
   from the quest log, with only a quest giver or starting item and its dropping
   mobs shown;
+- a separate current-zone missing-quest section using the same conservative
+  QuestieDB filtering, with the best candidate kept visible and the complete
+  eligible list expandable without exposing locations, routes or objectives;
 - Encounter Journal upgrade suggestions filtered for the current class and
   specialization and then limited to drops whose item level beats the relevant
   equipped slot;
@@ -103,6 +108,9 @@ Version 0.3.20 establishes the addon structure and a playable first pass:
 - learned-recipe scanning that recommends a dependable next skill-up, turns
   Mining materials into a concrete ore/bar plan, and favors materials available
   in the current zone;
+- optional missing-material cost scoring that automatically prefers
+  TradeSkillMaster when its price API is available and falls back to
+  Auctionator, without making either addon mandatory;
 - a learned crafted-gear recommendation that prefers a class-usable upgrade
   over the currently equipped item;
 - coordinate-free gathering and Fishing summaries without repeating the zone
@@ -110,12 +118,13 @@ Version 0.3.20 establishes the addon structure and a playable first pass:
 - a researched zone-gathering design for ranked herbs and ore, observed
   skinning materials, available fish and recommended effective Fishing skill;
 - an `Adventure Tracker` sidebar section in EllesmereUI with Tracker,
-  Readiness, World Buffs, Travel & Status, Instances, Legacy and Professions
+  Readiness, World Buffs, Travel & Status, Instances, Quests, Legacy and Professions
   submenu groups.
 
-Current-zone Legacy objectives and exact profession node/mob recommendations are
-hidden until their providers can return verified actions. The researched source,
-UX and implementation decisions are recorded in
+Legacy recommendations and zone quests remain hidden when their live providers
+cannot verify an action; exact profession mob recommendations and the complete
+generated recipe catalogue remain provider-bound. The researched source, UX and
+implementation decisions are recorded in
 [`docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md`](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md).
 The rules for reusing public datasets without hiding their provenance are in
 [`docs/DATA_SOURCES_AND_LICENSES.md`](docs/DATA_SOURCES_AND_LICENSES.md).
@@ -153,9 +162,11 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `Readiness.lua` — preparation and buff-family interpretation
 - `WorldBuffs.lua` — world-buff presence, timers and acquisition sources
 - `Legacy.lua` — Legacy points and current-zone provider
+- `Prices.lua` — optional TradeSkillMaster and Auctionator market adapters
 - `Professions.lua` — rank goals, learned-recipe plans, gear and local resources
 - `Instances.lua` — run and boss timers, QuestieDB quest suggestions and
   Encounter Journal upgrade drops
+- `Quests.lua` — eligible current-zone missing quests without route guidance
 - `Flight.lua` — independent in-tracker flight timing, route learning and
   progress-bar data
 - `Status.lua` — contextual activity states, session duration and `/played`

@@ -171,8 +171,9 @@ local READINESS_KEYS = {
 }
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
-local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals" }
-local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showCompletedProfessions", "showProfessionZoneHints" }
+local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit" }
+local QUEST_KEYS = { "showZoneQuests", "zoneQuestExpandedByCharacter" }
+local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showCompletedProfessions", "showProfessionZoneHints" }
 local INSTANCE_KEYS = { "showInstances", "showInstanceRunTimer", "showInstanceBossTimer", "showInstanceQuests", "showInstanceLoot", "instanceQuestLimit", "instanceLootLimit" }
 local FLIGHT_KEYS = {
     "showFlightTimer", "flightTimerShowDestination", "flightTimerShowElapsed", "flightTimerShowRemaining", "flightTimerShowTotal",
@@ -509,11 +510,42 @@ local function BuildLegacy(pageName, parent, yOffset)
             if not InCombatLockdown() and ToggleLegacySystemUI then ToggleLegacySystemUI() end
           end })
     y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("showLegacyChallenges", "Contextual Legacy Challenges",
+            "Uses the live achievement-to-Legacy-currency relationship and shows incomplete goals relevant to your zone, level, class, professions or current progress."),
+        Slider("legacyChallengeLimit", "Maximum Challenge Suggestions", 1, 10, 1,
+            "Limits contextual challenge rows after relevance and progress ranking."))
+    y = y - h
 
     _, h = W:SectionHeader(parent, "RECOMMENDATIONS", y); y = y - h
     _, h = W:DualRow(parent, y,
         Label("Profession goals state the target skill itself instead of showing an unexplained point count."),
-        Label("Planned recommendations will use Blizzard's live Legacy Challenges and show only relevant, incomplete goals."))
+        Label("Recommendations come from live point-bearing achievements; unmatched or unverifiable goals remain hidden."))
+    y = y - h
+    return math.abs(y)
+end
+
+local function BuildQuests(pageName, parent, yOffset)
+    local W, y, h = EUI.Widgets, yOffset
+    if EUI.ClearContentHeader then EUI:ClearContentHeader() end
+    parent._showRowDivider = true
+
+    _, h = W:SectionHeader(parent, "CURRENT-ZONE QUESTS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("showZoneQuests", "Known Missing Quests",
+            "Lists eligible, incomplete quests assigned to the current zone that are not already in your quest log.", true),
+        Label((_G.LibQuestieDB and "QuestieDB detected." or "QuestieDB is not installed or enabled."),
+            "QuestieDB is an optional runtime provider; Adventure Tracker does not copy its database or expose map data."))
+    y = y - h
+
+    _, h = W:SectionHeader(parent, "PRESENTATION RULES", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Label("The most relevant quest stays visible; click the additional-quests row to expand the complete eligible list."),
+        Label("NPC-started quests show only the giver. Item-started quests show only the item and mobs that drop it."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Label("Repeatable, breadcrumb-conflicted, unavailable chain steps, unknown starters and object-only starts are excluded."),
+        Label("No coordinates, routes, objectives, pins, arrows or waypoint guidance are shown."))
     y = y - h
     return math.abs(y)
 end
@@ -585,6 +617,13 @@ local function BuildProfessions(pageName, parent, yOffset)
         _, h = W:DualRow(parent, y,
             Label("Open a profession once to let Adventure Tracker evaluate its learned recipes, reagents and outputs."),
             Label("Legacy skill checkpoints now appear in the Legacy section; gathering skills remain visible here."))
+        y = y - h
+        local priceProvider = ns.GetPriceProviderName and ns.GetPriceProviderName()
+        _, h = W:DualRow(parent, y,
+            Toggle("showProfessionMarketCosts", "Use Installed Market Prices",
+                "Scores otherwise comparable profession plans by estimated missing-material cost. TradeSkillMaster is preferred, then Auctionator."),
+            Label(priceProvider and (priceProvider .. " price data detected.")
+                or "No supported price API is currently available; recommendations continue without a price score."))
         y = y - h
     else
         _, h = W:SectionHeader(parent, "CURRENT ZONE", y); y = y - h
@@ -825,6 +864,12 @@ local function Register()
                 description = "Dungeon timers, missing quests and spec-filtered upgrades.",
                 pages = { "Tracking" }, buildPage = BuildInstances,
                 onReset = function() ns.ResetKeys(INSTANCE_KEYS) end,
+            },
+            {
+                key = "quests", title = "Quests",
+                description = "Eligible missing quests in the current zone without Questie-style guidance.",
+                pages = { "Current Zone" }, buildPage = BuildQuests,
+                onReset = function() ns.ResetKeys(QUEST_KEYS) end,
             },
             {
                 key = "legacy", title = "Legacy",

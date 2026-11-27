@@ -476,6 +476,18 @@ local function QuestStarter(questDB, npcDB, itemDB, questID)
     return nil
 end
 
+-- Shared, coordinate-free QuestieDB adapter used by both the instance and
+-- current-zone quest providers. Keep the filtering policy in one place so a
+-- quest cannot appear in one section while failing prerequisites in another.
+ns.QuestData = {
+    GetEntities = QuestieEntities,
+    Value = EntityValue,
+    IsComplete = IsQuestComplete,
+    IsInLog = IsQuestInLog,
+    RequirementsMet = QuestRequirementsMet,
+    Starter = QuestStarter,
+}
+
 local function BuildQuestRows()
     if not state.inInstance or not ns.Get("showInstanceQuests") then return {} end
     if ns.IsCombatRestricted and ns.IsCombatRestricted() then

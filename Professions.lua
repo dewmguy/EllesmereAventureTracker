@@ -692,6 +692,8 @@ local function MaterialFacts(recipe, hasMining, mapID)
     local materialLines, missingNames, otherNeeds = {}, {}, {}
     local nodeNames, nodeSeen, preparation = {}, {}, {}
     local localNodes, miningNodes = 0, 0
+    local marketCost, pricedMissing, unpricedMissing = 0, 0, 0
+    local priceProvider, priceBasis
     local zoneKeys = ZoneOreKeys(mapID)
 
     for i = 1, #(recipe.reagents or {}) do
@@ -703,7 +705,20 @@ local function MaterialFacts(recipe, hasMining, mapID)
         total = total + reagent.quantity
         missing = missing + need
         materialLines[#materialLines + 1] = string.format("%dx %s (have %d)", reagent.quantity, reagentName, owned)
-        if need > 0 then missingNames[#missingNames + 1] = string.format("%dx %s", need, reagentName) end
+        if need > 0 then
+            missingNames[#missingNames + 1] = string.format("%dx %s", need, reagentName)
+            if ns.GetMarketPrice then
+                local unitPrice, provider, basis = ns.GetMarketPrice(reagent.itemID)
+                if unitPrice then
+                    marketCost = marketCost + unitPrice * need
+                    pricedMissing = pricedMissing + 1
+                    priceProvider = priceProvider or provider
+                    priceBasis = priceBasis or basis
+                else
+                    unpricedMissing = unpricedMissing + 1
+                end
+            end
+        end
 
         local source = hasMining and MINING_MATERIALS[reagent.itemID]
         if source then
@@ -767,6 +782,15 @@ local function MaterialFacts(recipe, hasMining, mapID)
     local difficultyTitle = difficulty:sub(1, 1):upper() .. difficulty:sub(2)
     local tooltip = string.format("%s skill-up recipe. Materials: %s.", difficultyTitle, table.concat(materialLines, "; "))
     if #nodeNames > 0 then tooltip = tooltip .. " Mining synergy: farm " .. HumanList(nodeNames) .. "." end
+    if pricedMissing > 0 and ns.FormatMarketPrice then
+        tooltip = tooltip .. string.format(" Estimated missing-material cost: %s via %s%s.",
+            ns.FormatMarketPrice(marketCost), priceProvider or "installed price addon",
+            priceBasis and (" " .. priceBasis) or "")
+        if unpricedMissing > 0 then
+            tooltip = tooltip .. string.format(" %d missing reagent%s had no price.",
+                unpricedMissing, unpricedMissing == 1 and "" or "s")
+        end
+    end
     local localScore = miningNodes > 0 and (localNodes / miningNodes) or 0
     return {
         craftable = craftable,
@@ -775,6 +799,9 @@ local function MaterialFacts(recipe, hasMining, mapID)
         detail = detail,
         tooltip = tooltip,
         localScore = localScore,
+        marketCost = pricedMissing > 0 and marketCost or nil,
+        marketCoverage = pricedMissing,
+        marketProvider = priceProvider,
     }
 end
 
@@ -794,9 +821,10 @@ local function BestSkillUpRecipe(profession, professions, mapID)
     for _, recipe in pairs(cache.recipes) do
         if type(recipe) == "table" and (recipe.difficulty or 0) >= 2 and type(recipe.reagents) == "table" and #recipe.reagents > 0 then
             local facts = MaterialFacts(recipe, hasMining, mapID)
+            local costPenalty = facts.marketCost and math.min(2500, facts.marketCost / 1000) or 0
             local score = (facts.craftable and 100000 or 0)
                 + (recipe.difficulty or 0) * 10000 + facts.localScore * 1000
-                - facts.missing * 10 - facts.total
+                - facts.missing * 10 - facts.total - costPenalty
             if not bestScore or score > bestScore then
                 best, bestFacts, bestScore = recipe, facts, score
             end
@@ -903,8 +931,9 @@ local function BestGearRecipe(profession, professions, mapID)
                 if equippedLevel ~= nil then
                     local delta = item.itemLevel - equippedLevel
                     local facts = MaterialFacts(recipe, hasMining, mapID)
+                    local costPenalty = facts.marketCost and math.min(1000, facts.marketCost / 1000) or 0
                     local score = (delta > 0 and 100000 or 0) + delta * 1000 + item.itemLevel * 10
-                        + (facts.craftable and 500 or 0) + SpecPreference(item.equipLoc)
+                        + (facts.craftable and 500 or 0) + SpecPreference(item.equipLoc) - costPenalty
                     if not bestScore or score > bestScore then
                         best, bestItem, bestFacts, bestDelta, bestScore = recipe, item, facts, delta, score
                     end

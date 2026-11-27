@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.0 - 2026-11-27
+
+- Added live Legacy Challenge discovery through the client's
+  achievement-to-Legacy-currency relationship, ranked by current zone,
+  instance, level, class, professions and existing criteria progress.
+- Added a current-zone missing-quest provider backed by QuestieDB. It excludes
+  completed, accepted, repeatable, prerequisite-blocked and unverifiable
+  quests, and shows only an NPC giver or an item plus its dropping mobs.
+- Kept the highest-ranked zone quest visible and put the complete eligible list
+  behind a per-character expansion row so large zones do not overwhelm the
+  tracker.
+- Added automatic TradeSkillMaster price scoring with an Auctionator fallback
+  for otherwise comparable profession plans. Recommendations continue normally
+  when neither price API has data.
+- Added dedicated Quests settings and replaced the Legacy provider placeholder
+  text with controls for live contextual challenge recommendations.
+
 ## 0.3.20 - 2026-11-27
 
 - Combined specialization and class into one compact context segment, such as

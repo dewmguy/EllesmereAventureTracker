@@ -105,6 +105,11 @@ local DEFAULTS = {
     showLegacy = true,
     showUnspentLegacy = true,
     showLegacyProfessionGoals = true,
+    showLegacyChallenges = true,
+    legacyChallengeLimit = 4,
+
+    showZoneQuests = true,
+    zoneQuestExpandedByCharacter = {},
 
     showProfessions = true,
     showProfessionProgress = true,
@@ -112,6 +117,7 @@ local DEFAULTS = {
     showProfessionGear = true,
     showProfessionCaps = true,
     showProfessionTrainerRecipes = true,
+    showProfessionMarketCosts = true,
     showCompletedProfessions = false,
     showProfessionZoneHints = true,
 
