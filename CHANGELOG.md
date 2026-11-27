@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 - 2026-11-26
+
+- Removed the player-facing Legacy development placeholder. The section now stays
+  hidden unless it has real information to show.
+- Added a researched implementation plan for contextual Legacy, missing-quest,
+  recipe, profession-synergy and crafted-gear recommendations.
+
 ## 0.1.0 - 2026-11-26
 
 - Added the Adventure Tracker sidebar section with Tracker, Readiness, Legacy

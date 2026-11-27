@@ -39,20 +39,9 @@ local function Build()
             }
         end
     end
-    if ns.Get("showLegacyZoneNote") then
-        local zone = ns.GetZoneName()
-        rows[#rows + 1] = {
-            key = "legacy-zone-preview",
-            label = zone,
-            detail = "Verified current-zone Legacy recommendations are the next provider milestone.",
-            state = "info",
-            icon = 236544,
-            onClick = OpenLegacy,
-        }
-    end
     return {
         id = "legacy",
-        title = "Legacy in This Zone",
+        title = "Legacy",
         rows = rows,
     }
 end

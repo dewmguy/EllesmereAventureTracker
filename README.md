@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.0 establishes the addon structure and a playable first pass:
+Version 0.1.1 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible EllesmereUI-skinned window;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
@@ -27,9 +27,10 @@ Version 0.1.0 establishes the addon structure and a playable first pass:
 - an `Adventure Tracker` sidebar section in EllesmereUI with Tracker,
   Readiness, Legacy and Professions submenu groups.
 
-Current-zone Legacy objectives and exact profession node/mob recommendations
-remain visibly identified as future data milestones. The first preview does
-not invent locations that have not been verified against WoW Forever.
+Current-zone Legacy objectives and exact profession node/mob recommendations are
+hidden until their providers can return verified actions. The researched source,
+UX and implementation decisions are recorded in
+[`docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md`](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md).
 
 ## Install
 

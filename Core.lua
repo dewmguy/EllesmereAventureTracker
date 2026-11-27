@@ -40,7 +40,6 @@ local DEFAULTS = {
 
     showLegacy = true,
     showUnspentLegacy = true,
-    showLegacyZoneNote = true,
 
     showProfessions = true,
     showProfessionProgress = true,

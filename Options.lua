@@ -41,7 +41,7 @@ end
 local TRACKER_KEYS = { "enabled", "locked", "width", "scale", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext" }
 local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
-local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyZoneNote" }
+local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy" }
 local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionCaps", "showCompletedProfessions", "showProfessionZoneHints" }
 
 local function BuildTracker(pageName, parent, yOffset)
@@ -152,16 +152,16 @@ local function BuildLegacy(pageName, parent, yOffset)
         Toggle("showUnspentLegacy", "Unspent Point Reminder", "Shows a row when the current character has Legacy points available to spend."))
     y = y - h
     _, h = W:DualRow(parent, y,
-        Toggle("showLegacyZoneNote", "Show Current-Zone Preview", "Shows the current zone and the status of the zone-recommendation provider."),
         { type = "button", text = "Open Legacy Window", onClick = function()
             if not InCombatLockdown() and ToggleLegacySystemUI then ToggleLegacySystemUI() end
-          end })
+          end },
+        Label("Zone recommendations stay hidden until the addon has a verified action to show."))
     y = y - h
 
-    _, h = W:SectionHeader(parent, "CURRENT PREVIEW", y); y = y - h
+    _, h = W:SectionHeader(parent, "RECOMMENDATIONS", y); y = y - h
     _, h = W:DualRow(parent, y,
         Label("Unspent points are live now."),
-        Label("Current-zone challenges are intentionally marked pending until their objective and map mappings are verified."))
+        Label("Planned recommendations will use Blizzard's live Legacy Challenges and show only relevant, incomplete goals."))
     y = y - h
     return math.abs(y)
 end
