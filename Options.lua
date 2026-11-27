@@ -205,7 +205,7 @@ local function BuildReadiness(pageName, parent, yOffset)
         local sleeping = Toggle("trackSleepingBag", "Cozy Sleeping Bag", "Tracks Well-Rested stacks below maximum level when the bag is available.")
         sleeping.disabled = disabled
         _, h = W:DualRow(parent, y, camp, sleeping); y = y - h
-        local food = Toggle("trackFood", "Food Buff", "Tracks Well Fed and known Forever food buffs.")
+        local food = Toggle("trackFood", "Food Buff", "Tracks Well Fed and known Forever food buffs. Click an owned-food recommendation to eat it.")
         food.disabled = disabled
         _, h = W:DualRow(parent, y,
             food,

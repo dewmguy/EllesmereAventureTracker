@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.7 establishes the addon structure and a playable first pass:
+Version 0.1.8 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
   mover, precise anchoring and width adjustment;
@@ -21,7 +21,8 @@ Version 0.1.7 establishes the addon structure and a playable first pass:
 - combat-safe state retention so restricted aura reads do not become false
   missing-buff warnings;
 - a role-aware Well Fed recommendation that prefers suitable food already in
-  the bags, then a supported learned Cooking recipe;
+  the bags, can eat that exact item when clicked, then falls back to a supported
+  learned Cooking recipe;
 - Camp Benefits equivalence for Incense Candle/Intellect and First Aid
   Kit/Fortitude;
 - an explicit per-character activity role because Forever does not reliably

@@ -274,6 +274,34 @@ local function BestBagCombatFood()
     return best
 end
 
+local function FoodUseError(message)
+    if UIErrorsFrame and UIErrorsFrame.AddMessage then
+        UIErrorsFrame:AddMessage(message, 1, 0.25, 0.25)
+    end
+end
+
+local function UseRecommendedFood(itemID, name)
+    if ns.IsCombatRestricted() then
+        FoodUseError("You cannot eat while in combat.")
+        return
+    end
+    local count = GetItemCount and GetItemCount(itemID) or 0
+    if IsSecret(count) or (tonumber(count) or 0) <= 0 then
+        FoodUseError(string.format("%s is no longer in your bags.", name or "That food"))
+        if ns.RequestRefresh then ns.RequestRefresh() end
+        return
+    end
+    if C_Item and C_Item.UseItemByName then
+        local ok = pcall(C_Item.UseItemByName, itemID)
+        if not ok then FoodUseError("That food could not be used right now.") end
+    elseif UseItemByName then
+        local ok = pcall(UseItemByName, itemID)
+        if not ok then FoodUseError("That food could not be used right now.") end
+    else
+        FoodUseError("Item use is unavailable on this client.")
+    end
+end
+
 local function RecipeKnown(recipeID, info)
     if info then
         local learned = info.learned
@@ -466,6 +494,8 @@ local function BuildFood(statuses, rows, warnSeconds)
         if bagFood then
             status.icon = bagFood.icon or status.icon
             status.detail = string.format("Eat %s (%d in bags) • %s.", bagFood.name, bagFood.count or 1, bagFood.effect)
+            status.clickHint = "Click to eat " .. bagFood.name .. "."
+            status.onClick = function() UseRecommendedFood(bagFood.itemID, bagFood.name) end
         else
             local crafted = BestCraftedCombatFood()
             if crafted then

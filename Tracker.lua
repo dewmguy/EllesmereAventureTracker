@@ -95,7 +95,7 @@ local function ShowTooltip(owner, data)
     GameTooltip:SetText(data.label or "Adventure Tracker")
     local detail = data.tooltip or data.detail
     if detail and detail ~= "" then GameTooltip:AddLine(detail, 1, 1, 1, true) end
-    if data.onClick then GameTooltip:AddLine("Click to open.", 0.55, 0.82, 1) end
+    if data.onClick then GameTooltip:AddLine(data.clickHint or "Click to open.", 0.55, 0.82, 1) end
     GameTooltip:Show()
 end
 

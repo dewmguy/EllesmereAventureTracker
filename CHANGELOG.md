@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.8 - 2026-11-26
+
+- Made owned-food recommendations clickable: clicking the Well Fed icon or row
+  consumes the exact recommended food through WoW's normal item-use action.
+- Crafted-but-not-owned recommendations remain informational, and combat or a
+  food item that has left the bags fails safely without substituting another.
+
 ## 0.1.7 - 2026-11-26
 
 - Added a Character summary of every skill currently available from the last
