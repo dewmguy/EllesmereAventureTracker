@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.16 establishes the addon structure and a playable first pass:
+Version 0.3.17 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -36,7 +36,8 @@ Version 0.3.16 establishes the addon structure and a playable first pass:
   main-pane strata picker for controlling its position relative to other UI windows;
 - a Quest Tracker-style minimize glyph and a Damage Meter-style lock control;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
-  states;
+  states, customizable sizing, wrapping, spacing, border style, per-state border
+  colors and independently positioned stack text;
 - live Camp Benefits, Well-Rested, food, class-buff and weapon-enhancement
   checks, with expiring-soon states kept in the icon strip instead of duplicated
   as entries under Missing Buffs;

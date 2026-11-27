@@ -91,7 +91,7 @@ local function CustomColorDisabled(modeKey, additionalDisabled)
     end
 end
 
-local function TextColorSwatches(modeKey, colorKey, text)
+local function TextColorSwatches(modeKey, colorKey, text, disabled)
     local function SetMode(mode)
         AppearanceSet(modeKey, mode, true)
     end
@@ -118,7 +118,7 @@ local function TextColorSwatches(modeKey, colorKey, text)
     end
 
     return {
-        type = "multiSwatch", text = text,
+        type = "multiSwatch", text = text, disabled = disabled,
         swatches = {
             {
                 tooltip = "Class Color", hasAlpha = false,
@@ -158,10 +158,17 @@ local TRACKER_KEYS = {
     "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
     "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "contextTextColorMode", "contextTextColor",
     "sectionFontSize", "sectionTextColorMode", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor",
-    "entryDetailFontSize", "entryDetailTextColorMode", "entryDetailTextColor", "badgeFontSize", "badgeTextColorMode", "badgeTextColor",
+    "entryDetailFontSize", "entryDetailTextColorMode", "entryDetailTextColor",
     "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
 }
-local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter", "lastClassBuffSpellsByCharacter", "roleCriticalAlerts", "roleAlertMinDuration", "trackPartyClassBuffs" }
+local READINESS_KEYS = {
+    "showReadiness", "readinessIconSize", "readinessIconSpacing", "readinessIconBorderTexture", "readinessIconBorderSize",
+    "readinessIconReadyBorderColor", "readinessIconWarningBorderColor", "readinessIconMissingBorderColor",
+    "readinessIconUnavailableBorderColor", "readinessIconUnknownBorderColor", "readinessIconInfoBorderColor",
+    "badgeFontSize", "badgeTextColorMode", "badgeTextColor", "badgeAnchor", "badgeOffsetX", "badgeOffsetY",
+    "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes",
+    "showCompletedReadiness", "roleByCharacter", "lastClassBuffSpellsByCharacter", "roleCriticalAlerts", "roleAlertMinDuration", "trackPartyClassBuffs",
+}
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals" }
@@ -212,7 +219,7 @@ local function BuildTracker(pageName, parent, yOffset)
                   "titleBarHeight", "titleBarColor", "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize",
                   "contextFontSize", "contextTextColorMode", "contextTextColor", "sectionFontSize", "sectionTextColorMode", "sectionTextColor",
                   "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor", "entryDetailFontSize", "entryDetailTextColorMode",
-                  "entryDetailTextColor", "badgeFontSize", "badgeTextColorMode", "badgeTextColor", "titleAlignment", "showTitleText",
+                  "entryDetailTextColor", "titleAlignment", "showTitleText",
                   "titleSeparatorSize", "titleSeparatorColor" })
           end })
     y = y - h
@@ -332,10 +339,6 @@ local function BuildTracker(pageName, parent, yOffset)
         Slider("entryDetailFontSize", "Entry Detail Font Size", 8, 24, 1, "Size of recommendation detail text."),
         TextColorSwatches("entryDetailTextColorMode", "entryDetailTextColor", "Entry Detail Color"))
     y = y - h
-    _, h = W:DualRow(parent, y,
-        Slider("badgeFontSize", "Icon Badge Font Size", 8, 24, 1, "Size of small text badges on readiness icons."),
-        TextColorSwatches("badgeTextColorMode", "badgeTextColor", "Icon Badge Text Color"))
-    y = y - h
     return math.abs(y)
 end
 
@@ -351,8 +354,57 @@ local function BuildReadiness(pageName, parent, yOffset)
             Toggle("showCompletedReadiness", "Show Completed Rows", "Keeps satisfied readiness items in the expanded list as well as the icon strip."))
         y = y - h
 
-        _, h = W:SectionHeader(parent, "ESSENTIALS", y); y = y - h
         local disabled = function() return not ns.Get("showReadiness") end
+        local borderDisabled = function()
+            return disabled() or (tonumber(ns.Get("readinessIconBorderSize")) or 0) <= 0
+        end
+        local borderValues, borderOrder = { solid = "Solid" }, { "solid" }
+        if EUI.GetBorderTextureDropdown then borderValues, borderOrder = EUI.GetBorderTextureDropdown() end
+
+        _, h = W:SectionHeader(parent, "ICON LAYOUT", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("readinessIconSize", "Icon Size", 20, 64, 1, "Size of each readiness icon. Icons wrap into centered additional rows when needed.", disabled),
+            Slider("readinessIconSpacing", "Icon Spacing", 0, 24, 1, "Horizontal and vertical space between readiness icons.", disabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Dropdown("readinessIconBorderTexture", "Border Style", borderValues, borderOrder, "Solid and installed EllesmereUI or SharedMedia border styles.", borderDisabled),
+            Slider("readinessIconBorderSize", "Border Size", 0, 4, 1, "Thickness of the readiness icon border. Set zero to hide it.", disabled))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "BORDER STATE COLORS", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("readinessIconReadyBorderColor", "Ready", "Border color for active or satisfied readiness items.", true, borderDisabled),
+            ColorPicker("readinessIconWarningBorderColor", "Warning", "Border color for partial or expiring readiness items.", true, borderDisabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("readinessIconMissingBorderColor", "Missing", "Border color for missing readiness items.", true, borderDisabled),
+            ColorPicker("readinessIconUnavailableBorderColor", "Unavailable", "Border color for readiness items that cannot currently be obtained.", true, borderDisabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("readinessIconUnknownBorderColor", "Unknown", "Border color when a readiness state cannot be read.", true, borderDisabled),
+            ColorPicker("readinessIconInfoBorderColor", "Information", "Border color for informational readiness items.", true, borderDisabled))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "STACK TEXT", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("badgeFontSize", "Stack Font Size", 6, 32, 1, "Font size of stack and count text drawn over readiness icons.", disabled),
+            TextColorSwatches("badgeTextColorMode", "badgeTextColor", "Stack Text Color", disabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Dropdown("badgeAnchor", "Stack Position", {
+                TOPLEFT = "Top Left", TOP = "Top", TOPRIGHT = "Top Right",
+                LEFT = "Left", CENTER = "Center", RIGHT = "Right",
+                BOTTOMLEFT = "Bottom Left", BOTTOM = "Bottom", BOTTOMRIGHT = "Bottom Right",
+            }, { "TOPLEFT", "TOP", "TOPRIGHT", "LEFT", "CENTER", "RIGHT", "BOTTOMLEFT", "BOTTOM", "BOTTOMRIGHT" },
+                "Anchor point used to position stack and count text on each readiness icon.", disabled, true),
+            Label("Offsets fine-tune the selected anchor."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Slider("badgeOffsetX", "Stack Horizontal Offset", -24, 24, 1, "Moves stack text left or right from its selected anchor.", disabled),
+            Slider("badgeOffsetY", "Stack Vertical Offset", -24, 24, 1, "Moves stack text down or up from its selected anchor.", disabled))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "ESSENTIALS", y); y = y - h
         local camp = Toggle("trackCamp", "Camp Benefits", "Tracks whether Camp Benefits is active and when a timed instance is nearing expiration.")
         camp.disabled = disabled
         local sleeping = Toggle("trackSleepingBag", "Cozy Sleeping Bag", "Tracks Well-Rested stacks below maximum level when the bag is available.")
@@ -367,7 +419,7 @@ local function BuildReadiness(pageName, parent, yOffset)
 
         _, h = W:SectionHeader(parent, "INTERPRETATION", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Label("Green = ready; amber = partial or expiring; red = missing.", "Gray means unavailable, violet means unreadable, and blue is informational."),
+            Label("Default borders: green = ready, amber = warning and red = missing.", "Gray means unavailable, violet means unreadable, and blue is informational. Every state color is customizable above."),
             Label("Only actionable items expand into rows by default."))
         y = y - h
     elseif pageName == "Class & Role" then

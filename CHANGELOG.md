@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.17 - 2026-11-27
+
+- Added Readiness settings for icon size, horizontal and vertical spacing,
+  border style and border size.
+- Added independent border colors for ready, warning, missing, unavailable,
+  unknown and informational icon states.
+- Moved readiness count typography into the Readiness page and added stack font
+  size, Class/Accent/Custom color, nine-point anchoring and X/Y offsets.
+- Centered the icon strip and allowed customized icons to wrap into additional
+  rows instead of overflowing the tracker pane.
+
 ## 0.3.16 - 2026-11-26
 
 - Simplified the Well-Rested icon badge from `X/3` to the current stack count.

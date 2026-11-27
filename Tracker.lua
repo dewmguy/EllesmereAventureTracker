@@ -175,6 +175,22 @@ local function StateColor(state)
     return color[1], color[2], color[3]
 end
 
+local READINESS_BORDER_COLOR_KEYS = {
+    ready = "readinessIconReadyBorderColor",
+    warning = "readinessIconWarningBorderColor",
+    missing = "readinessIconMissingBorderColor",
+    unavailable = "readinessIconUnavailableBorderColor",
+    unknown = "readinessIconUnknownBorderColor",
+    info = "readinessIconInfoBorderColor",
+}
+
+local function ReadinessBorderColor(state)
+    local key = READINESS_BORDER_COLOR_KEYS[state]
+    if key then return ColorValue(key) end
+    local r, g, b = StateColor(state)
+    return r, g, b, 1
+end
+
 local ATTENTION_COLORS = {
     warning = { 1.00, 0.82, 0.12 },
     critical = { 1.00, 0.16, 0.12 },
@@ -407,11 +423,14 @@ local function AcquireIcon(index)
     button = CreateFrame("Button", nil, fixedFrame, "BackdropTemplate")
     button._trackerFixedAction = true
     button:SetSize(31, 31)
-    button:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 2 })
     button.icon = button:CreateTexture(nil, "ARTWORK")
     button.icon:SetPoint("TOPLEFT", 3, -3)
     button.icon:SetPoint("BOTTOMRIGHT", -3, 3)
     button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    button.border = CreateFrame("Frame", nil, button, "BackdropTemplate")
+    button.border:SetAllPoints(button)
+    button.border:SetFrameLevel(button:GetFrameLevel() + 2)
+    button.border:EnableMouse(false)
     button.badge = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     button.badge:SetPoint("BOTTOMRIGHT", 3, -2)
     button.badge:SetTextColor(1, 1, 1)
@@ -572,9 +591,9 @@ local function TextFontFlags(outline)
     return ""
 end
 
-local function StyleFontString(fontString, sizeKey, fallbackSize, colorKey, modeKey)
+local function StyleFontString(fontString, sizeKey, fallbackSize, colorKey, modeKey, minimum, maximum)
     if not fontString then return end
-    local size = Clamp(ns.Get(sizeKey), 8, 24, fallbackSize)
+    local size = Clamp(ns.Get(sizeKey), minimum or 8, maximum or 24, fallbackSize)
     local path, flags = TextFontPath(), TextFontFlags()
     if EUI.SetFontFamily then
         pcall(EUI.SetFontFamily, fontString, path, size, flags, flags == "")
@@ -590,7 +609,7 @@ local function ApplyTextAppearance()
     StyleFontString(contextText, "contextFontSize", 11, "contextTextColor", "contextTextColorMode")
     StyleFontString(playtimeText, "contextFontSize", 11, "contextTextColor", "contextTextColorMode")
     for i = 1, #iconPool do
-        StyleFontString(iconPool[i].badge, "badgeFontSize", 10, "badgeTextColor", "badgeTextColorMode")
+        StyleFontString(iconPool[i].badge, "badgeFontSize", 10, "badgeTextColor", "badgeTextColorMode", 6, 32)
     end
     for i = 1, #sectionPool do
         local section = sectionPool[i]
@@ -602,6 +621,40 @@ local function ApplyTextAppearance()
         StyleFontString(row.label, "entryLabelFontSize", 12, "entryLabelTextColor", "entryLabelTextColorMode")
         StyleFontString(row.detail, "entryDetailFontSize", 10, "entryDetailTextColor", "entryDetailTextColorMode")
         SetSurfaceBackground(row, row:IsMouseOver() and "entryHoverBackgroundColor" or "entryBackgroundColor")
+    end
+end
+
+local VALID_BADGE_ANCHORS = {
+    TOPLEFT = true, TOP = true, TOPRIGHT = true,
+    LEFT = true, CENTER = true, RIGHT = true,
+    BOTTOMLEFT = true, BOTTOM = true, BOTTOMRIGHT = true,
+}
+
+local function ApplyReadinessIconAppearance(button, state, size, borderSize)
+    button:SetSize(size, size)
+    local inset = borderSize > 0 and math.min(math.floor(size / 3), borderSize + 1) or 0
+    button.icon:ClearAllPoints()
+    button.icon:SetPoint("TOPLEFT", button, "TOPLEFT", inset, -inset)
+    button.icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -inset, inset)
+
+    local anchor = tostring(ns.Get("badgeAnchor") or "BOTTOMRIGHT"):upper()
+    if not VALID_BADGE_ANCHORS[anchor] then anchor = "BOTTOMRIGHT" end
+    button.badge:ClearAllPoints()
+    button.badge:SetPoint(anchor, button, anchor,
+        Clamp(ns.Get("badgeOffsetX"), -24, 24, 3),
+        Clamp(ns.Get("badgeOffsetY"), -24, 24, -2))
+
+    local r, g, b, a = ReadinessBorderColor(state)
+    local texture = ns.Get("readinessIconBorderTexture") or "solid"
+    if EUI.ApplyBorderStyle then
+        EUI.ApplyBorderStyle(button.border, borderSize, r, g, b, a, texture)
+    elseif borderSize > 0 then
+        button.border:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = borderSize })
+        button.border:SetBackdropBorderColor(r, g, b, a)
+        button.border:Show()
+    else
+        button.border:SetBackdrop(nil)
+        button.border:Hide()
     end
 end
 
@@ -1205,22 +1258,29 @@ local function Render()
 
     local iconCount = #snapshot.statuses
     if iconCount > 0 then
-        local size, spacing = 31, 6
-        local total = iconCount * size + (iconCount - 1) * spacing
-        local startX = math.max(0, (contentWidth - total) / 2)
+        local size = Clamp(ns.Get("readinessIconSize"), 20, 64, 31)
+        local spacing = Clamp(ns.Get("readinessIconSpacing"), 0, 24, 6)
+        local borderSize = Clamp(ns.Get("readinessIconBorderSize"), 0, 4, 2)
+        local columns = math.max(1, math.min(iconCount, math.floor((contentWidth + spacing) / (size + spacing))))
+        local rowCount = math.ceil(iconCount / columns)
         for i = 1, iconCount do
             local data = snapshot.statuses[i]
             local button = AcquireIcon(i)
+            local row = math.floor((i - 1) / columns)
+            local column = (i - 1) % columns
+            local countInRow = math.min(columns, iconCount - row * columns)
+            local rowWidth = countInRow * size + (countInRow - 1) * spacing
+            local startX = math.max(0, (contentWidth - rowWidth) / 2)
             button.data = data
             button:ClearAllPoints()
-            button:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", startX + (i - 1) * (size + spacing), fixedY)
+            button:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", startX + column * (size + spacing), fixedY - row * (size + spacing))
             button.icon:SetTexture(data.icon or 134400)
             button.badge:SetText(data.badge or "")
-            button:SetBackdropBorderColor(StateColor(data.state))
+            ApplyReadinessIconAppearance(button, data.state, size, borderSize)
             SetAttention(button, data.attention, 2)
             button:Show()
         end
-        fixedY = fixedY - 40
+        fixedY = fixedY - rowCount * size - (rowCount - 1) * spacing - 9
     end
 
     local fixedHeight = math.max(1, math.abs(fixedY))
