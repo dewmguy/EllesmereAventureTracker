@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.19 establishes the addon structure and a playable first pass:
+Version 0.1.20 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -19,7 +19,8 @@ Version 0.1.19 establishes the addon structure and a playable first pass:
   hidden without reserving an empty title row;
 - Quest Tracker-style per-character collapse controls on every visible section,
   with important breathing alerts carried onto collapsed section headers and
-  the overall collapse control;
+  the overall collapse control, plus a soft synchronized background tint on
+  alerted section headers and recommendation entries;
 - mouse-wheel scrolling when the tracker contents exceed its screen-relative
   maximum height;
 - one combined Tracker settings page with customizable pane padding, independent

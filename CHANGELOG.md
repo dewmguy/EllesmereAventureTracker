@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.20 - 2026-11-26
+
+- Added a soft, synchronized yellow or red background pulse to alerted section
+  headers and recommendation entries while retaining the existing border glow.
+- Kept the attention tint translucent so customized normal and hover entry
+  backgrounds remain visible and return unchanged when the alert clears.
+
 ## 0.1.19 - 2026-11-26
 
 - Combined the former Window and Appearance tabs into one Tracker settings page.

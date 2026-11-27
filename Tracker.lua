@@ -116,13 +116,34 @@ local ATTENTION_COLORS = {
     critical = { 1.00, 0.16, 0.12 },
 }
 
+local ATTENTION_FILL_ALPHA = {
+    warning = 0.12,
+    critical = 0.10,
+}
+
+local function CreateAttentionAnimation(region)
+    local animation = region:CreateAnimationGroup()
+    animation:SetLooping("BOUNCE")
+    local fade = animation:CreateAnimation("Alpha")
+    fade:SetFromAlpha(0.25)
+    fade:SetToAlpha(1)
+    fade:SetDuration(0.9)
+    fade:SetSmoothing("IN_OUT")
+    return animation
+end
+
 local function SetAttention(widget, attention, edgeSize)
     local color = ATTENTION_COLORS[attention]
     local glow = widget._attentionBorder
+    local fill = widget._attentionFill
     if not color then
         if glow then
             glow.animation:Stop()
             glow:Hide()
+        end
+        if fill then
+            fill.animation:Stop()
+            fill:Hide()
         end
         return
     end
@@ -132,13 +153,7 @@ local function SetAttention(widget, attention, edgeSize)
         glow:SetPoint("BOTTOMRIGHT", 2, -2)
         glow:SetFrameLevel(widget:GetFrameLevel() + 10)
         glow:EnableMouse(false)
-        glow.animation = glow:CreateAnimationGroup()
-        glow.animation:SetLooping("BOUNCE")
-        local fade = glow.animation:CreateAnimation("Alpha")
-        fade:SetFromAlpha(0.25)
-        fade:SetToAlpha(1)
-        fade:SetDuration(0.9)
-        fade:SetSmoothing("IN_OUT")
+        glow.animation = CreateAttentionAnimation(glow)
         widget._attentionBorder = glow
     end
     edgeSize = edgeSize or 2
@@ -147,6 +162,18 @@ local function SetAttention(widget, attention, edgeSize)
         glow._edgeSize = edgeSize
     end
     glow:SetBackdropBorderColor(color[1], color[2], color[3], 1)
+    if widget._attentionBackground then
+        if not fill then
+            fill = widget:CreateTexture(nil, "BACKGROUND", nil, 1)
+            fill:SetAllPoints(widget)
+            fill.animation = CreateAttentionAnimation(fill)
+            widget._attentionFill = fill
+        end
+        fill:SetColorTexture(color[1], color[2], color[3], ATTENTION_FILL_ALPHA[attention] or 0.10)
+        fill:SetAlpha(0.25)
+        fill:Show()
+        if not fill.animation:IsPlaying() then fill.animation:Play() end
+    end
     glow:SetAlpha(0.25)
     glow:Show()
     if not glow.animation:IsPlaying() then glow.animation:Play() end
@@ -203,6 +230,7 @@ local function AcquireSection(index)
     button:SetHeight(16)
     button:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
     button:SetBackdropColor(1, 1, 1, 0)
+    button._attentionBackground = true
     button.text = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     button.text:SetPoint("LEFT", 2, 0)
     button.text:SetPoint("RIGHT", -2, 0)
@@ -239,6 +267,7 @@ local function AcquireRow(index)
     row:SetHeight(37)
     row:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
     row:SetBackdropColor(1, 1, 1, 0.025)
+    row._attentionBackground = true
     row.stripe = row:CreateTexture(nil, "ARTWORK")
     row.stripe:SetPoint("TOPLEFT")
     row.stripe:SetPoint("BOTTOMLEFT")
