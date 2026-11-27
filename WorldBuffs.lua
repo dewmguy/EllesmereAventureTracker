@@ -109,6 +109,9 @@ local function Build()
             local aura, readable = FindAura(buff.spells)
             if aura and ns.Get("showActiveWorldBuffs") then
                 local left = Remaining(aura)
+                if left and left > warnSeconds and ns.ScheduleTimedProviderRefresh then
+                    ns.ScheduleTimedProviderRefresh(left - warnSeconds)
+                end
                 rows[#rows + 1] = {
                     key = "world-active-" .. buff.key,
                     label = buff.label,

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.5 - 2026-11-27
+
+- Stopped tracker renders from explicitly reapplying their EllesmereUI dynamic
+  anchor after every height calculation. EllesmereUI's registered resize hook
+  remains the single anchor authority when the pane actually changes size.
+- Made tracker width and height writes idempotent within the same half-unit
+  tolerance as EllesmereUI's resize observer, preventing unchanged layouts and
+  scale-rounding noise from starting redundant anchor cascades and settle passes.
+- Fixed the full-height limiter's center-anchor feedback loop by measuring from
+  the frame point that actually owns the pane. Centered panes now calculate one
+  stable symmetric limit instead of repeatedly shrinking toward half-height.
+- Removed the legacy 10-second whole-pane status refresh. Aura changes remain
+  event-driven, while configurable expiration warnings now use exact one-shot
+  threshold timers and dynamic target movement gets one debounced layout pass.
+
 ## 0.8.4 - 2026-11-27
 
 - Removed the half-second global tracker renders from instance, boss and flight

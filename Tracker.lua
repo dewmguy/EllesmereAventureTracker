@@ -138,6 +138,27 @@ local HideSecureActionButtons
 local QueueSecureActionSync
 local HasUnlockAnchor
 
+-- Avoid turning an unchanged layout into another unlock-anchor resize cycle.
+-- WoW can report subpixel differences after scale conversion, while Ellesmere's
+-- resize observer intentionally treats changes above half a UI unit as real.
+local function SetWidthIfChanged(region, width)
+    local current = region and region:GetWidth()
+    if not current or math.abs(current - width) > 0.5 then
+        region:SetWidth(width)
+        return true
+    end
+    return false
+end
+
+local function SetHeightIfChanged(region, height)
+    local current = region and region:GetHeight()
+    if not current or math.abs(current - height) > 0.5 then
+        region:SetHeight(height)
+        return true
+    end
+    return false
+end
+
 local function ColorValue(key)
     local value = ns.Get(key)
     local fallback = ns.DEFAULTS[key] or {}
@@ -918,16 +939,41 @@ local function AvailablePanelHeight()
     screenTop = screenTop or screenHeight
     screenBottom = screenBottom or 0
 
-    local growth = EffectiveGrowthDirection()
-    local fixedEdge = growth == "UP" and frame:GetBottom() or frame:GetTop()
-    if not fixedEdge then return math.max(48, math.floor(screenHeight / scaleRatio)) end
-    fixedEdge = fixedEdge * scaleRatio
+    -- Measure from the point that actually owns the frame, not from the edge
+    -- implied by a setting. A CENTER-anchored frame changes both GetTop() and
+    -- GetBottom() when its height changes; measuring one of those moving edges
+    -- creates a geometric feedback loop (100% -> 75% -> 62.5% -> ...). Dynamic
+    -- side links likewise have an implicit source edge that is not stored.
+    local info = UnlockAnchorInfo()
+    local sourceEdge
+    if info then
+        if info.mode == "POINT" then
+            sourceEdge = AnchorVertical(info.sourcePoint)
+        else
+            local targetEdge = AnchorVertical(info.side)
+            if targetEdge == "BOTTOM" then sourceEdge = "TOP"
+            elseif targetEdge == "TOP" then sourceEdge = "BOTTOM"
+            else sourceEdge = "CENTER" end
+        end
+    else
+        local point = frame:GetPoint(1)
+        sourceEdge = AnchorVertical(point)
+    end
+
+    local top, bottom = frame:GetTop(), frame:GetBottom()
+    if not top or not bottom then return math.max(48, math.floor(screenHeight / scaleRatio)) end
+    top, bottom = top * scaleRatio, bottom * scaleRatio
 
     local available
-    if growth == "UP" then
-        available = screenTop - fixedEdge
+    if sourceEdge == "TOP" then
+        available = top - screenBottom
+    elseif sourceEdge == "BOTTOM" then
+        available = screenTop - bottom
     else
-        available = fixedEdge - screenBottom
+        -- A center point grows symmetrically regardless of the requested visual
+        -- direction. Use the largest stable height that fits on both sides.
+        local center = (top + bottom) * 0.5
+        available = math.max(0, math.min(screenTop - center, center - screenBottom) * 2)
     end
     -- Leave a small viewport gutter so borders and shadows are never clipped.
     return math.max(48, math.floor((available - 4) / scaleRatio))
@@ -1276,8 +1322,8 @@ local function RenderBody()
     local width = math.max(280, math.min(480, tonumber(ns.Get("width")) or 340))
     local padding = PanePadding()
     local contentWidth = math.max(1, width - padding * 2)
-    frame:SetWidth(width)
-    content:SetWidth(contentWidth)
+    SetWidthIfChanged(frame, width)
+    SetWidthIfChanged(content, contentWidth)
     if ApplyGrowthAnchor() and not HasUnlockAnchor() then SavePosition() end
     local collapsed = ns.Get("collapsed") == true
     collapseButton.text:SetText(collapsed and "+" or "−")
@@ -1343,13 +1389,13 @@ local function RenderBody()
     end
 
     local fixedHeight = math.max(1, math.abs(fixedY))
-    fixedFrame:SetHeight(fixedHeight)
+    SetHeightIfChanged(fixedFrame, fixedHeight)
     if collapsed then
         ApplyTextAppearance()
-        frame:SetHeight(ChromeHeight() + fixedHeight)
-        if HasUnlockAnchor() and EUI.ReapplyOwnAnchor then
-            EUI.ReapplyOwnAnchor(UNLOCK_KEY)
-        end
+        -- The registered Ellesmere resize observer re-applies a dynamic anchor
+        -- exactly once when this height really changes. Calling it again here
+        -- used to duplicate the cascade and its settle pass on every render.
+        SetHeightIfChanged(frame, ChromeHeight() + fixedHeight)
         if QueueSecureActionSync then QueueSecureActionSync() end
         UpdateLockFade()
         return
@@ -1421,19 +1467,15 @@ local function RenderBody()
     end
 
     local contentHeight = math.max(12, math.abs(y))
-    content:SetHeight(contentHeight)
+    SetHeightIfChanged(content, contentHeight)
     ApplyTextAppearance()
     for index = 1, rowIndex do ApplyDataTypography(rowPool[index], rowPool[index].data) end
     local viewportHeight = math.min(contentHeight,
         math.max(12, MaximumPanelHeight() - ChromeHeight() - fixedHeight))
-    scrollFrame:SetHeight(viewportHeight)
-    frame:SetHeight(ChromeHeight() + fixedHeight + viewportHeight)
-    -- Center-based legacy links need a fresh size-aware placement after the
-    -- height changes; point links are idempotent and simply preserve their
-    -- explicit source edge.
-    if HasUnlockAnchor() and EUI.ReapplyOwnAnchor then
-        EUI.ReapplyOwnAnchor(UNLOCK_KEY)
-    end
+    SetHeightIfChanged(scrollFrame, viewportHeight)
+    -- EllesmereUI hooks this registered outer frame's OnSizeChanged event. It
+    -- owns the single size-aware anchor reapply and downstream propagation.
+    SetHeightIfChanged(frame, ChromeHeight() + fixedHeight + viewportHeight)
     SetScroll(scrollFrame:GetVerticalScroll())
     if QueueSecureActionSync then QueueSecureActionSync() end
     UpdateLockFade()
@@ -1551,6 +1593,23 @@ local function RegisterUnlockElement()
 end
 RegisterUnlockElement()
 
+-- A dynamic target can rebuild through several sizes after login. Follow every
+-- movement immediately through EllesmereUI, but perform our viewport-height
+-- calculation only once the target has been quiet for a short window.
+local anchorGeometryTimer
+if hooksecurefunc then
+    hooksecurefunc(frame, "SetPoint", function()
+        if not HasUnlockAnchor() or not (C_Timer and C_Timer.NewTimer) then return end
+        if anchorGeometryTimer then anchorGeometryTimer:Cancel() end
+        anchorGeometryTimer = C_Timer.NewTimer(0.35, function()
+            anchorGeometryTimer = nil
+            if HasUnlockAnchor() and ns.RequestRefresh then
+                ns.RequestRefresh(false, "dynamic anchor settled")
+            end
+        end)
+    end)
+end
+
 local events = CreateFrame("Frame")
 local eventNames = {
     "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA",
@@ -1647,10 +1706,10 @@ events:SetScript("OnEvent", function(_, event, ...)
     if event == "PLAYER_LOGIN" then
         RegisterUnlockElement()
         ns.ApplySettings()
-        C_Timer.NewTicker(10, function()
-            if ns.RequestRefresh then
-                ns.RequestRefresh({ "readiness", "world-buffs" }, "timed status maintenance")
-            end
+        -- Re-measure once WoW has resolved the saved point. Ongoing aura state is
+        -- event-driven; exact warning-threshold transitions use one-shot timers.
+        C_Timer.After(0, function()
+            if ns.RequestRefresh then ns.RequestRefresh(false, "initial geometry settled") end
         end)
     elseif event == "ADDON_LOADED" then
         if (...) == "EllesmereUIDamageMeters" then

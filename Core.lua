@@ -336,6 +336,8 @@ end
 local providers = {}
 local providersByID = {}
 local profileMetrics = {}
+local timedProviderTimer
+local timedProviderDeadline
 
 local function ProfileNow()
     return debugprofilestop and debugprofilestop() or nil
@@ -366,6 +368,29 @@ end
 
 function ns.ResetProfileMetrics()
     wipe(profileMetrics)
+end
+
+-- Aura events cover applications, removals and stack changes. The only timed
+-- transition they do not report is crossing a user-configured "expiring soon"
+-- threshold, so schedule that exact transition instead of rebuilding the whole
+-- tracker on a permanent polling interval.
+function ns.ScheduleTimedProviderRefresh(delay)
+    delay = tonumber(delay)
+    if not delay or delay <= 0 or not (C_Timer and C_Timer.NewTimer) then return end
+    local now = GetTime and GetTime() or 0
+    local deadline = now + math.max(0.1, delay + 0.05)
+    if timedProviderTimer and timedProviderDeadline and timedProviderDeadline <= deadline + 0.05 then
+        return
+    end
+    if timedProviderTimer then timedProviderTimer:Cancel() end
+    timedProviderDeadline = deadline
+    timedProviderTimer = C_Timer.NewTimer(math.max(0.1, deadline - now), function()
+        timedProviderTimer = nil
+        timedProviderDeadline = nil
+        if ns.RequestRefresh then
+            ns.RequestRefresh({ "readiness", "world-buffs" }, "timed aura threshold")
+        end
+    end)
 end
 
 local function IsCombatRestricted()

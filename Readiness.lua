@@ -537,6 +537,9 @@ end
 
 local function TimedState(aura, warnSeconds)
     local remaining = AuraRemaining(aura)
+    if remaining and remaining > warnSeconds and ns.ScheduleTimedProviderRefresh then
+        ns.ScheduleTimedProviderRefresh(remaining - warnSeconds)
+    end
     if remaining and remaining <= warnSeconds then return "warning", remaining end
     return "ready", remaining
 end
@@ -695,6 +698,9 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                 if active == nil then
                     status.state, status.detail = "unknown", "Weapon enhancement state cannot be read."
                 elseif active then
+                    if remaining and remaining > warnSeconds and ns.ScheduleTimedProviderRefresh then
+                        ns.ScheduleTimedProviderRefresh(remaining - warnSeconds)
+                    end
                     status.state = remaining and remaining <= warnSeconds and "warning" or "ready"
                     status.expiringSoon = status.state == "warning"
                     status.detail = DurationDetail(req.label .. " active", remaining)
@@ -723,6 +729,10 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                             if remaining and remaining <= warnSeconds then expiring[#expiring + 1] = target.label end
                         end
                     end
+                end
+
+                if shortest and shortest > warnSeconds and ns.ScheduleTimedProviderRefresh then
+                    ns.ScheduleTimedProviderRefresh(shortest - warnSeconds)
                 end
 
                 if not readable then
