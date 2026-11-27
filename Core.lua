@@ -55,9 +55,12 @@ local DEFAULTS = {
 
     showLegacy = true,
     showUnspentLegacy = true,
+    showLegacyProfessionGoals = true,
 
     showProfessions = true,
     showProfessionProgress = true,
+    showProfessionSynergy = true,
+    showProfessionGear = true,
     showProfessionCaps = true,
     showCompletedProfessions = false,
     showProfessionZoneHints = true,

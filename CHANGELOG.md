@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.6 - 2026-11-26
+
+- Moved crafting-skill Legacy checkpoints into the Legacy section and rewrote
+  them as explicit goals such as 'Raise Blacksmithing to 150'.
+- Reorganized profession tracking into one section per profession, with the
+  current/maximum skill in its heading and local resource advice in that same
+  section.
+- Replaced cap countdowns with the next trainable profession rank, the remaining
+  skill-ups and a trainer, book or quest destination.
+- Added learned-recipe caching and ranking for a dependable next skill-up,
+  including Mining-to-Blacksmithing ore, bar and stone guidance that favors
+  resources available in the current zone.
+- Added class-usable crafted-gear recommendations that prefer an item-level
+  upgrade over currently equipped gear.
+- Renamed the readiness section to 'Missing Buffs' and added the exact number of
+  unspent class, specialization and hero talent points to its reminder.
+
 ## 0.1.5 - 2026-11-26
 
 - Added full tracker-window appearance controls for background color and alpha,

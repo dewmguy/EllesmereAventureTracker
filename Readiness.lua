@@ -557,7 +557,7 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                     status.state, remaining = TimedState(aura, warnSeconds)
                     status.detail = DurationDetail(req.label .. " active", remaining)
                 else
-                    status.state, status.detail = "missing", "Apply " .. req.label .. " before leaving."
+                    status.state, status.detail = "missing", "Apply " .. req.label .. "."
                 end
             end
             statuses[#statuses + 1] = status
@@ -577,7 +577,7 @@ local function Build()
     BuildClass(statuses, rows, warnSeconds, coverage)
     return {
         id = "readiness",
-        title = "Before You Leave",
+        title = "Missing Buffs",
         statuses = statuses,
         rows = rows,
     }

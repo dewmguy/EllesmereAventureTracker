@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.5 establishes the addon structure and a playable first pass:
+Version 0.1.6 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
   mover, precise anchoring and width adjustment;
@@ -31,8 +31,16 @@ Version 0.1.5 establishes the addon structure and a playable first pass:
 - unspent Legacy point reminders and a current-zone provider boundary;
 - an unspent talent reminder that can replace Blizzard's callout to the hidden
   Player Spells microbutton;
-- profession Legacy checkpoints, gathering and Fishing skill progress,
-  trainer-cap reminders and coordinate-free zone node summaries;
+- profession Legacy checkpoints kept in the Legacy section;
+- one section per profession, with current skill, the next trainable rank and a
+  verified trainer or acquisition destination;
+- learned-recipe scanning that recommends a dependable next skill-up, turns
+  Mining materials into a concrete ore/bar plan, and favors materials available
+  in the current zone;
+- a learned crafted-gear recommendation that prefers a class-usable upgrade
+  over the currently equipped item;
+- coordinate-free gathering and Fishing summaries without repeating the zone
+  name in each row;
 - a researched zone-gathering design for ranked herbs and ore, observed
   skinning materials, available fish and recommended effective Fishing skill;
 - an `Adventure Tracker` sidebar section in EllesmereUI with Tracker,
@@ -77,7 +85,7 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `Readiness.lua` — preparation and buff-family interpretation
 - `WorldBuffs.lua` — world-buff presence, timers and acquisition sources
 - `Legacy.lua` — Legacy points and current-zone provider
-- `Professions.lua` — skill checkpoints and zone opportunities
+- `Professions.lua` — rank goals, learned-recipe plans, gear and local resources
 - `Data/GatheringCatalog.lua` — generated per-zone node types and known-position counts
 - `Data/CookingFoods.lua` — Cooking recipe/output discovery seeds
 - `Tracker.lua` — floating tracker window

@@ -7,20 +7,26 @@ local function IsSecret(value)
     return _G.issecretvalue and _G.issecretvalue(value)
 end
 
-local function HasUnspentTalents()
+local function UnspentTalents()
     if not (C_SpecializationInfo and C_SpecializationInfo.CanPlayerUseTalentUI
         and C_ClassTalents and C_ClassTalents.HasUnspentTalentPoints) then
-        return false
+        return false, 0
     end
     local ok, available = pcall(C_SpecializationInfo.CanPlayerUseTalentUI)
-    if not ok or IsSecret(available) or not available then return false end
-    local normalOK, normal = pcall(C_ClassTalents.HasUnspentTalentPoints)
-    local heroOK, hero = true, false
+    if not ok or IsSecret(available) or not available then return false, 0 end
+    local normalOK, normal, classPoints, specPoints = pcall(C_ClassTalents.HasUnspentTalentPoints)
+    local heroOK, hero, heroPoints = true, false, 0
     if C_ClassTalents.HasUnspentHeroTalentPoints then
-        heroOK, hero = pcall(C_ClassTalents.HasUnspentHeroTalentPoints)
+        heroOK, hero, heroPoints = pcall(C_ClassTalents.HasUnspentHeroTalentPoints)
     end
-    if not normalOK or not heroOK or IsSecret(normal) or IsSecret(hero) then return false end
-    return normal == true or hero == true
+    if not normalOK or not heroOK or IsSecret(normal) or IsSecret(hero)
+        or IsSecret(classPoints) or IsSecret(specPoints) or IsSecret(heroPoints) then
+        return false, 0
+    end
+    classPoints = tonumber(classPoints) or 0
+    specPoints = tonumber(specPoints) or 0
+    heroPoints = tonumber(heroPoints) or 0
+    return normal == true or hero == true, classPoints + specPoints + heroPoints
 end
 
 local function OpenTalents()
@@ -43,15 +49,17 @@ local function TalentIcon()
 end
 
 local function Build()
-    if not ns.Get("showTalentReminder") or not HasUnspentTalents() then return {} end
+    if not ns.Get("showTalentReminder") then return {} end
+    local hasPoints, count = UnspentTalents()
+    if not hasPoints then return {} end
     return {
         id = "character-reminders",
         title = "Character",
         rows = {
             {
                 key = "unspent-talents",
-                label = "Unspent talent points",
-                detail = "Open Talents to spend your available points.",
+                label = string.format("%d unspent talent point%s", count, count == 1 and "" or "s"),
+                detail = "Open Talents to spend them.",
                 state = "warning",
                 icon = TalentIcon(),
                 onClick = OpenTalents,

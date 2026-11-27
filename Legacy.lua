@@ -3,6 +3,22 @@
 -------------------------------------------------------------------------------
 local _, ns = ...
 
+local LEGACY_PROFESSIONS = {
+    [164] = true, -- Blacksmithing
+    [165] = true, -- Leatherworking
+    [171] = true, -- Alchemy
+    [197] = true, -- Tailoring
+    [202] = true, -- Engineering
+    [333] = true, -- Enchanting
+}
+local CHECKPOINTS = { 150, 225, 300 }
+
+local function NextCheckpoint(rank)
+    for i = 1, #CHECKPOINTS do
+        if rank < CHECKPOINTS[i] then return CHECKPOINTS[i] end
+    end
+end
+
 local function AvailablePoints()
     local constants = _G.Constants and _G.Constants.LegacyConsts
     if not constants or not C_MajorFactions or not C_Traits then return nil end
@@ -37,6 +53,25 @@ local function Build()
                 icon = 236544,
                 onClick = OpenLegacy,
             }
+        end
+    end
+    if ns.Get("showLegacyProfessionGoals") and ns.GetProfessionList then
+        local professions = ns.GetProfessionList()
+        for i = 1, #professions do
+            local profession = professions[i]
+            if LEGACY_PROFESSIONS[profession.skillLineID] then
+                local checkpoint = NextCheckpoint(profession.rank)
+                if checkpoint then
+                    local remaining = checkpoint - profession.rank
+                    rows[#rows + 1] = {
+                        key = "legacy-profession-" .. tostring(profession.skillLineID),
+                        label = string.format("Raise %s to %d", profession.name, checkpoint),
+                        detail = string.format("Next profession Legacy checkpoint • %d skill-up%s remaining.", remaining, remaining == 1 and "" or "s"),
+                        state = remaining <= 10 and "warning" or "info",
+                        icon = profession.icon,
+                    }
+                end
+            end
         end
     end
     return {

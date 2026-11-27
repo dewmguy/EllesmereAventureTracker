@@ -93,7 +93,8 @@ end
 local function ShowTooltip(owner, data)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     GameTooltip:SetText(data.label or "Adventure Tracker")
-    if data.detail and data.detail ~= "" then GameTooltip:AddLine(data.detail, 1, 1, 1, true) end
+    local detail = data.tooltip or data.detail
+    if detail and detail ~= "" then GameTooltip:AddLine(detail, 1, 1, 1, true) end
     if data.onClick then GameTooltip:AddLine("Click to open.", 0.55, 0.82, 1) end
     GameTooltip:Show()
 end
@@ -576,6 +577,9 @@ events:SetScript("OnEvent", function(_, event, ...)
     if event == "UNIT_AURA" then
         local unit = ...
         if unit and unit ~= "player" then return end
+    end
+    if (event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE") and ns.ScanProfessionRecipes then
+        ns.ScanProfessionRecipes()
     end
     if event == "PLAYER_LOGIN" then
         RegisterUnlockElement()

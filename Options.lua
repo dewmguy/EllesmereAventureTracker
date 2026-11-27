@@ -87,8 +87,8 @@ local TRACKER_KEYS = {
 local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter" }
 local REMINDER_KEYS = { "showTalentReminder", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
-local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy" }
-local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionCaps", "showCompletedProfessions", "showProfessionZoneHints" }
+local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals" }
+local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showCompletedProfessions", "showProfessionZoneHints" }
 
 local function BuildTracker(pageName, parent, yOffset)
     local W, y, h = EUI.Widgets, yOffset
@@ -272,15 +272,15 @@ local function BuildLegacy(pageName, parent, yOffset)
         Toggle("showUnspentLegacy", "Unspent Point Reminder", "Shows a row when the current character has Legacy points available to spend."))
     y = y - h
     _, h = W:DualRow(parent, y,
+        Toggle("showLegacyProfessionGoals", "Profession Checkpoint Goals", "Shows the next 150, 225 or 300 crafting-skill goal in the Legacy section."),
         { type = "button", text = "Open Legacy Window", onClick = function()
             if not InCombatLockdown() and ToggleLegacySystemUI then ToggleLegacySystemUI() end
-          end },
-        Label("Zone recommendations stay hidden until the addon has a verified action to show."))
+          end })
     y = y - h
 
     _, h = W:SectionHeader(parent, "RECOMMENDATIONS", y); y = y - h
     _, h = W:DualRow(parent, y,
-        Label("Unspent points are live now."),
+        Label("Profession goals state the target skill itself instead of showing an unexplained point count."),
         Label("Planned recommendations will use Blizzard's live Legacy Challenges and show only relevant, incomplete goals."))
     y = y - h
     return math.abs(y)
@@ -330,18 +330,22 @@ local function BuildProfessions(pageName, parent, yOffset)
     if pageName == "Progress" then
         _, h = W:SectionHeader(parent, "PROFESSION PROGRESS", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Toggle("showProfessions", "Enable Profession Sections", "Shows profession checkpoints and local opportunities.", true),
-            Toggle("showProfessionProgress", "Legacy Skill Checkpoints", "Shows progress toward skill 150, 225 and 300 for crafting professions that award Legacy points."))
+            Toggle("showProfessions", "Enable Profession Sections", "Shows profession plans and local opportunities.", true),
+            Toggle("showProfessionProgress", "Rank Guidance", "Shows when the next profession rank becomes trainable and how many skill-ups remain."))
         y = y - h
         _, h = W:DualRow(parent, y,
-            Toggle("showProfessionCaps", "Trainer Cap Reminders", "Shows when a profession has reached its current skill cap below 300."),
-            Toggle("showCompletedProfessions", "Show Completed Professions", "Keeps professions at their final Legacy skill checkpoint visible."))
+            Toggle("showProfessionSynergy", "Skill-up and Gathering Plan", "Recommends a learned skill-up recipe and uses a paired gathering profession when its materials can be gathered."),
+            Toggle("showProfessionGear", "Useful Crafted Gear", "Recommends a usable learned craft, preferring an upgrade over currently equipped gear."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showProfessionCaps", "Trainer Rank Reminders", "Shows as soon as the next profession rank is trainable, not only after reaching the current cap."),
+            Toggle("showCompletedProfessions", "Show Completed Professions", "Keeps professions visible after their final rank is complete."))
         y = y - h
 
-        _, h = W:SectionHeader(parent, "CHECKPOINTS", y); y = y - h
+        _, h = W:SectionHeader(parent, "LIVE RECIPE DATA", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Label("Alchemy, Blacksmithing, Enchanting, Engineering, Leatherworking and Tailoring are tracked at 150, 225 and 300."),
-            Label("Gathering professions appear under Local Opportunities instead."))
+            Label("Open a profession once to let Adventure Tracker evaluate its learned recipes, reagents and outputs."),
+            Label("Legacy skill checkpoints now appear in the Legacy section; gathering skills remain visible here."))
         y = y - h
     else
         _, h = W:SectionHeader(parent, "CURRENT ZONE", y); y = y - h
@@ -350,10 +354,10 @@ local function BuildProfessions(pageName, parent, yOffset)
             nil)
         y = y - h
 
-        _, h = W:SectionHeader(parent, "DATA ROADMAP", y); y = y - h
+        _, h = W:SectionHeader(parent, "DATA SOURCES", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Label("The first preview gives truthful contextual hints without inventing node or mob locations."),
-            Label("Verified zone materials, mobs, trainers, quests and profession rewards will become richer local recommendations."))
+            Label("Herb, ore and fishing summaries use the attributed, coordinate-free Forever Nodes catalogue."),
+            Label("Skill-up and crafted-gear plans use the character's learned recipes, bags and equipped items."))
         y = y - h
     end
     return math.abs(y)
@@ -396,7 +400,7 @@ local function Register()
             },
             {
                 key = "professions", title = "Professions",
-                description = "Skill checkpoints and local profession opportunities.",
+                description = "Rank goals, skill-up plans, crafted gear and local resources.",
                 pages = { "Progress", "Local Opportunities" }, buildPage = BuildProfessions,
                 onReset = function() ns.ResetKeys(PROFESSION_KEYS) end,
             },
