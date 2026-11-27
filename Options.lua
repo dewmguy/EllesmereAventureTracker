@@ -92,7 +92,7 @@ local function CustomColorDisabled(modeKey, additionalDisabled)
 end
 
 local TRACKER_KEYS = {
-    "enabled", "locked", "width", "scale", "maximizePaneHeight", "paneGrowthDirection", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
+    "enabled", "locked", "width", "scale", "frameStrata", "maximizePaneHeight", "paneGrowthDirection", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
     "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor", "entryBackgroundColor", "entryHoverBackgroundColor",
     "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
     "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "contextTextColorMode", "contextTextColor",
@@ -134,11 +134,19 @@ local function BuildTracker(pageName, parent, yOffset)
         Toggle("locked", "Lock Window", "Prevents dragging the tracker from its pane surfaces."))
     y = y - h
     _, h = W:DualRow(parent, y,
+        Dropdown("frameStrata", "Main Pane Strata", {
+            BACKGROUND = "Background", LOW = "Low", MEDIUM = "Medium", HIGH = "High",
+            DIALOG = "Dialog", FULLSCREEN = "Fullscreen", FULLSCREEN_DIALOG = "Fullscreen Dialog", TOOLTIP = "Tooltip",
+        }, { "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP" },
+            "Controls whether the entire tracker appears behind or above other UI windows. Medium matches the original behavior."),
+        Label("Secure click surfaces for food and class buffs follow the selected pane strata when out of combat."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
         { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, width, scale and growth behavior.",
           onClick = function() ns.ResetKeys({ "position", "width", "scale", "maximizePaneHeight", "paneGrowthDirection" }) end },
         { type = "button", text = "Reset Appearance", tooltip = "Restores spacing, backgrounds, border, title bar and text defaults.",
           onClick = function()
-              ns.ResetKeys({ "opacity", "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor",
+              ns.ResetKeys({ "frameStrata", "opacity", "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor",
                   "entryBackgroundColor", "entryHoverBackgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode",
                   "titleBarHeight", "titleBarColor", "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize",
                   "contextFontSize", "contextTextColorMode", "contextTextColor", "sectionFontSize", "sectionTextColorMode", "sectionTextColor",

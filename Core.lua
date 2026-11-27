@@ -15,6 +15,7 @@ local DEFAULTS = {
     collapsed = false,
     width = 340,
     scale = 1.0,
+    frameStrata = "MEDIUM",
     maximizePaneHeight = false,
     paneGrowthDirection = "DOWN",
     opacity = 0.96,

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.6 - 2026-11-26
+
+- Added a Main Pane Strata picker with every standard WoW frame-strata level,
+  defaulting to Medium to preserve the existing stacking behavior.
+- Kept the secure food and class-buff click surfaces on the same selected
+  strata as the tracker whenever protected frames can safely be updated.
+
 ## 0.3.5 - 2026-11-26
 
 - Fixed class-trainer skill hovers so the scanned ability description is

@@ -258,11 +258,24 @@ end
 local secureActionPool = {}
 local secureActionSyncQueued = false
 
+local VALID_FRAME_STRATA = {
+    BACKGROUND = true, LOW = true, MEDIUM = true, HIGH = true, DIALOG = true,
+    FULLSCREEN = true, FULLSCREEN_DIALOG = true, TOOLTIP = true,
+}
+
+local function MainPaneStrata()
+    local value = tostring(ns.Get("frameStrata") or "MEDIUM"):upper()
+    return VALID_FRAME_STRATA[value] and value or "MEDIUM"
+end
+
 local function AcquireSecureActionButton(index)
     local button = secureActionPool[index]
-    if button then return button end
+    if button then
+        if not (InCombatLockdown and InCombatLockdown()) then button:SetFrameStrata(MainPaneStrata()) end
+        return button
+    end
     button = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate")
-    button:SetFrameStrata("MEDIUM")
+    button:SetFrameStrata(MainPaneStrata())
     button:SetFrameLevel(frame:GetFrameLevel() + 40)
     button:RegisterForClicks("LeftButtonUp")
     button._secureAction = true
@@ -1216,6 +1229,11 @@ local function Render()
 end
 
 function ns.ApplySettings()
+    local strata = MainPaneStrata()
+    frame:SetFrameStrata(strata)
+    if not (InCombatLockdown and InCombatLockdown()) then
+        for index = 1, #secureActionPool do secureActionPool[index]:SetFrameStrata(strata) end
+    end
     frame:SetScale(math.max(0.65, math.min(1.5, tonumber(ns.Get("scale")) or 1)))
     frame:SetAlpha(1)
     ApplyWindowStyle()
