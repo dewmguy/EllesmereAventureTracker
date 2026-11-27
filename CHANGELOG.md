@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.16 - 2026-11-26
+
+- Aligned the overall collapse control with the zone, specialization, class and
+  role context line when the title bar is hidden.
+- Reserved space at the right of that context line so long zone or build names
+  cannot overlap the control.
+
 ## 0.1.15 - 2026-11-26
 
 - Made every visible tracker section independently collapsible per character,

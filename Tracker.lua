@@ -455,9 +455,7 @@ local function ApplyWindowStyle()
     collapseButton.text:SetTextColor(tr, tg, tb, ta)
     title:SetShown(mode ~= "hidden" and ns.Get("showTitleText") == true)
     collapseButton:ClearAllPoints()
-    if mode == "hidden" then
-        collapseButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -7, -4)
-    else
+    if mode ~= "hidden" then
         collapseButton:SetPoint("RIGHT", header, "RIGHT", -7, 0)
     end
     collapseButton:Show()
@@ -486,8 +484,14 @@ local function ApplyWindowStyle()
     local topInset = headerHeight > 0 and headerHeight + 6 or 28
     scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -topInset)
     scrollFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -topInset)
+    if mode == "hidden" then
+        collapseButton:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", 0, 4)
+    end
     content:ClearAllPoints()
     content:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT")
+    contextText:ClearAllPoints()
+    contextText:SetPoint("TOPLEFT", content, "TOPLEFT", 2, 0)
+    contextText:SetPoint("TOPRIGHT", content, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
     UpdateLockIcon()
     UpdateLockFade()
 end
