@@ -235,7 +235,7 @@ local function BuildTracker(pageName, parent, yOffset)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("panePadding", "Pane Padding", 0, 24, 1, "Space between the pane edges and tracker contents on all sides."),
-        Toggle("showContext", "Show Zone, Class, Spec, Group and Role", "Shows the current zone, class, dominant Forever talent tree, live Solo, Party or Raid context, and any specifically selected activity role above the readiness icons."))
+        Toggle("showContext", "Show Zone, Level, Class, Spec, Group and Role", "Shows the current zone, character level, class, dominant Forever talent tree, live Solo, Party or Raid context, and any specifically selected activity role above the readiness icons."))
     y = y - h
     _, h = W:DualRow(parent, y,
         Toggle("maximizePaneHeight", "Allow Full Viewport Height", "Allows an unanchored pane to use all safe screen space in the selected growth direction instead of the normal 75% screen-height limit. A dynamic EllesmereUI anchor always uses the safe space between its fixed edge and the viewport."),

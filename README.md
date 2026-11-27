@@ -8,16 +8,16 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.8.2 establishes the addon structure and a playable first pass:
+Version 0.8.3 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
   from its background, content, section headers, status icons or recommendation
   rows, plus an EllesmereUI Unlock Mode mover for precise anchoring and width;
 - a left-, center- or right-aligned context and status line showing zone,
-  the dominant Forever talent tree and class as a compact `Prot Paladin`-style
-  segment, plus live `Solo`, `Party` or `Raid` group context and a specifically
-  selected role such as Tank or Healer;
+  character level, and the dominant Forever talent tree and class as a compact
+  `27 Prot Paladin`-style segment, plus live `Solo`, `Party` or `Raid` group
+  context and a specifically selected role such as Tank or Healer;
 - custom, player-class or EllesmereUI-accent coloring for the title and collapse
   glyph, which aligns with the zone/class context line when the title bar is
   hidden without reserving an empty title row;
@@ -86,8 +86,9 @@ Version 0.8.2 establishes the addon structure and a playable first pass:
   mobs shown;
 - a Quest Progress section with one expandable summary per zone the character
   has actually entered outside flight-path travel, combined player-level XP
-  and coin rewards, and the same conservative QuestieDB filtering without
-  exposing locations, routes or objectives;
+  and coin rewards, and conservative QuestieDB filtering for level, class,
+  race, profession and chain availability without exposing locations, routes
+  or objectives; recommendations remain within five levels of the character;
 - red, breathing future quest-material warnings when a newly vendored item is
   still needed by a meaningful unaccepted quest in a visited zone, with direct
   merchant buyback while available and an explicit per-item dismiss button;

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.3 - 2026-11-27
+
+- Added the character level before the compact specialization and class in the
+  fixed status row, such as `27 Prot Paladin`.
+- Limited Quest Progress and instance-quest suggestions to quests no more than
+  five levels above the character, preventing low-minimum but level-60 city
+  quests from inflating a leveling character's available count.
+- Completed the QuestieDB chain-state checks by honoring active parent quests
+  and hiding an earlier chain entry once its successor is active or complete.
+
 ## 0.8.2 - 2026-11-27
 
 - Added live `Solo`, `Party` or `Raid` context to the fixed status row and kept

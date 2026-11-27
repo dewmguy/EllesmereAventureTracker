@@ -123,6 +123,8 @@ local function CharacterContext()
     local specName = ns.GetCurrentSpecializationName and ns.GetCurrentSpecializationName()
     local buildName = specName and specName ~= className
         and (ShortSpecName(specName) .. " " .. className) or className
+    local level = tonumber(UnitLevel and UnitLevel("player")) or 0
+    if level > 0 then buildName = string.format("%d %s", level, buildName) end
     local parts = { zone, buildName, GroupContext() }
     local roleKey = ns.GetRole()
     if roleKey ~= "SOLO" then

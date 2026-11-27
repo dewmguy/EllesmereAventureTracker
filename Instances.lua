@@ -7,6 +7,7 @@ local TIMER_ICON = 134376
 local BOSS_ICON = 136116
 local QUEST_ICON = 134400
 local LOOT_ICON = 133784
+local QUEST_LEVEL_AHEAD_LIMIT = 5
 
 local state = {
     inInstance = false,
@@ -393,6 +394,14 @@ local function QuestRequirementsMet(questDB, questID)
     local requiredMaxLevel = tonumber(EntityValue(questDB, "requiredMaxLevel", questID)) or 0
     if requiredLevel > level or (requiredMaxLevel > 0 and level > requiredMaxLevel) then return false end
 
+    -- QuestieDB's minimum level and displayed quest level are separate values.
+    -- Some quests (notably city donation quests) have a low minimum but a much
+    -- higher displayed level, so requiredLevel alone can make them look like
+    -- sensible leveling recommendations. Keep genuinely red quests, but do not
+    -- call anything more than five levels ahead currently available progress.
+    local questLevel = tonumber(EntityValue(questDB, "questLevel", questID)) or 0
+    if level > 0 and questLevel > level + QUEST_LEVEL_AHEAD_LIMIT then return false end
+
     local _, classToken
     if UnitClass then _, classToken = UnitClass("player") end
     local _, _, raceID
@@ -404,10 +413,12 @@ local function QuestRequirementsMet(questDB, questID)
     if not MaskIncludes(EntityValue(questDB, "requiredRaces", questID), raceMask) then return false end
 
     local parent = tonumber(EntityValue(questDB, "parentQuest", questID)) or 0
-    if parent > 0 and not IsQuestComplete(parent) then return false end
+    if parent > 0 and not IsQuestInLog(parent) then return false end
     if not EveryQuestComplete(EntityValue(questDB, "preQuestGroup", questID)) then return false end
     if not AnyQuestComplete(EntityValue(questDB, "preQuestSingle", questID)) then return false end
     if not NoneComplete(EntityValue(questDB, "exclusiveTo", questID)) then return false end
+    local nextQuest = tonumber(EntityValue(questDB, "nextQuestInChain", questID)) or 0
+    if nextQuest > 0 and (IsQuestComplete(nextQuest) or IsQuestInLog(nextQuest)) then return false end
     local startsWith = tonumber(EntityValue(questDB, "availableStartingWith", questID)) or 0
     if startsWith > 0 and not IsQuestComplete(startsWith) and not IsQuestInLog(startsWith) then return false end
     local untilCompleted = tonumber(EntityValue(questDB, "availableUntilCompleted", questID)) or 0
