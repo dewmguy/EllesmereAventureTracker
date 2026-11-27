@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.14 - 2026-11-26
+
+- Renamed the tracker section heading from `Legacy` to `Legacy Progress` so its
+  purpose is clearer at a glance.
+
 ## 0.3.13 - 2026-11-26
 
 - Added reusable nested-row indentation to the tracker renderer.

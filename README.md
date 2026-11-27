@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.13 establishes the addon structure and a playable first pass:
+Version 0.3.14 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -91,7 +91,7 @@ Version 0.3.13 establishes the addon structure and a playable first pass:
 - carried gold with denomination icons and a hover summary of session changes,
   the available lifetime statistic, known other-character balances and the
   Warband bank through EllesmereUI's shared ledger;
-- profession Legacy checkpoints kept in the Legacy section;
+- profession Legacy checkpoints kept in the Legacy Progress section;
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;
 - collapsible per-profession lists of currently available unlearned trainer

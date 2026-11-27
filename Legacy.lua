@@ -76,7 +76,7 @@ local function Build()
     end
     return {
         id = "legacy",
-        title = "Legacy",
+        title = "Legacy Progress",
         rows = rows,
     }
 end
