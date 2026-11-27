@@ -118,6 +118,8 @@ local DEFAULTS = {
     showProfessionCaps = true,
     showProfessionTrainerRecipes = true,
     showProfessionMarketCosts = true,
+    showProfessionAttainableRecipes = true,
+    professionRecipeCatalogExpandedByCharacter = {},
     showCompletedProfessions = false,
     showProfessionZoneHints = true,
 

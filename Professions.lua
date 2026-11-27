@@ -218,6 +218,10 @@ local function RecipeCache(skillLineID, professionName)
     return cache
 end
 
+function ns.GetProfessionRecipeCache(skillLineID, professionName)
+    return RecipeCache(skillLineID, professionName)
+end
+
 local function FormatMoney(amount)
     amount = math.max(0, math.floor(tonumber(amount) or 0))
     if amount == 0 then return "Free" end
@@ -918,6 +922,14 @@ local function IsUsableEquippable(itemID, item)
     return true
 end
 
+function ns.GetCraftedItemUpgrade(itemID)
+    local item = ItemInfo(itemID)
+    if not item or not IsUsableEquippable(itemID, item) then return nil end
+    local equippedLevel = EquippedItemLevel(item.equipLoc)
+    if equippedLevel == nil then return nil end
+    return item, item.itemLevel - equippedLevel, SLOT_LABELS[item.equipLoc] or "gear", equippedLevel
+end
+
 local function BestGearRecipe(profession, professions, mapID)
     local cache = RecipeCache(profession.skillLineID, profession.name)
     if not cache or type(cache.recipes) ~= "table" then return nil end
@@ -1073,6 +1085,7 @@ local function BuildProfessionRows(profession, professions, mapID)
     end
 
     if TRAINER_PROFESSIONS[profession.skillLineID] then AddTrainerRecipeRows(rows, profession) end
+    if ns.AddRecipeCatalogRows then ns.AddRecipeCatalogRows(rows, profession, professions, mapID) end
 
     if ns.Get("showProfessionZoneHints") and GATHERING_HINTS[profession.skillLineID] then
         local kind = GATHERING_KINDS[profession.skillLineID]

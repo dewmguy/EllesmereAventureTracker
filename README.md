@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.4.0 establishes the addon structure and a playable first pass:
+Version 0.5.0 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -111,8 +111,15 @@ Version 0.4.0 establishes the addon structure and a playable first pass:
 - optional missing-material cost scoring that automatically prefers
   TradeSkillMaster when its price API is available and falls back to
   Auctionator, without making either addon mandatory;
+- an attributed, build-stamped catalogue of 2,090 Forever recipes with
+  QuestieDB vendor, reasonable-level mob-drop, object-loot and currently
+  eligible quest-reward overlays;
+- a best attainable unlearned recipe recommendation plus an expandable
+  per-character worldwide list, with source details but no coordinates;
+- cross-profession reagent goals when one opened profession can craft a
+  material needed by another opened profession's current skill-up recipe;
 - a learned crafted-gear recommendation that prefers a class-usable upgrade
-  over the currently equipped item;
+  over the currently equipped item, plus attainable unlearned crafted upgrades;
 - coordinate-free gathering and Fishing summaries without repeating the zone
   name in each row;
 - a researched zone-gathering design for ranked herbs and ore, observed
@@ -121,10 +128,9 @@ Version 0.4.0 establishes the addon structure and a playable first pass:
   Readiness, World Buffs, Travel & Status, Instances, Quests, Legacy and Professions
   submenu groups.
 
-Legacy recommendations and zone quests remain hidden when their live providers
-cannot verify an action; exact profession mob recommendations and the complete
-generated recipe catalogue remain provider-bound. The researched source, UX and
-implementation decisions are recorded in
+Legacy, quest and recipe recommendations remain hidden when their live
+providers cannot verify an action. The researched source, UX and implementation
+decisions are recorded in
 [`docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md`](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md).
 The rules for reusing public datasets without hiding their provenance are in
 [`docs/DATA_SOURCES_AND_LICENSES.md`](docs/DATA_SOURCES_AND_LICENSES.md).
@@ -175,6 +181,8 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
   transparent power-of-two PNG assets
 - `Data/GatheringCatalog.lua` — generated per-zone node types and known-position counts
 - `Data/CookingFoods.lua` — Cooking recipe/output discovery seeds
+- `Data/RecipeCatalog.lua` — attributed build-stamped recipe and reagent facts
+- `RecipeCatalog.lua` — learned-state, source, synergy and upgrade evaluation
 - `Tracker.lua` — floating tracker window
 - `Options.lua` — supported EllesmereUI plugin settings integration
 - `docs/API_RESTRICTIONS.md` — protected-action and combat-data rules

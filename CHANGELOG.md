@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.0 - 2026-11-27
+
+- Added an attributed, build-stamped catalogue of 2,090 Forever recipes from
+  Dwarf Explorer's Bible's MIT-licensed generated data for client build
+  1.60.1.71037 plus the documented 70959 hotfix overlay.
+- Added a coroutine-batched QuestieDB recipe-item index and runtime vendor,
+  appropriate-level mob-drop, object-loot and currently eligible quest-reward
+  source overlay without displaying coordinates.
+- Added one best attainable unlearned recipe recommendation per profession and
+  a per-character expansion row for every additional reasonable worldwide
+  option.
+- Added unlearned crafted-upgrade scoring against equipped gear and
+  cross-profession reagent recommendations when both profession recipe caches
+  have been opened.
+- Kept unavailable, hidden and unknown-source recipes out of recommendations
+  instead of guessing acquisition paths.
+
 ## 0.4.0 - 2026-11-27
 
 - Added live Legacy Challenge discovery through the client's

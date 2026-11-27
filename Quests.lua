@@ -46,6 +46,7 @@ local function CurrentAreaID(mapID)
         mapID = parent
     end
 end
+ns.ResolveQuestieAreaID = CurrentAreaID
 
 local function CharacterExpansionKey(areaID)
     return tostring(ns.CharacterKey()) .. ":" .. tostring(areaID)

@@ -4,7 +4,7 @@
 ## Group: EllesmereUI
 ## Notes: A contextual pre-adventure checklist for WoW Forever.
 ## Author: Jeremy Tilden
-## Version: 0.4.0
+## Version: 0.5.0
 ## Dependencies: EllesmereUI
 ## OptionalDeps: EllesmereUIAuraBuffReminders, EllesmereUIQuestTracker, EllesmereUIForeverEssentials, EllesmereUIDamageMeters, QuestieDB, TradeSkillMaster, Auctionator
 ## SavedVariables: EllesmereUIAdventureTrackerDB
@@ -13,6 +13,7 @@
 Core.lua
 Data\CookingFoods.lua
 Data\GatheringCatalog.lua
+Data\RecipeCatalog.lua
 Flight.lua
 Status.lua
 Reminders.lua
@@ -20,8 +21,9 @@ Readiness.lua
 WorldBuffs.lua
 Legacy.lua
 Prices.lua
-Professions.lua
 Instances.lua
 Quests.lua
+RecipeCatalog.lua
+Professions.lua
 Tracker.lua
 Options.lua

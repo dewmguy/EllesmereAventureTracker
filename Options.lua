@@ -173,7 +173,7 @@ local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBli
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit" }
 local QUEST_KEYS = { "showZoneQuests", "zoneQuestExpandedByCharacter" }
-local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showCompletedProfessions", "showProfessionZoneHints" }
+local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showProfessionAttainableRecipes", "professionRecipeCatalogExpandedByCharacter", "showCompletedProfessions", "showProfessionZoneHints" }
 local INSTANCE_KEYS = { "showInstances", "showInstanceRunTimer", "showInstanceBossTimer", "showInstanceQuests", "showInstanceLoot", "instanceQuestLimit", "instanceLootLimit" }
 local FLIGHT_KEYS = {
     "showFlightTimer", "flightTimerShowDestination", "flightTimerShowElapsed", "flightTimerShowRemaining", "flightTimerShowTotal",
@@ -611,6 +611,11 @@ local function BuildProfessions(pageName, parent, yOffset)
             Toggle("showProfessionTrainerRecipes", "Available Unlearned Recipes",
                 "Shows a collapsible list and total cost for recipes currently learnable from the last trainer visited for each profession."),
             Label("Visit each profession trainer once to scan its current offerings and prices."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showProfessionAttainableRecipes", "Looted and Purchased Recipes",
+                "Shows reasonably attainable unlearned recipe items from the build-stamped catalogue and QuestieDB source relations."),
+            Label("The best option stays visible; expand its summary row to show every currently attainable worldwide option."))
         y = y - h
 
         _, h = W:SectionHeader(parent, "LIVE RECIPE DATA", y); y = y - h

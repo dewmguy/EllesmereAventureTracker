@@ -246,7 +246,7 @@ end
 
 local function QuestieEntities()
     if questieChecked then
-        return questieReady and _G.QuestDB, _G.NpcDB, _G.ItemDB
+        return questieReady and _G.QuestDB, _G.NpcDB, _G.ItemDB, _G.ObjectDB
     end
     questieChecked = true
     local library = _G.LibQuestieDB
@@ -254,7 +254,7 @@ local function QuestieEntities()
     local ok, supported = pcall(library.RequireContract, 4)
     questieReady = ok and supported == true and type(_G.QuestDB) == "table"
         and type(_G.NpcDB) == "table" and type(_G.ItemDB) == "table"
-    if questieReady then return _G.QuestDB, _G.NpcDB, _G.ItemDB end
+    if questieReady then return _G.QuestDB, _G.NpcDB, _G.ItemDB, _G.ObjectDB end
     return nil
 end
 

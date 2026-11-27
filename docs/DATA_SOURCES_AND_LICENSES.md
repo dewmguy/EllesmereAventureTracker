@@ -1,11 +1,12 @@
 # Data Sources and Licensing
 
-Date: 2026-11-26
+Date: 2026-11-27
 
 This document records which external resources Adventure Tracker may use and
-how. It is an engineering policy and inventory. Version 0.1.4 ships a
-coordinate-free Forever Nodes aggregate and Cooking recipe/output discovery
-seeds; their retained notices are in the root `THIRD_PARTY_NOTICES.md`.
+how. It is an engineering policy and inventory. Version 0.5.0 ships a
+coordinate-free Forever Nodes aggregate, Cooking recipe/output discovery seeds
+and an attributed build-stamped recipe catalogue; retained notices are in the
+root `THIRD_PARTY_NOTICES.md`.
 
 ## Rules
 
@@ -76,6 +77,24 @@ seeds; their retained notices are in the root `THIRD_PARTY_NOTICES.md`.
 - Implemented in 0.2.0 for instance quests. The adapter reads only quest
   eligibility, chain prerequisites, quest names, NPC names, starting items and
   item-to-mob drop relationships. QuestieDB remains an optional dependency.
+- Extended in 0.4.0 and 0.5.0 for current-zone quest eligibility and runtime
+  recipe-item vendor, mob-drop, object-loot and quest-reward relationships.
+  The recipe index is built in coroutine batches and retains no coordinates.
+
+### Dwarf Explorer's Bible
+
+- Source: <https://github.com/masterred92/DwarfExplorersBible>
+- Declared licence: MIT, copyright 2026 Kenny (masterred92).
+- Intended use: generated Forever recipe products, spell IDs, profession
+  associations, skill thresholds and reagent quantities.
+- Included beginning in 0.5.0 as `Data/RecipeCatalog.lua`, pinned to upstream
+  blob `a6d5d40fd4b5cf61a7d2d857acbf34c7e06989d1`.
+- Snapshot: WoW Forever 1.60.1.71037 client tables with the upstream project's
+  documented 70959 server-hotfix overlay.
+- Boundary: Adventure Tracker imports the compact generated facts, not the
+  upstream UI, price cache, loot history or player observations. Acquisition
+  sources remain a live QuestieDB overlay.
+- Required notice: Kenny's MIT copyright and licence text.
 
 ### Blizzard client data
 
