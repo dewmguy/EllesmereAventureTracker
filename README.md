@@ -8,13 +8,18 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.14 establishes the addon structure and a playable first pass:
+Version 0.1.15 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
   mover, precise anchoring and width adjustment;
 - a context line showing zone, specialization, class and selected activity role;
 - custom, player-class or EllesmereUI-accent coloring for the title and collapse
   glyph, which remains usable when the title bar is hidden;
+- Quest Tracker-style per-character collapse controls on every visible section,
+  with important breathing alerts carried onto collapsed section headers and
+  the overall collapse control;
+- mouse-wheel scrolling when the tracker contents exceed its screen-relative
+  maximum height;
 - customizable background, border and title-bar presentation, a Quest
   Tracker-style minimize glyph and a Damage Meter-style lock control;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
@@ -35,7 +40,7 @@ Version 0.1.14 establishes the addon structure and a playable first pass:
   other missing buffs opt-in;
 - unspent Legacy point reminders and a current-zone provider boundary;
 - an unspent talent reminder that can replace Blizzard's callout to the hidden
-  Player Spells microbutton;
+  Player Spells microbutton and breathes yellow until every point is spent;
 - a per-character class-trainer scan that lists every currently available
   skill, its price and the total cost to learn them all, with a clickable
   summary that expands or collapses the individual list and trainer details on

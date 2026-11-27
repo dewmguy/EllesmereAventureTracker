@@ -258,6 +258,7 @@ local function Build()
                 label = string.format("%d unspent talent point%s", count, count == 1 and "" or "s"),
                 detail = "Open Talents to spend them.",
                 state = "warning",
+                attention = "warning",
                 icon = TalentIcon(),
                 onClick = OpenTalents,
             }

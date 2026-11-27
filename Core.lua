@@ -35,6 +35,7 @@ local DEFAULTS = {
     hideInInstances = false,
     hideWhenReady = false,
     showContext = true,
+    collapsedSectionsByCharacter = {},
     showTalentReminder = true,
     showClassTrainerSkills = true,
     hideBlizzardTalentReminder = true,

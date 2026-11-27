@@ -73,9 +73,15 @@ lockTexture:SetAllPoints()
 lockTexture:SetDesaturated(true)
 lockTexture:SetVertexColor(1, 1, 1)
 
-local content = CreateFrame("Frame", nil, frame)
-content:SetPoint("TOPLEFT", 8, -34)
-content:SetPoint("TOPRIGHT", -8, -34)
+local scrollFrame = CreateFrame("ScrollFrame", nil, frame)
+scrollFrame:SetPoint("TOPLEFT", 8, -34)
+scrollFrame:SetPoint("TOPRIGHT", -8, -34)
+scrollFrame:EnableMouseWheel(true)
+
+local content = CreateFrame("Frame", nil, scrollFrame)
+content:SetPoint("TOPLEFT")
+content:SetSize(1, 1)
+scrollFrame:SetScrollChild(content)
 
 local contextText = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 contextText:SetPoint("TOPLEFT", 2, 0)
@@ -174,14 +180,37 @@ local function AcquireIcon(index)
 end
 
 local function AcquireSection(index)
-    local fs = sectionPool[index]
-    if fs then return fs end
-    fs = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    fs:SetJustifyH("LEFT")
-    fs:SetTextColor(0.18, 0.82, 0.66)
-    sectionPool[index] = fs
-    if skin then skin.Font(fs) end
-    return fs
+    local button = sectionPool[index]
+    if button then return button end
+    button = CreateFrame("Button", nil, content, "BackdropTemplate")
+    button:SetHeight(16)
+    button:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
+    button:SetBackdropColor(1, 1, 1, 0)
+    button.text = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    button.text:SetPoint("LEFT", 2, 0)
+    button.text:SetPoint("RIGHT", -2, 0)
+    button.text:SetJustifyH("LEFT")
+    button.text:SetTextColor(0.18, 0.82, 0.66)
+    button:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(1, 1, 1, 0.05)
+        if self.sectionID then
+            ShowTooltip(self, {
+                label = self.sectionCollapsed and "Expand " .. (self.sectionTitle or "section")
+                    or "Collapse " .. (self.sectionTitle or "section"),
+                detail = "Show or hide this section's entries.",
+            })
+        end
+    end)
+    button:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(1, 1, 1, 0)
+        GameTooltip_Hide()
+    end)
+    button:SetScript("OnClick", function(self)
+        if self.sectionID and self.ToggleSection then self.ToggleSection(self.sectionID) end
+    end)
+    sectionPool[index] = button
+    if skin then skin.Font(button.text) end
+    return button
 end
 
 local function AcquireRow(index)
@@ -233,7 +262,10 @@ local function HidePools()
         SetAttention(iconPool[i], nil)
         iconPool[i]:Hide()
     end
-    for i = 1, #sectionPool do sectionPool[i]:Hide() end
+    for i = 1, #sectionPool do
+        SetAttention(sectionPool[i], nil)
+        sectionPool[i]:Hide()
+    end
     for i = 1, #rowPool do
         SetAttention(rowPool[i], nil)
         rowPool[i]:Hide()
@@ -244,6 +276,56 @@ local function Clamp(value, minimum, maximum, fallback)
     value = tonumber(value) or fallback
     return math.max(minimum, math.min(maximum, value))
 end
+
+local function SectionCollapsed(sectionID)
+    local root = ns.DB().collapsedSectionsByCharacter
+    local character = type(root) == "table" and root[ns.CharacterKey()]
+    return type(character) == "table" and character[sectionID] == true
+end
+
+local function ToggleSection(sectionID)
+    local db = ns.DB()
+    if type(db.collapsedSectionsByCharacter) ~= "table" then db.collapsedSectionsByCharacter = {} end
+    local characterKey = ns.CharacterKey()
+    if type(db.collapsedSectionsByCharacter[characterKey]) ~= "table" then
+        db.collapsedSectionsByCharacter[characterKey] = {}
+    end
+    local character = db.collapsedSectionsByCharacter[characterKey]
+    character[sectionID] = not SectionCollapsed(sectionID)
+    if ns.RequestRefresh then ns.RequestRefresh() end
+end
+
+local function SectionAttention(rows)
+    local attention
+    for index = 1, #rows do
+        if rows[index].attention == "critical" then return "critical" end
+        if rows[index].attention == "warning" then attention = "warning" end
+    end
+    return attention
+end
+
+local function SnapshotAttention(snapshot)
+    local attention = SectionAttention(snapshot.statuses or {})
+    if attention == "critical" then return attention end
+    for index = 1, #(snapshot.sections or {}) do
+        local sectionAttention = SectionAttention(snapshot.sections[index].rows or {})
+        if sectionAttention == "critical" then return sectionAttention end
+        if sectionAttention == "warning" then attention = "warning" end
+    end
+    return attention
+end
+
+local function MaximumScroll()
+    return math.max(0, (content:GetHeight() or 0) - (scrollFrame:GetHeight() or 0))
+end
+
+local function SetScroll(value)
+    scrollFrame:SetVerticalScroll(Clamp(value, 0, MaximumScroll(), 0))
+end
+
+scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+    SetScroll(self:GetVerticalScroll() - delta * 40)
+end)
 
 local function ColorValue(key)
     local value = ns.Get(key)
@@ -267,6 +349,12 @@ end
 local function ChromeHeight()
     local height = TitleBarHeight()
     return height > 0 and height + 10 or 32
+end
+
+local function MaximumPanelHeight()
+    local scale = math.max(0.01, frame:GetScale() or 1)
+    local screenHeight = UIParent and UIParent:GetHeight() or 768
+    return math.max(180, math.floor((screenHeight * 0.75) / scale))
 end
 
 local function CollapsedHeight()
@@ -394,10 +482,12 @@ local function ApplyWindowStyle()
     headerSeparator:SetColorTexture(sr, sg, sb, sa)
     headerSeparator:SetShown(mode ~= "hidden" and separatorSize > 0)
 
-    content:ClearAllPoints()
+    scrollFrame:ClearAllPoints()
     local topInset = headerHeight > 0 and headerHeight + 6 or 28
-    content:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -topInset)
-    content:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -topInset)
+    scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -topInset)
+    scrollFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -topInset)
+    content:ClearAllPoints()
+    content:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT")
     UpdateLockIcon()
     UpdateLockFade()
 end
@@ -482,6 +572,7 @@ end
 
 local function Render()
     HidePools()
+    SetAttention(collapseButton, nil)
     if not BaseVisibilityAllows() then frame:Hide(); return end
     local snapshot = ns.BuildSnapshot()
     if ns.Get("hideWhenReady") and not snapshot.actionable then frame:Hide(); return end
@@ -489,9 +580,11 @@ local function Render()
 
     local width = math.max(280, math.min(480, tonumber(ns.Get("width")) or 340))
     frame:SetWidth(width)
+    content:SetWidth(math.max(1, width - 16))
     local collapsed = ns.Get("collapsed") == true
     collapseButton.text:SetText(collapsed and "+" or "−")
-    content:SetShown(not collapsed)
+    SetAttention(collapseButton, collapsed and SnapshotAttention(snapshot) or nil, 1)
+    scrollFrame:SetShown(not collapsed)
     if collapsed then
         frame:SetHeight(CollapsedHeight())
         UpdateLockFade()
@@ -546,28 +639,38 @@ local function Render()
         if #rows > 0 then
             sectionIndex = sectionIndex + 1
             local heading = AcquireSection(sectionIndex)
+            local sectionID = tostring(section.id)
+            local sectionTitle = section.title or sectionID
+            local sectionCollapsed = SectionCollapsed(sectionID)
+            heading.sectionID = sectionID
+            heading.sectionTitle = sectionTitle
+            heading.sectionCollapsed = sectionCollapsed
+            heading.ToggleSection = ToggleSection
             heading:ClearAllPoints()
             heading:SetPoint("TOPLEFT", content, "TOPLEFT", 2, y)
             heading:SetPoint("TOPRIGHT", content, "TOPRIGHT", -2, y)
-            heading:SetText(string.upper(section.title or section.id))
+            heading.text:SetText(string.format("%s %s", sectionCollapsed and "+" or "−", string.upper(sectionTitle)))
+            SetAttention(heading, sectionCollapsed and SectionAttention(rows) or nil, 1)
             heading:Show()
             y = y - 18
-            for j = 1, #rows do
-                rowIndex = rowIndex + 1
-                local data = rows[j]
-                local row = AcquireRow(rowIndex)
-                row.data = data
-                row:ClearAllPoints()
-                row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
-                row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y)
-                row.icon:SetTexture(data.icon or 134400)
-                row.label:SetText(data.label or "")
-                row.detail:SetText(data.detail or "")
-                row.stripe:SetColorTexture(StateColor(data.state))
-                SetAttention(row, data.attention, 2)
-                row:EnableMouse(true)
-                row:Show()
-                y = y - 40
+            if not sectionCollapsed then
+                for j = 1, #rows do
+                    rowIndex = rowIndex + 1
+                    local data = rows[j]
+                    local row = AcquireRow(rowIndex)
+                    row.data = data
+                    row:ClearAllPoints()
+                    row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
+                    row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y)
+                    row.icon:SetTexture(data.icon or 134400)
+                    row.label:SetText(data.label or "")
+                    row.detail:SetText(data.detail or "")
+                    row.stripe:SetColorTexture(StateColor(data.state))
+                    SetAttention(row, data.attention, 2)
+                    row:EnableMouse(true)
+                    row:Show()
+                    y = y - 40
+                end
             end
             y = y - 4
         end
@@ -575,7 +678,10 @@ local function Render()
 
     local contentHeight = math.max(12, math.abs(y))
     content:SetHeight(contentHeight)
-    frame:SetHeight(ChromeHeight() + contentHeight)
+    local viewportHeight = math.min(contentHeight, math.max(12, MaximumPanelHeight() - ChromeHeight()))
+    scrollFrame:SetHeight(viewportHeight)
+    frame:SetHeight(ChromeHeight() + viewportHeight)
+    SetScroll(scrollFrame:GetVerticalScroll())
     UpdateLockFade()
 end
 
@@ -668,6 +774,7 @@ RegisterUnlockElement()
 local events = CreateFrame("Frame")
 local eventNames = {
     "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA",
+    "DISPLAY_SIZE_CHANGED", "UI_SCALE_CHANGED",
     "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED",
     "SPELLS_CHANGED", "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
     "CHAT_MSG_SKILL", "UNIT_INVENTORY_CHANGED", "UNIT_CONNECTION", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
@@ -713,7 +820,7 @@ if EUI.RegisterSkin then
         S.Font(collapseButton.text)
         S.Font(contextText)
         for i = 1, #iconPool do S.SquareIcon(iconPool[i].icon) end
-        for i = 1, #sectionPool do S.Font(sectionPool[i]) end
+        for i = 1, #sectionPool do S.Font(sectionPool[i].text) end
         for i = 1, #rowPool do
             S.Font(rowPool[i].label)
             S.Font(rowPool[i].detail)

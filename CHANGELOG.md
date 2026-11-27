@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.15 - 2026-11-26
+
+- Made every visible tracker section independently collapsible per character,
+  using Quest Tracker-style plus and minus headers.
+- Added a clipped mouse-wheel scroll viewport when the tracker exceeds its
+  screen-relative maximum height.
+- Collapsed section headers and the overall collapse control inherit active
+  yellow or red breathing alerts so important reminders remain visible.
+- Made the unspent-talent reminder breathe yellow continuously until all talent
+  points are spent.
+
 ## 0.1.14 - 2026-11-26
 
 - Added a yellow breathing border when a collapsed class-trainer list gains

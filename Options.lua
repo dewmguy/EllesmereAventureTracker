@@ -79,7 +79,7 @@ local function ColorPicker(key, text, tooltip, hasAlpha, disabled)
 end
 
 local TRACKER_KEYS = {
-    "enabled", "locked", "width", "scale", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext",
+    "enabled", "locked", "width", "scale", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
     "backgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
     "titleTextColorMode", "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
 }
