@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.1 establishes the addon structure and a playable first pass:
+Version 0.1.2 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible EllesmereUI-skinned window;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
@@ -24,6 +24,8 @@ Version 0.1.1 establishes the addon structure and a playable first pass:
 - unspent Legacy point reminders and a current-zone provider boundary;
 - profession Legacy checkpoints, trainer-cap reminders and honest contextual
   gathering hints;
+- a researched zone-gathering design for ranked herbs and ore, observed
+  skinning materials, available fish and recommended effective Fishing skill;
 - an `Adventure Tracker` sidebar section in EllesmereUI with Tracker,
   Readiness, Legacy and Professions submenu groups.
 
@@ -31,6 +33,8 @@ Current-zone Legacy objectives and exact profession node/mob recommendations are
 hidden until their providers can return verified actions. The researched source,
 UX and implementation decisions are recorded in
 [`docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md`](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md).
+The rules for reusing public datasets without hiding their provenance are in
+[`docs/DATA_SOURCES_AND_LICENSES.md`](docs/DATA_SOURCES_AND_LICENSES.md).
 
 ## Install
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2 - 2026-11-26
+
+- Defined the zone gathering experience: herbs and ore ranked by known node
+  coverage, observed skinning materials, fish availability and recommended
+  effective Fishing skill.
+- Selected licensed upstream sources and documented the attribution,
+  provenance, confidence and generated-data requirements.
+- Kept coordinates and route guidance out of Adventure Tracker; source node
+  data is reduced to zone-level summaries.
+
 ## 0.1.1 - 2026-11-26
 
 - Removed the player-facing Legacy development placeholder. The section now stays

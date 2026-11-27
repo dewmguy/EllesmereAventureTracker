@@ -24,10 +24,11 @@ For quests, the boundary is explicit:
   directions;
 - do not replace Questie's questing interface.
 
-There is meaningful overlap with QuestieDB, All The Things, Recipe Radar Forever,
-ItemTree, Crafter's Journal, OneForAll and Wowhead's Character Planner. The addon
-still has a distinct role if it consumes reliable data and ranks a few useful
-actions instead of reproducing those products' full interfaces.
+There is meaningful overlap with QuestieDB, Forever Nodes, OneCast, Everloot,
+All The Things, Recipe Radar Forever, ItemTree, Crafter's Journal, OneForAll and
+Wowhead's Character Planner. The addon still has a distinct role if it consumes
+reliable data and ranks a few useful actions instead of reproducing those
+products' full interfaces.
 
 ## Research conclusions
 
@@ -91,9 +92,54 @@ the phrase **known quests**, not **all quests**, whenever completeness matters.
 
 Ship a compact, build-stamped recipe catalogue generated from client data. Resolve
 known acquisition sources through QuestieDB and live observations. Do not scrape
-or bundle Wowhead data. Everloot's observed data is available under CC BY-SA 4.0,
-but including it would add attribution and share-alike obligations; it is not
-selected for the initial implementation.
+or bundle Wowhead data. Everloot's observed data is selected for a separate,
+clearly attributed gathering-observations pack, but not as the initial recipe
+catalogue. Keeping that pack separate preserves its CC BY-SA 4.0 terms without
+mixing them into unrelated addon code or Blizzard game-file data.
+
+### Gathering availability and fishing
+
+Adventure Tracker should summarize a zone, not reproduce a node map. The useful
+question is which materials are reasonably available here and whether the
+character can gather them now.
+
+- Forever Nodes is the best Forever-specific starting point for herb, ore and
+  fishing-pool coverage. Its repository is MIT licensed and credits the
+  MIT-licensed GatherLite database it converted. The underlying coordinates are
+  described as a Wowhead import, so Adventure Tracker will never redistribute or
+  display them as routes. A build tool may reduce a pinned snapshot to node name,
+  kind, required skill, zone and number of unique known positions, while retaining
+  the Forever Nodes and GatherLite notices.
+- For Herbalism and Mining, **most to least** means descending count of unique known
+  node positions in the selected snapshot. It is coverage, not live spawn
+  frequency, density per square kilometre or expected yield. Ties are alphabetical.
+- Everloot records distinguish gathering, fishing and skinning loot. Its observed
+  records and derived rates are CC BY-SA 4.0 and explicitly intended for offline
+  addon packs. Use confirmed observations, retain sample sizes and snapshot date,
+  remove install pseudonyms and keep the required credit in the data file,
+  settings pane and tooltip.
+- For fish, **most to least** means descending observed catches within the zone
+  when a confirmed observed sample exists. When it does not, show verified
+  availability without an abundance order. Never substitute a Classic or Wowhead
+  catch rate while labelling it Forever data.
+- OneCast provides the strongest current Forever fishing-level work. Its project
+  is declared MIT on CurseForge; its zone table documents a Classic baseline and
+  separate player-confirmed Forever overrides. Import only the zone-level and
+  player-report portions with attribution. Do not import its `FishData.lua` zone
+  order because that file documents mixed Wowhead, Classic and player-report
+  provenance.
+- The Fishing recommendation is the **effective skill needed to prevent
+  getaways**, including pole, lure, racial and other bonuses. Show the character's
+  current effective skill and the remaining gap. Unknown Forever zones remain
+  Unknown until observations support a value; a personal getaway can raise the
+  local lower bound without rewriting the shipped pack.
+- Skinning is presented from observed skinnable-mob loot and zone association,
+  not guessed from the zone's level. Unknown or under-sampled materials are hidden
+  from the compact row and labelled in the expanded pane.
+
+The generator and shipped summaries must follow
+[`DATA_SOURCES_AND_LICENSES.md`](DATA_SOURCES_AND_LICENSES.md). No upstream source
+is copied merely because its repository is public.
 
 ### Profession synergies
 
@@ -139,6 +185,10 @@ specializations and many low-level effects are not represented by item level alo
 | Known zone quests | QuestieDB public API | Active quest log only | Provider version |
 | Recipe catalogue | Build-stamped client DB2 extraction | Observed profession recipes | Client build |
 | Recipe vendors/drops | QuestieDB relations | Live trainer/merchant observations | Known/observed |
+| Herb/ore availability | Generated Forever Nodes zone aggregate | Character observations | Snapshot + known-position count |
+| Fish availability | Everloot confirmed fishing observations | Presence-only licensed catalogue | Snapshot + catches/installs |
+| Zone Fishing skill | OneCast documented zone levels | Personal getaways | Baseline/Forever-confirmed/personal |
+| Skinning materials | Everloot confirmed skinning observations | Character observations | Snapshot + windows/installs |
 | Equipped gear | Blizzard inventory and item APIs | None | Live |
 | Prices | Auctionator or TSM when installed | No price score | Snapshot age |
 
@@ -170,6 +220,12 @@ AVAILABLE MISSING QUESTS                    3 more  >
 PROFESSION OPPORTUNITIES                   3 more  >
   Mine Tin for Engineering — 18 needed
 
+GATHERING IN THIS ZONE                     4 more  >
+  Herbalism — Sungrass, Golden Sansam +2
+
+FISHING                                    3 fish  >
+  Recommended 300 effective — 275 (+25 needed)
+
 CRAFTED UPGRADES                           1 more  >
   Heavy Copper Broadsword — +5 item levels
 ~~~
@@ -194,6 +250,7 @@ Add or expand these Adventure Tracker submenu groups:
   - Completion & Data Source
 - **Professions**
   - Progress
+  - Gathering in This Zone
   - Synergies
   - Recipe Sources
   - Crafted Gear
@@ -209,6 +266,12 @@ For recipes, the main pane uses two scopes:
   level and profession skill.
 - **Worldwide**: every known attainable vendor/drop/quest recipe. This list is
   collapsed by default and expands only when requested.
+
+Gathering in This Zone uses one compact row per profession the character has.
+Each row shows at most three material names and `+N more`. Expanding a profession
+shows at most six entries before a `Show all` control. The worldwide toggle is for
+recipe sources only; gathering remains scoped to the current zone so it does not
+become a database browser.
 
 ## Recommendation scoring
 
@@ -294,6 +357,28 @@ the quest rather than exposing a later chain step.
 5. State the purpose: Mine Tin -> Engineering: Bronze Framework, not a generic
    gathering reminder.
 
+### Gathering in the current zone
+
+1. Resolve the current map to the zone IDs used by each build-stamped data pack.
+2. Show only the character's gathering professions by default; an option can show
+   all gathering professions for planning an alt or profession change.
+3. For Herbalism and Mining, list node types found in the zone and sort by unique
+   known-position count. Show the required gathering skill and whether the current
+   effective skill can gather it.
+4. Never show node coordinates, pins, paths or a nearest-node arrow. A tooltip may
+   say `42 known positions in data snapshot 2026-11-26`, not `42 spawns`.
+5. For Skinning, rank confirmed materials by observed skinning-window incidence
+   and show the number of contributing windows and installs. Keep an absent record
+   Unknown rather than interpreting it as zero.
+6. For Fishing, list confirmed fish types by observed catch count. Show at most
+   three in the compact row, with the full observed list in the pane.
+7. Show the zone's recommended effective Fishing skill, the character's effective
+   skill and the gap. Label the value Classic baseline, Forever confirmed or
+   personal lower bound in its tooltip.
+8. Collapse each profession independently and remember the state per character.
+9. Hide low-sample abundance ordering. Presence-only data can still say Available,
+   but must not pretend to know which material is most common.
+
 ### Crafted gear recommendations
 
 1. Snapshot equipped item links and item levels by slot.
@@ -328,14 +413,20 @@ Services/RecommendationEngine.lua  scoring, confidence and explanations
 Services/CharacterState.lua        level, zone, equipment and professions
 Integrations/QuestieDB.lua          data-only adapter and provider status
 Integrations/Prices.lua             Auctionator/TSM optional adapter
+Integrations/GatheringData.lua      source versions, confidence and attribution
 Legacy/Challenges.lua               live challenge enumeration
 Legacy/Context.lua                  level, zone and dungeon metadata
 Quests/Catalog.lua                  missing-quest index and eligibility
 Professions/Catalog.lua             recipe catalogue adapter
 Professions/Synergies.lua           reagent graph
 Professions/Gear.lua                crafted upgrade evaluator
+Professions/Gathering.lua           zone summaries and skill checks
 Data/RecipeCatalog/*.lua            build-stamped and split by profession
+Data/GatheringCatalog.lua           MIT-derived zone node aggregates
+Data/ObservedGathering.lua          separate CC BY-SA observed-data pack
+Data/FishingLevels.lua              attributed baseline and Forever overrides
 tools/build_recipes.py              reproducible DB2 generator
+tools/build_gathering.py            reproducible, pinned aggregate generator
 tests/                               pure Lua ranking and eligibility fixtures
 ~~~
 
@@ -347,6 +438,8 @@ confidence, reason and source provenance.
 - Build QuestieDB indexes in coroutine batches.
 - Cache indexes by QuestieDB version and Forever client build.
 - Load recipe data by profession rather than loading the entire catalogue at login.
+- Index only the current zone's gathering summary; never load source coordinates
+  into the game client.
 - Recompute only affected groups after zone, level, quest, profession,
   achievement, equipment or bag events.
 - Debounce bursty bag and quest-log updates.
@@ -376,14 +469,22 @@ Targets:
 - compact available missing-quest suggestion and full checklist;
 - explicitly no Questie-style maps, coordinates, arrows or objectives.
 
-### 0.4.0 — Recipe catalogue and sources
+### 0.4.0 — Gathering and fishing by zone
+
+- generated herb, ore and fishing-pool zone summaries with no coordinates;
+- most-to-least known-position ordering with explicit coverage wording;
+- confirmed observed fish and skinning summaries with sample sizes;
+- recommended effective Fishing skill and current-skill gap;
+- source, snapshot and licence attribution in settings and tooltips.
+
+### 0.5.0 — Recipe catalogue and sources
 
 - reproducible DB2 recipe generator;
 - learned and unlearned tracking;
 - QuestieDB vendor/drop/quest source overlay;
 - Here & Reasonable plus collapsed Worldwide views.
 
-### 0.5.0 — Synergies and crafted upgrades
+### 0.6.0 — Synergies and crafted upgrades
 
 - reagent dependency graph;
 - cross-profession goals;
@@ -398,6 +499,11 @@ Targets:
   dual-slot gear and profession dependency cycles.
 - Compare known zone quest counts with the selected QuestieDB build without
   rendering its location data.
+- Verify generated gathering packs against their pinned upstream revisions and
+  fail generation when a licence/credit header, snapshot date or source version is
+  missing.
+- Test abundance ties, empty and under-sampled zones, Unknown rather than zero,
+  fishing bonuses and personal-getaway overrides.
 - Test Alliance and Horde characters at levels 1-24, 25-44, 45-59 and 60.
 - Test missing integrations and stale data without showing setup notes in the
   floating tracker.
@@ -414,5 +520,9 @@ Targets:
 - [MIT DB2 recipe extraction reference](https://github.com/ExcEssIv3/profit)
 - [Recipe Radar Forever](https://github.com/Cebion/RecipeRadarForever)
 - [Everloot addon-author data policy](https://everloot.app/docs/addon-authors)
+- [Forever Nodes source and MIT licence](https://github.com/LvcidLabs/ForeverNodes)
+- [Forever Nodes third-party credits](https://github.com/LvcidLabs/ForeverNodes/blob/main/CREDITS.txt)
+- [OneCast source](https://github.com/rynmon/OneCast)
+- [OneCast MIT licence declaration](https://www.curseforge.com/wow/addons/onecast/license)
 - [Wowhead Legacy overview](https://www.wowhead.com/forever/guide/legacy-system-overview-rewards)
 - [Wowhead Character Planner](https://www.wowhead.com/forever/character-planner)
