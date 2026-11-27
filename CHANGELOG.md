@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.8.8 - 2026-11-27
+
+- Replaced blanket loot invalidation with a compact inventory signature for
+  combat food and reagents used by the currently recommended profession route.
+  Looting, deleting or moving unrelated items now performs no provider rebuild
+  and no tracker render; relevant changes invalidate only the affected provider.
+- Removed ordinary bag changes from Quest Progress. Merchant buyback events and
+  actual quest-state events remain the authorities for future-material warnings
+  and available-quest results.
+- Split profession rendering into cached stable rows and one lightweight active
+  route. Relevant reagent changes recalculate the route while reusing trainer,
+  gathering, gear, worldwide recipe and QuestieDB source results.
+- Preserved pending full invalidations when a bag event lands in the same
+  coalescing window, so skill-ups, level changes and settings changes cannot be
+  accidentally reduced to an inventory-only refresh.
+- Made the existing learned-recipe SavedVariables cache authoritative across
+  reloads and relogs. Opening or filtering an unchanged profession window no
+  longer walks every recipe schematic; a full capture occurs only for a missing,
+  version-stale or explicitly dirty cache.
+- Marked recipe caches dirty when WoW reports a newly learned spell and switched
+  first-time capture to the unfiltered recipe list when that API is available.
+  Cache schema v3 performs one intentional migration scan so older snapshots
+  potentially created under a profession-window filter are not trusted forever.
+- Added versioned persistent signatures to class and profession trainer caches.
+  Reopening an unchanged trainer performs only a small service comparison and
+  skips tooltip collection, cache replacement, provider invalidation and render.
+- Removed duplicate immediate/deferred trainer scans and stopped profession and
+  trainer window events from refreshing the tracker when their caches did not change.
+- Removed profession-window and unscoped global item-data events from the
+  instance provider; its quest and loot caches now respond only to events that
+  can actually change instance eligibility, equipment or requested item data.
+
 ## 0.8.7 - 2026-11-27
 
 - Stopped failed asynchronous item and spell loads from rebuilding a provider

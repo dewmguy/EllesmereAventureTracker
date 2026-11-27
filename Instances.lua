@@ -804,9 +804,9 @@ local eventNames = {
     "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA",
     "ENCOUNTER_START", "ENCOUNTER_END", "LFG_COMPLETION_REWARD",
     "PLAYER_EQUIPMENT_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED",
-    "SPELLS_CHANGED", "SKILL_LINES_CHANGED", "TRADE_SKILL_LIST_UPDATE", "UPDATE_FACTION",
+    "SPELLS_CHANGED", "SKILL_LINES_CHANGED", "UPDATE_FACTION",
     "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE",
-    "ITEM_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED", "ADDON_LOADED",
+    "ADDON_LOADED",
 }
 for index = 1, #eventNames do pcall(events.RegisterEvent, events, eventNames[index]) end
 events:SetScript("OnEvent", function(_, event, ...)
@@ -842,14 +842,13 @@ events:SetScript("OnEvent", function(_, event, ...)
     elseif event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "QUEST_TURNED_IN"
         or event == "QUEST_LOG_UPDATE" or event == "PLAYER_LEVEL_UP" or event == "PLAYER_LEVEL_CHANGED" then
         questRowsCache = nil
-    elseif event == "SPELLS_CHANGED" or event == "SKILL_LINES_CHANGED"
-        or event == "TRADE_SKILL_LIST_UPDATE" or event == "UPDATE_FACTION" then
+    elseif event == "SPELLS_CHANGED" or event == "SKILL_LINES_CHANGED" or event == "UPDATE_FACTION" then
         questRowsCache = nil
-    elseif event == "PLAYER_EQUIPMENT_CHANGED"
-        or event == "ITEM_DATA_LOAD_RESULT" or event == "GET_ITEM_INFO_RECEIVED" then
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" then
         lootRevision = lootRevision + 1
         lootRowsCache = nil
-    elseif event == "ADDON_LOADED" and (...) == "QuestieDB" then
+    elseif event == "ADDON_LOADED" then
+        if (...) ~= "QuestieDB" then return end
         questieChecked, questieReady = nil, nil
         questCandidates = {}
         questRowsCache = nil

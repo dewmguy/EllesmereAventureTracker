@@ -28,6 +28,23 @@ presentation timers into repeated database queries.
 - Broad discovery passes must use instant or generated facts. Bag food checks
   reject non-food item classes before cached tooltip evaluation, and worldwide
   crafted-upgrade scoring never requests missing product data.
+- `BAG_UPDATE_DELAYED` first compares a compact signature containing Food &
+  Drink stacks and reagents for the selected profession routes. An unrelated
+  item change stops there without invalidating a provider or rendering the pane.
+- A relevant bag change rebuilds only readiness or the active profession route,
+  according to which signature changed. Stable profession rows retain trainer,
+  gathering, gear, catalogue and source results. Quest Progress is never
+  invalidated by a generic bag event.
+- Learned profession schematics are a versioned, per-character SavedVariables
+  snapshot. `TRADE_SKILL_SHOW` and list-update events reuse it unless a learned-
+  spell event marked it dirty; window filters never replace it with a subset.
+- Class and profession trainer snapshots carry versioned service signatures.
+  An unchanged trainer skips tooltip reads and does not invalidate a provider.
+  Trainer close never causes a refresh, and trainer show has one deferred scan
+  instead of an immediate scan followed by a duplicate deferred scan.
+- The instance provider does not listen directly to global item-data or
+  profession-window events. Requested item completions remain routed through
+  the central per-item consumer registry.
 
 ## Development profiling
 

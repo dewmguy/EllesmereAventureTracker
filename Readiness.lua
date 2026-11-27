@@ -335,6 +335,25 @@ local function IsFoodCandidate(itemID)
     return tonumber(classID) == tonumber(consumable) and tonumber(subClassID) == tonumber(foodAndDrink)
 end
 
+function ns.GetReadinessInventorySignature()
+    if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemID) then return "" end
+    local counts = {}
+    for bag = 0, NUM_BAG_SLOTS or 4 do
+        local slots = C_Container.GetContainerNumSlots(bag) or 0
+        for slot = 1, slots do
+            local itemID = C_Container.GetContainerItemID(bag, slot)
+            if itemID and IsFoodCandidate(itemID) then
+                local info = C_Container.GetContainerItemInfo and C_Container.GetContainerItemInfo(bag, slot)
+                counts[itemID] = (counts[itemID] or 0) + (info and info.stackCount or 1)
+            end
+        end
+    end
+    local values = {}
+    for itemID, count in pairs(counts) do values[#values + 1] = string.format("%d:%d", itemID, count) end
+    table.sort(values)
+    return table.concat(values, ";")
+end
+
 local function EvaluateCombatFood(itemID)
     local role = ns.GetRole()
     foodCache[role] = foodCache[role] or {}

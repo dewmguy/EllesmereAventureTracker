@@ -6,6 +6,7 @@ local _, ns = ...
 local trainingCache = {}
 local utilityCache
 local LearnedMap
+local selectedRouteByProfession = {}
 
 local EASY_SOURCES = {
     auto = true,
@@ -316,6 +317,41 @@ end
 
 ns.GetProfessionRouteCandidate = PickCandidate
 
+local function RefreshCandidateInventory(candidate)
+    if not candidate then return nil end
+    local materials = {}
+    for key, value in pairs(candidate.materials or {}) do materials[key] = value end
+    local haveCrafts = math.huge
+    for _, reagent in ipairs(candidate.entry.reagents or {}) do
+        local quantity = math.max(1, tonumber(reagent.quantity) or 1)
+        haveCrafts = math.min(haveCrafts, math.floor(ItemCount(reagent.itemID) / quantity))
+    end
+    materials.bagCrafts = haveCrafts == math.huge and 0 or haveCrafts
+    candidate.materials = materials
+    return candidate
+end
+
+function ns.GetProfessionRouteInventorySignature()
+    local values = {}
+    for skillLineID, candidate in pairs(selectedRouteByProfession) do
+        local reagents = {}
+        for _, reagent in ipairs(candidate.entry and candidate.entry.reagents or {}) do
+            local itemID = tonumber(reagent.itemID)
+            if itemID then reagents[#reagents + 1] = itemID end
+        end
+        table.sort(reagents)
+        for _, itemID in ipairs(reagents) do
+            values[#values + 1] = string.format("%s:%d:%d", tostring(skillLineID), itemID, ItemCount(itemID))
+        end
+    end
+    table.sort(values)
+    return table.concat(values, ";")
+end
+
+function ns.ResetProfessionRouteSelections()
+    selectedRouteByProfession = {}
+end
+
 local function MissingMaterials(candidate)
     local missing = {}
     for _, reagent in ipairs(candidate.entry.reagents or {}) do
@@ -397,8 +433,15 @@ local function OpenProfession(profession)
     if CastSpellByName then pcall(CastSpellByName, profession.name) end
 end
 
-function ns.AddProfessionRouteRow(rows, profession, professions, mapID, zoneName)
-    local candidate = PickCandidate(profession, mapID)
+function ns.AddProfessionRouteRow(rows, profession, professions, mapID, zoneName, reuseSelected)
+    local routeKey = tostring(profession.skillLineID)
+    local candidate = reuseSelected and selectedRouteByProfession[routeKey] or nil
+    if candidate then
+        candidate = RefreshCandidateInventory(candidate)
+    else
+        candidate = PickCandidate(profession, mapID)
+        selectedRouteByProfession[routeKey] = candidate
+    end
     if not candidate then return false end
 
     local recipeName = SpellName(candidate.entry.spellID, candidate.entry.productID)

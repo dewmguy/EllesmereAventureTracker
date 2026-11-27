@@ -5,6 +5,9 @@ local ADDON_NAME, ns = ...
 local EUI = ns.EUI
 local UNLOCK_KEY = "EAT_Tracker"
 local DAMAGE_METER_MEDIA = "Interface\\AddOns\\EllesmereUIDamageMeters\\Media\\"
+local foodInventorySignature
+local professionInventorySignature
+local CurrentBagRecommendationSignature
 
 local COLORS = {
     ready = { 0.20, 0.82, 0.48 },
@@ -1615,23 +1618,59 @@ local eventNames = {
     "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA",
     "DISPLAY_SIZE_CHANGED", "UI_SCALE_CHANGED",
     "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_COMBAT_CONFIG_CHANGED",
-    "SPELLS_CHANGED", "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
+    "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
     "CHAT_MSG_SKILL", "UNIT_INVENTORY_CHANGED", "UNIT_CONNECTION", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
     "PLAYER_UPDATE_RESTING", "PLAYER_MOUNT_DISPLAY_CHANGED", "PLAYER_FLAGS_CHANGED", "UNIT_FLAGS", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST",
-    "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "ITEM_DATA_LOAD_RESULT", "SPELL_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED",
+    "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "TRADE_SKILL_CLOSE", "ITEM_DATA_LOAD_RESULT", "SPELL_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED",
     "TRAINER_SHOW", "TRAINER_UPDATE", "TRAINER_CLOSED",
     "TRAIT_TREE_CURRENCY_INFO_UPDATED", "TRAIT_CONFIG_UPDATED", "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "ACHIEVEMENT_EARNED",
 }
 for i = 1, #eventNames do pcall(events.RegisterEvent, events, eventNames[i]) end
 pcall(events.RegisterEvent, events, "UNIT_AURA")
 
+CurrentBagRecommendationSignature = function()
+    local food = ns.GetReadinessInventorySignature and ns.GetReadinessInventorySignature() or ""
+    local profession = ns.GetProfessionRouteInventorySignature and ns.GetProfessionRouteInventorySignature() or ""
+    return food, profession
+end
+
+local professionScanTimer
+local function QueueProfessionCacheScan()
+    if professionScanTimer and professionScanTimer.Cancel then professionScanTimer:Cancel() end
+    if not (C_Timer and C_Timer.NewTimer) then
+        if ns.ScanProfessionRecipes and ns.ScanProfessionRecipes() then
+            ns.RequestRefresh("professions", "profession recipe cache changed")
+        end
+        return
+    end
+    professionScanTimer = C_Timer.NewTimer(0.1, function()
+        professionScanTimer = nil
+        if ns.ScanProfessionRecipes and ns.ScanProfessionRecipes() then
+            ns.RequestRefresh("professions", "profession recipe cache changed")
+        end
+    end)
+end
+
+local trainerScanTimer
+local function QueueTrainerCacheScan()
+    if trainerScanTimer and trainerScanTimer.Cancel then trainerScanTimer:Cancel() end
+    if not (C_Timer and C_Timer.NewTimer) then return end
+    trainerScanTimer = C_Timer.NewTimer(0.1, function()
+        trainerScanTimer = nil
+        if ns.ScanClassTrainer and ns.ScanClassTrainer() then
+            ns.RequestRefresh("character-reminders", "class trainer cache changed")
+        end
+        if ns.ScanProfessionTrainer and ns.ScanProfessionTrainer() then
+            ns.RequestRefresh("professions", "profession trainer cache changed")
+        end
+    end)
+end
+
 local function ProvidersForTrackerEvent(event, ...)
     if event == "DISPLAY_SIZE_CHANGED" or event == "UI_SCALE_CHANGED" or event == "ADDON_LOADED" then
         return false
     elseif event == "UNIT_AURA" then
         return { "readiness", "world-buffs" }
-    elseif event == "BAG_UPDATE_DELAYED" then
-        return { "readiness", "zone-quests", "professions" }
     elseif event == "GROUP_ROSTER_UPDATE" or event == "UNIT_CONNECTION" then
         return { "readiness" }
     elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
@@ -1640,9 +1679,6 @@ local function ProvidersForTrackerEvent(event, ...)
         or event == "PLAYER_FLAGS_CHANGED" or event == "UNIT_FLAGS" or event == "PLAYER_DEAD"
         or event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
         return { "readiness" }
-    elseif event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE"
-        or event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" or event == "TRAINER_CLOSED" then
-        return { "professions", "character-reminders" }
     elseif event == "ITEM_DATA_LOAD_RESULT" or event == "GET_ITEM_INFO_RECEIVED" then
         local itemID, succeeded = ...
         return ns.ConsumeItemDataProviders and ns.ConsumeItemDataProviders(itemID, succeeded) or nil
@@ -1653,6 +1689,8 @@ local function ProvidersForTrackerEvent(event, ...)
         return { "readiness", "professions", "instances" }
     elseif event == "SKILL_LINES_CHANGED" or event == "CHAT_MSG_SKILL" then
         return { "legacy", "zone-quests", "professions", "character-reminders" }
+    elseif event == "LEARNED_SPELL_IN_TAB" then
+        return { "professions", "character-reminders" }
     elseif event == "ACHIEVEMENT_EARNED" or event == "MAJOR_FACTION_RENOWN_LEVEL_CHANGED" then
         return { "legacy" }
     elseif event == "TRAIT_TREE_CURRENCY_INFO_UPDATED" or event == "TRAIT_CONFIG_UPDATED" then
@@ -1669,6 +1707,33 @@ local function ProvidersForTrackerEvent(event, ...)
 end
 
 events:SetScript("OnEvent", function(_, event, ...)
+    if event == "BAG_UPDATE_DELAYED" then
+        local food, profession = CurrentBagRecommendationSignature()
+        local providers = {}
+        if foodInventorySignature ~= food then providers[#providers + 1] = "readiness" end
+        if professionInventorySignature ~= profession then providers[#providers + 1] = "professions" end
+        foodInventorySignature, professionInventorySignature = food, profession
+        if #providers == 0 then return end
+        ns.RequestRefresh(providers, event)
+        return
+    end
+    if event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE" then
+        QueueProfessionCacheScan()
+        return
+    elseif event == "TRADE_SKILL_CLOSE" then
+        if professionScanTimer and professionScanTimer.Cancel then professionScanTimer:Cancel() end
+        professionScanTimer = nil
+        return
+    elseif event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" then
+        QueueTrainerCacheScan()
+        return
+    elseif event == "TRAINER_CLOSED" then
+        if trainerScanTimer and trainerScanTimer.Cancel then trainerScanTimer:Cancel() end
+        trainerScanTimer = nil
+        return
+    elseif event == "LEARNED_SPELL_IN_TAB" and ns.MarkProfessionRecipeCachesDirty then
+        ns.MarkProfessionRecipeCachesDirty((...))
+    end
     if (event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_SPECIALIZATION_CHANGED"
         or event == "ACTIVE_COMBAT_CONFIG_CHANGED" or event == "PLAYER_TALENT_UPDATE"
         or event == "TRAIT_TREE_CURRENCY_INFO_UPDATED" or event == "TRAIT_CONFIG_UPDATED")
@@ -1687,27 +1752,11 @@ events:SetScript("OnEvent", function(_, event, ...)
         local unit = ...
         if unit and unit ~= "player" then return end
     end
-    if (event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE") and ns.ScanProfessionRecipes then
-        ns.ScanProfessionRecipes()
-    end
     if event == "PLAYER_REGEN_ENABLED" and HideSecureActionButtons then HideSecureActionButtons() end
-    if event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" then
-        if ns.ScanClassTrainer then ns.ScanClassTrainer() end
-        if ns.ScanProfessionTrainer then ns.ScanProfessionTrainer() end
-        if event == "TRAINER_SHOW" then
-            C_Timer.After(0, function()
-                if ns.ScanClassTrainer and ns.ScanClassTrainer() then
-                    ns.RequestRefresh("character-reminders", "class trainer scan")
-                end
-                if ns.ScanProfessionTrainer and ns.ScanProfessionTrainer() then
-                    ns.RequestRefresh("professions", "profession trainer scan")
-                end
-            end)
-        end
-    end
     if event == "PLAYER_LOGIN" then
         RegisterUnlockElement()
         ns.ApplySettings()
+        foodInventorySignature, professionInventorySignature = CurrentBagRecommendationSignature()
         -- Re-measure once WoW has resolved the saved point. Ongoing aura state is
         -- event-driven; exact warning-threshold transitions use one-shot timers.
         C_Timer.After(0, function()

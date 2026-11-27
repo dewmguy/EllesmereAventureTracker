@@ -117,7 +117,8 @@ local SLOT_LABELS = {
 -- Versioned because early scans used GetBaseProfessionInfo().profession, which
 -- is not the open profession's skill-line ID on Forever and could merge Cooking
 -- recipes into Blacksmithing or First Aid caches.
-local RECIPE_CACHE_VERSION = 2
+local RECIPE_CACHE_VERSION = 3
+local TRAINER_CACHE_VERSION = 1
 
 local function ProfessionList()
     if not GetProfessions or not GetProfessionInfo then return {} end
@@ -221,6 +222,37 @@ end
 
 function ns.GetProfessionRecipeCache(skillLineID, professionName)
     return RecipeCache(skillLineID, professionName)
+end
+
+function ns.MarkProfessionRecipeCachesDirty(spellID)
+    spellID = tonumber(spellID)
+    if not spellID then return false end
+    local root = ns.DB().professionRecipeCache
+    local character = type(root) == "table" and root[ns.CharacterKey()]
+    if type(character) ~= "table" then return false end
+    local reportedSkillLine, reportedRoot
+    if C_TradeSkillUI and C_TradeSkillUI.GetTradeSkillLineForRecipe then
+        local ok, skillLine, _, rootSkillLine = pcall(C_TradeSkillUI.GetTradeSkillLineForRecipe, spellID)
+        if ok then
+            reportedSkillLine = PublicNumber(skillLine)
+            reportedRoot = PublicNumber(rootSkillLine)
+        end
+    end
+    local changed = false
+    for cacheKey, cache in pairs(character) do
+        local skillLineID = tonumber(cacheKey)
+        local matches = skillLineID and (skillLineID == reportedSkillLine or skillLineID == reportedRoot)
+        if not matches and skillLineID and ns.GetRecipeCatalogForProfession then
+            for _, entry in ipairs(ns.GetRecipeCatalogForProfession(skillLineID) or {}) do
+                if tonumber(entry.spellID) == spellID then matches = true break end
+            end
+        end
+        if matches and type(cache) == "table" and cache.cacheVersion == RECIPE_CACHE_VERSION then
+            cache.dirty = true
+            changed = true
+        end
+    end
+    return changed
 end
 
 local function FormatMoney(amount)
@@ -329,7 +361,7 @@ local function TrainerServiceProfession(index, serviceName, professions)
     return MatchProfession(professions, serviceName), 0
 end
 
-local function TrainerService(index)
+local function TrainerService(index, includeTooltip)
     if type(GetTrainerServiceInfo) ~= "function" then return nil end
     local ok, name, second, third = pcall(GetTrainerServiceInfo, index)
     if not ok or type(name) ~= "string" or (_G.issecretvalue and _G.issecretvalue(name)) then return nil end
@@ -355,7 +387,7 @@ local function TrainerService(index)
             isProfession = professionService == true
         end
     end
-    return {
+    local service = {
         name = name,
         subText = subText,
         serviceType = serviceType,
@@ -364,6 +396,8 @@ local function TrainerService(index)
         isProfession = isProfession,
         trainerIndex = index,
     }
+    if includeTooltip then service.tooltipText = TrainerTooltipText(index, service.name) end
+    return service
 end
 
 local PROFESSION_RANK_NAMES = { "apprentice", "journeyman", "expert", "artisan", "master" }
@@ -400,7 +434,7 @@ function ns.ScanProfessionTrainer()
     local professions = ProfessionList()
     local buckets = {}
     for index = 1, count do
-        local service = TrainerService(index)
+        local service = TrainerService(index, false)
         if service then
             local profession, requiredSkill = TrainerServiceProfession(index, service.name, professions)
             if profession and TRAINER_PROFESSIONS[profession.skillLineID] then
@@ -413,7 +447,6 @@ function ns.ScanProfessionTrainer()
                 if service.serviceType == "available" and not IsProfessionRankService(service, profession, stepIndex) then
                     service.requiredSkill = requiredSkill
                     service.icon = service.icon or profession.icon
-                    service.tooltipText = TrainerTooltipText(index, service.name)
                     bucket.services[#bucket.services + 1] = service
                     bucket.total = bucket.total + service.cost
                 end
@@ -431,16 +464,41 @@ function ns.ScanProfessionTrainer()
     local characterKey = ns.CharacterKey()
     if type(db.professionTrainerCache[characterKey]) ~= "table" then db.professionTrainerCache[characterKey] = {} end
     local character = db.professionTrainerCache[characterKey]
+    local changed = false
     for cacheKey, bucket in pairs(buckets) do
-        character[cacheKey] = {
-            professionName = bucket.profession.name,
-            rank = bucket.profession.rank,
-            trainerName = trainerName,
-            services = bucket.services,
-            total = bucket.total,
-        }
+        table.sort(bucket.services, function(a, b)
+            if a.requiredSkill ~= b.requiredSkill then return a.requiredSkill < b.requiredSkill end
+            if a.name ~= b.name then return a.name < b.name end
+            return (a.cost or 0) < (b.cost or 0)
+        end)
+        local signatureParts = {}
+        for _, service in ipairs(bucket.services) do
+            signatureParts[#signatureParts + 1] = table.concat({
+                service.name or "", service.subText or "", service.requiredSkill or 0,
+                service.cost or 0, service.serviceType or "",
+            }, "\031")
+        end
+        local signature = table.concat(signatureParts, "\030")
+        local previous = character[cacheKey]
+        if not (type(previous) == "table" and previous.cacheVersion == TRAINER_CACHE_VERSION
+            and previous.signature == signature and previous.rank == bucket.profession.rank) then
+            for _, service in ipairs(bucket.services) do
+                service.tooltipText = TrainerTooltipText(service.trainerIndex, service.name)
+            end
+            character[cacheKey] = {
+                cacheVersion = TRAINER_CACHE_VERSION,
+                signature = signature,
+                professionName = bucket.profession.name,
+                rank = bucket.profession.rank,
+                trainerName = trainerName,
+                services = bucket.services,
+                total = bucket.total,
+                scannedAt = time and time() or 0,
+            }
+            changed = true
+        end
     end
-    return true
+    return changed
 end
 
 local function ShowLiveTrainerTooltip(owner, service)
@@ -473,7 +531,7 @@ end
 
 function ns.ScanProfessionRecipes()
     if ns.IsCombatRestricted() or not (C_TradeSkillUI and C_TradeSkillUI.GetBaseProfessionInfo
-        and C_TradeSkillUI.GetFilteredRecipeIDs and C_TradeSkillUI.GetRecipeInfo
+        and (C_TradeSkillUI.GetAllRecipeIDs or C_TradeSkillUI.GetFilteredRecipeIDs) and C_TradeSkillUI.GetRecipeInfo
         and C_TradeSkillUI.GetRecipeSchematic) then return false end
     if C_TradeSkillUI.IsTradeSkillReady then
         local ok, ready = pcall(C_TradeSkillUI.IsTradeSkillReady)
@@ -494,8 +552,21 @@ function ns.ScanProfessionRecipes()
     if reportedProfessionID and PublicNumber(profession.skillLineID) ~= reportedProfessionID then return false end
     skillLineID = profession.skillLineID
 
+    local existing = RecipeCache(skillLineID, profession.name)
+    if existing and existing.dirty ~= true then
+        -- The recipe snapshot is already durable SavedVariables data. Opening
+        -- the same profession is not evidence that its learned recipes changed.
+        existing.rank = profession.rank
+        return false
+    end
+
     local recipeIDs = {}
-    local gotIDs, returned = pcall(C_TradeSkillUI.GetFilteredRecipeIDs, recipeIDs)
+    local gotIDs, returned
+    if C_TradeSkillUI.GetAllRecipeIDs then
+        gotIDs, returned = pcall(C_TradeSkillUI.GetAllRecipeIDs)
+    else
+        gotIDs, returned = pcall(C_TradeSkillUI.GetFilteredRecipeIDs, recipeIDs)
+    end
     if not gotIDs then return false end
     if type(returned) == "table" then recipeIDs = returned end
     if #recipeIDs == 0 then return false end
@@ -569,6 +640,7 @@ function ns.ScanProfessionRecipes()
     cache.rank = profession.rank
     cache.scannedAt = time and time() or 0
     cache.learnedCount = learnedCount
+    cache.dirty = nil
     character[cacheKey] = cache
     return learnedCount > 0
 end
@@ -1060,9 +1132,10 @@ local function BestGearRecipe(profession, professions, mapID)
     return best, bestItem, bestFacts, bestDelta
 end
 
-local function AddRecipePlan(rows, profession, professions, mapID)
+local function AddRecipePlan(rows, profession, professions, mapID, reuseSelected)
     if ns.AddProfessionRouteRow then
-        return ns.AddProfessionRouteRow(rows, profession, professions, mapID, ns.GetZoneName and ns.GetZoneName())
+        return ns.AddProfessionRouteRow(rows, profession, professions, mapID,
+            ns.GetZoneName and ns.GetZoneName(), reuseSelected)
     end
     local recipe, facts = BestSkillUpRecipe(profession, professions, mapID)
     if recipe then
@@ -1107,6 +1180,12 @@ end
 
 local function PermanentTrainerServices(profession)
     local services = {}
+    local liveByName = {}
+    local liveCache = ProfessionTrainerCache(profession.skillLineID)
+    for _, live in ipairs(type(liveCache) == "table" and liveCache.services or {}) do
+        local key = NormalizeProfessionName(live.name)
+        if key then liveByName[key] = live end
+    end
     local playerLevel = UnitLevel and UnitLevel("player") or 0
     for _, fact in ipairs(ns.GetPermanentProfessionTraining
         and ns.GetPermanentProfessionTraining(profession.skillLineID) or {}) do
@@ -1117,13 +1196,16 @@ local function PermanentTrainerServices(profession)
             local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(fact.spellID)
                 or ItemName(fact.productID)
             local icon = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(fact.productID)
+            local liveKey = NormalizeProfessionName(name)
+            local live = liveKey and liveByName[liveKey]
             services[#services + 1] = {
                 spellID = fact.spellID,
                 name = name,
-                icon = icon or profession.icon,
-                cost = fact.cost,
+                icon = live and live.icon or icon or profession.icon,
+                cost = live and live.cost or fact.cost,
                 requiredSkill = fact.learnAt,
-                tooltipText = string.format("Available from a %s trainer at %d skill. Permanent catalog cost: %s.",
+                tooltipText = live and live.tooltipText or string.format(
+                    "Available from a %s trainer at %d skill. Permanent catalog cost: %s.",
                     profession.name, fact.learnAt, FormatMoney(fact.cost)),
             }
         end
@@ -1176,26 +1258,29 @@ local function AddTrainerRecipeRows(rows, profession)
     end
 end
 
-local function BuildProfessionRows(profession, professions, mapID, zoneName)
-    local rows = {}
+local stableProfessionRows = {}
+
+local function AppendRows(target, source)
+    for index = 1, #(source or {}) do target[#target + 1] = source[index] end
+end
+
+local function BuildStableProfessionRows(profession, professions, mapID, zoneName)
+    local beforeRoute, afterRoute = {}, {}
     if CRAFTING_PROFESSIONS[profession.skillLineID] then
-        AddRankPlan(rows, profession, mapID)
-        if ns.Get("showProfessionSynergy") then
-            AddRecipePlan(rows, profession, professions, mapID)
-        end
-        if ns.Get("showProfessionGear") then AddGearPlan(rows, profession, professions, mapID) end
+        AddRankPlan(beforeRoute, profession, mapID)
+        if ns.Get("showProfessionGear") then AddGearPlan(afterRoute, profession, professions, mapID) end
     elseif GATHERING_KINDS[profession.skillLineID] then
-        AddRankPlan(rows, profession, mapID)
+        AddRankPlan(beforeRoute, profession, mapID)
     end
 
-    if TRAINER_PROFESSIONS[profession.skillLineID] then AddTrainerRecipeRows(rows, profession) end
-    if ns.AddRecipeCatalogRows then ns.AddRecipeCatalogRows(rows, profession, professions, mapID) end
-    if profession.skillLineID == 356 then AddFishingSkillRow(rows, profession, zoneName) end
+    if TRAINER_PROFESSIONS[profession.skillLineID] then AddTrainerRecipeRows(afterRoute, profession) end
+    if ns.AddRecipeCatalogRows then ns.AddRecipeCatalogRows(afterRoute, profession, professions, mapID) end
+    if profession.skillLineID == 356 then AddFishingSkillRow(afterRoute, profession, zoneName) end
 
     if ns.Get("showProfessionZoneHints") and GATHERING_HINTS[profession.skillLineID] then
         local kind = GATHERING_KINDS[profession.skillLineID]
         local summary = GatheringSummary(mapID, kind)
-        rows[#rows + 1] = {
+        afterRoute[#afterRoute + 1] = {
             key = "local-" .. tostring(profession.skillLineID),
             label = summary and "Available here" or "Local opportunities",
             detail = summary or GATHERING_HINTS[profession.skillLineID],
@@ -1207,13 +1292,34 @@ local function BuildProfessionRows(profession, professions, mapID, zoneName)
             observed.key = "observed-" .. tostring(profession.skillLineID)
             observed.state = "info"
             observed.icon = profession.icon
-            rows[#rows + 1] = observed
+            afterRoute[#afterRoute + 1] = observed
         end
     end
+    return { beforeRoute = beforeRoute, afterRoute = afterRoute }
+end
+
+local function BuildProfessionRows(profession, professions, mapID, zoneName, inventoryOnly)
+    local cacheKey = tostring(profession.skillLineID)
+    local stable = stableProfessionRows[cacheKey]
+    if not stable then
+        stable = BuildStableProfessionRows(profession, professions, mapID, zoneName)
+        stableProfessionRows[cacheKey] = stable
+    end
+    local rows = {}
+    AppendRows(rows, stable.beforeRoute)
+    if CRAFTING_PROFESSIONS[profession.skillLineID] and ns.Get("showProfessionSynergy") then
+        AddRecipePlan(rows, profession, professions, mapID, inventoryOnly)
+    end
+    AppendRows(rows, stable.afterRoute)
     return rows
 end
 
-local function Build()
+local function Build(invalidationReason)
+    local inventoryOnly = invalidationReason == "BAG_UPDATE_DELAYED"
+    if not inventoryOnly then
+        stableProfessionRows = {}
+        if ns.ResetProfessionRouteSelections then ns.ResetProfessionRouteSelections() end
+    end
     if not ns.Get("showProfessions") then return {} end
     local professions = ProfessionList()
     local zoneName, mapID = ns.GetZoneName()
@@ -1222,7 +1328,7 @@ local function Build()
         local profession = professions[i]
         if CRAFTING_PROFESSIONS[profession.skillLineID] or GATHERING_KINDS[profession.skillLineID]
             or TRAINER_PROFESSIONS[profession.skillLineID] then
-            local rows = BuildProfessionRows(profession, professions, mapID, zoneName)
+            local rows = BuildProfessionRows(profession, professions, mapID, zoneName, inventoryOnly)
             if #rows > 0 then
                 sections[#sections + 1] = {
                     id = "profession-" .. tostring(profession.skillLineID),

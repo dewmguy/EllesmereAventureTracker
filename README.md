@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.8.7 establishes the addon structure and a playable first pass:
+Version 0.8.8 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -111,6 +111,14 @@ Version 0.8.7 establishes the addon structure and a playable first pass:
 - failed asynchronous data loads use a five-minute retry backoff without a
   provider rebuild, while bag-food discovery filters non-food items before any
   metadata lookup and worldwide crafted-upgrade scoring remains cache-only;
+- ordinary bag changes are reduced to a compact food-and-current-route
+  signature; unrelated loot and item deletion cause no tracker work, while a
+  relevant change reuses cached quest, trainer, gathering, upgrade and recipe
+  source results and recalculates only the affected food readiness or active route;
+- profession windows consult the durable per-character learned-recipe cache
+  before reading schematics, and trainer windows compare a cheap service
+  signature before collecting tooltips; unchanged records survive reloads and
+  relogs and are not rescanned merely because a window opened or updated;
 - independent flight bar texture, fill, background, border, font, outline,
   text-size, text-color and icon controls;
 - contextual In Flight, In Combat, Resting, Mounted, instance, life and

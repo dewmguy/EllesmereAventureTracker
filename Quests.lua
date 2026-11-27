@@ -811,8 +811,8 @@ for _, event in ipairs({
     "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE",
     "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED",
     "ACTIVE_COMBAT_CONFIG_CHANGED", "SPELLS_CHANGED", "SKILL_LINES_CHANGED",
-    "TRADE_SKILL_LIST_UPDATE", "UPDATE_FACTION", "CHAT_MSG_COMBAT_FACTION_CHANGE", "ADDON_LOADED",
-    "MERCHANT_SHOW", "MERCHANT_UPDATE", "MERCHANT_CLOSED", "BAG_UPDATE_DELAYED",
+    "UPDATE_FACTION", "CHAT_MSG_COMBAT_FACTION_CHANGE", "ADDON_LOADED",
+    "MERCHANT_SHOW", "MERCHANT_UPDATE", "MERCHANT_CLOSED",
 }) do
     pcall(events.RegisterEvent, events, event)
 end
@@ -844,7 +844,7 @@ events:SetScript("OnEvent", function(_, event, ...)
         or event == "QUEST_LOG_UPDATE" or event == "PLAYER_LEVEL_UP"
         or event == "PLAYER_LEVEL_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"
         or event == "ACTIVE_COMBAT_CONFIG_CHANGED" or event == "SPELLS_CHANGED"
-        or event == "SKILL_LINES_CHANGED" or event == "TRADE_SKILL_LIST_UPDATE"
+        or event == "SKILL_LINES_CHANGED"
         or event == "UPDATE_FACTION" or event == "CHAT_MSG_COMBAT_FACTION_CHANGE" then
         questStateRevision = questStateRevision + 1
         zoneResultCache = {}

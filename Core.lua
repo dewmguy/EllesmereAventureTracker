@@ -523,8 +523,16 @@ end
 function ns.InvalidateProvider(id, reason)
     local provider = providersByID[id]
     if not provider then return false end
+    reason = reason or "unspecified"
+    -- A bag event can arrive in the same short coalescing window as a skill,
+    -- level, zone or settings change. Never let the lightweight inventory
+    -- reason replace a pending full rebuild.
+    if provider.dirty and reason == "BAG_UPDATE_DELAYED"
+        and provider.invalidationReason ~= "BAG_UPDATE_DELAYED" then
+        return true
+    end
     provider.dirty = true
-    provider.invalidationReason = reason or "unspecified"
+    provider.invalidationReason = reason
     return true
 end
 
@@ -581,7 +589,10 @@ function ns.BuildSnapshot()
         local result = provider.lastResult
         if provider.dirty and (not combatRestricted or provider.combatSafe) then
             local providerStart = ProfileNow()
-            local ok, built = xpcall(provider.build, geterrorhandler())
+            local invalidationReason = provider.invalidationReason
+            local ok, built = xpcall(function()
+                return provider.build(invalidationReason)
+            end, geterrorhandler())
             if ok and type(built) == "table" then
                 result = built
                 provider.lastResult = built

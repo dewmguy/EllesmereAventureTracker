@@ -2,6 +2,7 @@
 -- Adventure Tracker: character reminders that replace hidden microbar alerts.
 -------------------------------------------------------------------------------
 local _, ns = ...
+local CLASS_TRAINER_CACHE_VERSION = 1
 
 local function IsSecret(value)
     return _G.issecretvalue and _G.issecretvalue(value)
@@ -147,7 +148,7 @@ local function TrainerTooltipText(index, serviceName, serviceCost)
     return #parts > 0 and table.concat(parts, "\n") or nil
 end
 
-local function AvailableTrainerService(index)
+local function AvailableTrainerService(index, includeTooltip)
     if type(GetTrainerServiceInfo) ~= "function" then return nil end
     local ok, name, second, third = pcall(GetTrainerServiceInfo, index)
     if not ok or IsSecret(name) or type(name) ~= "string" or name == "" then return nil end
@@ -173,14 +174,15 @@ local function AvailableTrainerService(index)
     end
     if IsSecret(subText) or type(subText) ~= "string" then subText = nil end
     if IsSecret(icon) or (type(icon) ~= "number" and type(icon) ~= "string") then icon = nil end
-    return {
+    local service = {
         name = name,
         subText = subText,
         icon = icon or 136243,
         cost = cost,
         trainerIndex = index,
-        tooltipText = TrainerTooltipText(index, name, cost),
     }
+    if includeTooltip then service.tooltipText = TrainerTooltipText(index, name, cost) end
+    return service
 end
 
 local function ShowLiveTrainerTooltip(owner, service)
@@ -429,7 +431,7 @@ function ns.ScanClassTrainer()
 
     local services, total = {}, 0
     for index = 1, count do
-        local service = AvailableTrainerService(index)
+        local service = AvailableTrainerService(index, false)
         if service then
             services[#services + 1] = service
             total = total + service.cost
@@ -441,6 +443,20 @@ function ns.ScanClassTrainer()
     -- TRAINER_SHOW can fire before its service list is populated. Preserve the
     -- prior-level comparison until the deferred scan or TRAINER_UPDATE has data.
     if count == 0 and previous then return false end
+    local signatureParts = {}
+    for _, service in ipairs(services) do
+        signatureParts[#signatureParts + 1] = table.concat({
+            service.name or "", service.subText or "", service.cost or 0,
+        }, "\031")
+    end
+    local signature = table.concat(signatureParts, "\030")
+    if type(previous) == "table" and previous.cacheVersion == CLASS_TRAINER_CACHE_VERSION
+        and previous.signature == signature and tonumber(previous.level) == currentLevel then
+        return false
+    end
+    for _, service in ipairs(services) do
+        service.tooltipText = TrainerTooltipText(service.trainerIndex, service.name, service.cost)
+    end
     local previousServices, previousKeys = previous and previous.services, {}
     if type(previousServices) == "table" then
         for index = 1, #previousServices do previousKeys[TrainerServiceKey(previousServices[index])] = true end
@@ -466,6 +482,8 @@ function ns.ScanClassTrainer()
     local db = ns.DB()
     if type(db.classTrainerByCharacter) ~= "table" then db.classTrainerByCharacter = {} end
     db.classTrainerByCharacter[ns.CharacterKey()] = {
+        cacheVersion = CLASS_TRAINER_CACHE_VERSION,
+        signature = signature,
         className = className,
         classToken = classToken,
         level = currentLevel,
@@ -474,6 +492,7 @@ function ns.ScanClassTrainer()
         total = total,
         newServiceKeys = newServiceKeys,
         newServiceCount = newServiceCount,
+        scannedAt = time and time() or 0,
     }
     staticServiceCache = nil
     return true
