@@ -475,23 +475,27 @@ Targets:
   (foundation shipped in 0.1.4);
 - most-to-least known-position ordering with explicit coverage wording
   (foundation shipped in 0.1.4);
-- confirmed observed fish and skinning summaries with sample sizes;
-- recommended effective Fishing skill and current-skill gap;
-- source, snapshot and licence attribution in settings and tooltips.
+- local account-wide observed catches and skinning summaries with explicit
+  window sample sizes (shipped in 0.6.0);
+- recommended effective Fishing skill and current-skill gap from attributed
+  OneCast thresholds (shipped in 0.6.0);
+- a shared Everloot observation pack remains deferred until a complete current
+  bulk snapshot exists; its live profession pages currently have no confirmed
+  gathering zones, and missing evidence must not be presented as zero.
 
 ### 0.5.0 — Recipe catalogue and sources
 
-- reproducible DB2 recipe generator;
-- learned and unlearned tracking;
-- QuestieDB vendor/drop/quest source overlay;
-- Here & Reasonable plus collapsed Worldwide views.
+- attributed build-stamped recipe catalogue (shipped in 0.5.0);
+- learned and unlearned tracking (shipped in 0.5.0);
+- QuestieDB vendor/drop/quest source overlay (shipped in 0.5.0);
+- best reasonable option plus collapsed Worldwide views (shipped in 0.5.0).
 
 ### 0.6.0 — Synergies and crafted upgrades
 
-- reagent dependency graph;
-- cross-profession goals;
-- learned and attainable-unlearned gear comparisons;
-- optional Auctionator/TSM cost scoring.
+- cross-profession reagent goals (shipped in 0.5.0);
+- learned and attainable-unlearned gear comparisons (shipped in 0.5.0);
+- optional TSM-first/Auctionator-fallback cost scoring (shipped in 0.4.0);
+- local catch/skinning history and Fishing thresholds (shipped in 0.6.0).
 
 ## Validation
 

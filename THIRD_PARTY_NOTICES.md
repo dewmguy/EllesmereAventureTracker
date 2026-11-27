@@ -43,9 +43,33 @@ Sources:
 ## OneCast
 
 `Data/CookingFoods.lua` contains recipe-spell and product-item identifiers
-cross-checked against OneCast `Cooking.lua`. OneCast generated those factual
-mappings from WoW Forever client data. OneCast is by rynmon and is declared MIT
-licensed on CurseForge.
+cross-checked against OneCast `Cooking.lua`. `Data/FishingLevels.lua` adapts
+the effective-skill thresholds and zone identifiers in OneCast
+`ZoneLevels.lua` and `ZoneNames.lua` at revision
+`2f4a6b02e25ef5f4ab025a14b09f48c352948c3a`. The source separates documented
+Forever player measurements from Classic baselines originating in the CMaNGOS
+Classic 1.12 world database and cross-checks those baselines against
+AzerothCore. OneCast is by rynmon and is declared MIT licensed on CurseForge.
+
+The associated MIT permission notice is:
+
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
 
 Sources:
 

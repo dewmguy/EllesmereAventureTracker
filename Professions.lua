@@ -131,12 +131,13 @@ local function ProfessionList()
     for i = 1, 6 do
         local index = books[i]
         if index then
-            local valid, name, icon, rank, maxRank, _, _, skillLineID = pcall(GetProfessionInfo, index)
+            local valid, name, icon, rank, maxRank, _, _, skillLineID, rankBonus = pcall(GetProfessionInfo, index)
             if valid and name then
                 result[#result + 1] = {
                     name = name,
                     icon = icon,
                     rank = tonumber(rank) or 0,
+                    rankBonus = math.max(0, tonumber(rankBonus) or 0),
                     maxRank = tonumber(maxRank) or 0,
                     skillLineID = skillLineID,
                 }
@@ -587,6 +588,73 @@ local function GatheringSummary(mapID, kind)
     local more = #entries - shown
     local suffix = more > 0 and string.format(" +%d more", more) or ""
     return table.concat(parts, ", ") .. suffix .. " • known locations, most to least."
+end
+
+local function ObservedGatheringSummary(mapID, kind)
+    if not ns.Get("showObservedGathering") or not ns.GetObservedGathering then return nil end
+    local bucketKind = kind == "fish" and "fishing" or kind == "skin" and "skinning" or nil
+    if not bucketKind then return nil end
+    local bucket = ns.GetObservedGathering(mapID, bucketKind)
+    if not bucket or type(bucket.items) ~= "table" or (tonumber(bucket.windows) or 0) <= 0 then return nil end
+    local items = {}
+    for _, item in pairs(bucket.items) do
+        if type(item) == "table" and tonumber(item.itemID) then items[#items + 1] = item end
+    end
+    table.sort(items, function(a, b)
+        local aCount, bCount = tonumber(a.count) or 0, tonumber(b.count) or 0
+        if aCount ~= bCount then return aCount > bCount end
+        return tostring(a.name or a.itemID) < tostring(b.name or b.itemID)
+    end)
+    if #items == 0 then return nil end
+    local parts = {}
+    for index = 1, math.min(3, #items) do
+        local item = items[index]
+        local name = ItemName(item.itemID)
+        if name:match("^Item %d+$") and item.name then name = item.name end
+        parts[#parts + 1] = string.format("%s ×%d", name, tonumber(item.count) or 0)
+    end
+    if #items > 3 then parts[#parts + 1] = string.format("+%d more", #items - 3) end
+    local windows = tonumber(bucket.windows) or 0
+    local sampleLabel = bucketKind == "fishing"
+        and (windows == 1 and "catch" or "catches")
+        or (windows == 1 and "skinning window" or "skinning windows")
+    return {
+        label = bucketKind == "fishing" and "Observed catches" or "Observed skinning materials",
+        detail = string.format("%s • %d local %s recorded.", table.concat(parts, ", "), windows, sampleLabel),
+        tooltip = string.format("Account-wide observations recorded by Adventure Tracker in this zone. Sample: %d %s. This history stays local and is never uploaded.",
+            windows, sampleLabel),
+    }
+end
+
+local function AddFishingSkillRow(rows, profession, zoneName)
+    if not ns.Get("showProfessionZoneHints") or not ns.GetFishingSkillRecommendation then return end
+    local target, source = ns.GetFishingSkillRecommendation(zoneName)
+    if not target then
+        rows[#rows + 1] = {
+            key = "fishing-threshold-unknown",
+            label = "Recommended Fishing skill unknown",
+            detail = "No reliable no-getaway threshold has been measured for these waters yet.",
+            tooltip = "Adventure Tracker leaves an unmeasured Forever fishing threshold unknown instead of borrowing a guess from an unrelated zone.",
+            state = "unknown",
+            icon = profession.icon,
+        }
+        return
+    end
+    local effective = (tonumber(profession.rank) or 0) + (tonumber(profession.rankBonus) or 0)
+    local gap = math.max(0, target - effective)
+    local sourceLabel = source == "forever" and "Forever player measurements"
+        or source == "spot" and "this sub-zone's Classic baseline"
+        or "Classic baseline; Forever may differ"
+    rows[#rows + 1] = {
+        key = "fishing-threshold",
+        label = string.format("Recommended effective Fishing: %d", target),
+        detail = gap > 0
+            and string.format("Current effective skill %d • %d short of the no-getaway threshold.", effective, gap)
+            or string.format("Current effective skill %d • meets the no-getaway threshold.", effective),
+        tooltip = string.format("OneCast source: %s. Effective skill includes the profession bonus reported by the client, so pole, lure, racial and equipment bonuses can count. A future observed getaway at or above this value should overrule the estimate.", sourceLabel),
+        state = gap > 0 and "warning" or "ready",
+        icon = profession.icon,
+    }
 end
 
 local function OpenProfession(name)
@@ -1065,7 +1133,7 @@ local function AddTrainerRecipeRows(rows, profession)
     end
 end
 
-local function BuildProfessionRows(profession, professions, mapID)
+local function BuildProfessionRows(profession, professions, mapID, zoneName)
     local rows = {}
     if CRAFTING_PROFESSIONS[profession.skillLineID] then
         AddRankPlan(rows, profession, mapID)
@@ -1086,6 +1154,7 @@ local function BuildProfessionRows(profession, professions, mapID)
 
     if TRAINER_PROFESSIONS[profession.skillLineID] then AddTrainerRecipeRows(rows, profession) end
     if ns.AddRecipeCatalogRows then ns.AddRecipeCatalogRows(rows, profession, professions, mapID) end
+    if profession.skillLineID == 356 then AddFishingSkillRow(rows, profession, zoneName) end
 
     if ns.Get("showProfessionZoneHints") and GATHERING_HINTS[profession.skillLineID] then
         local kind = GATHERING_KINDS[profession.skillLineID]
@@ -1097,6 +1166,13 @@ local function BuildProfessionRows(profession, professions, mapID)
             state = "info",
             icon = profession.icon,
         }
+        local observed = ObservedGatheringSummary(mapID, kind)
+        if observed then
+            observed.key = "observed-" .. tostring(profession.skillLineID)
+            observed.state = "info"
+            observed.icon = profession.icon
+            rows[#rows + 1] = observed
+        end
     end
     return rows
 end
@@ -1104,13 +1180,13 @@ end
 local function Build()
     if not ns.Get("showProfessions") then return {} end
     local professions = ProfessionList()
-    local _, mapID = ns.GetZoneName()
+    local zoneName, mapID = ns.GetZoneName()
     local sections = {}
     for i = 1, #professions do
         local profession = professions[i]
         if CRAFTING_PROFESSIONS[profession.skillLineID] or GATHERING_KINDS[profession.skillLineID]
             or TRAINER_PROFESSIONS[profession.skillLineID] then
-            local rows = BuildProfessionRows(profession, professions, mapID)
+            local rows = BuildProfessionRows(profession, professions, mapID, zoneName)
             if #rows > 0 then
                 sections[#sections + 1] = {
                     id = "profession-" .. tostring(profession.skillLineID),

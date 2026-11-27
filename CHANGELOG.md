@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 - 2026-11-27
+
+- Added a OneCast-derived, attributed fishing-threshold table with documented
+  Forever measurements separated from Classic baselines.
+- Added a current-zone recommendation for effective Fishing skill, including
+  the live profession bonus and the remaining gap to the no-getaway threshold.
+- Added local, account-wide observation of fishing and skinning loot with
+  per-zone item totals and explicit loot-window sample sizes.
+- Kept unmeasured fishing thresholds unknown and declined to ship an Everloot
+  observation pack while its public bulk corpus remains a pre-launch empty
+  snapshot and its live profession pages have no confirmed gathering zones.
+
 ## 0.5.0 - 2026-11-27
 
 - Added an attributed, build-stamped catalogue of 2,090 Forever recipes from

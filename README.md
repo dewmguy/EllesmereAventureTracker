@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.5.0 establishes the addon structure and a playable first pass:
+Version 0.6.0 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -122,8 +122,12 @@ Version 0.5.0 establishes the addon structure and a playable first pass:
   over the currently equipped item, plus attainable unlearned crafted upgrades;
 - coordinate-free gathering and Fishing summaries without repeating the zone
   name in each row;
-- a researched zone-gathering design for ranked herbs and ore, observed
-  skinning materials, available fish and recommended effective Fishing skill;
+- a current-zone effective Fishing target based on OneCast's documented
+  Forever measurements or clearly labelled Classic baselines, with the live
+  profession bonus and remaining skill gap shown;
+- local account-wide fishing and skinning observations ranked by item count,
+  with explicit per-zone catch/window sample sizes, no uploads and a dedicated
+  clear-history control;
 - an `Adventure Tracker` sidebar section in EllesmereUI with Tracker,
   Readiness, World Buffs, Travel & Status, Instances, Quests, Legacy and Professions
   submenu groups.

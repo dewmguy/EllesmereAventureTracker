@@ -173,7 +173,7 @@ local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBli
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit" }
 local QUEST_KEYS = { "showZoneQuests", "zoneQuestExpandedByCharacter" }
-local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showProfessionAttainableRecipes", "professionRecipeCatalogExpandedByCharacter", "showCompletedProfessions", "showProfessionZoneHints" }
+local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showProfessionAttainableRecipes", "showObservedGathering", "professionRecipeCatalogExpandedByCharacter", "showCompletedProfessions", "showProfessionZoneHints" }
 local INSTANCE_KEYS = { "showInstances", "showInstanceRunTimer", "showInstanceBossTimer", "showInstanceQuests", "showInstanceLoot", "instanceQuestLimit", "instanceLootLimit" }
 local FLIGHT_KEYS = {
     "showFlightTimer", "flightTimerShowDestination", "flightTimerShowElapsed", "flightTimerShowRemaining", "flightTimerShowTotal",
@@ -616,6 +616,16 @@ local function BuildProfessions(pageName, parent, yOffset)
             Toggle("showProfessionAttainableRecipes", "Looted and Purchased Recipes",
                 "Shows reasonably attainable unlearned recipe items from the build-stamped catalogue and QuestieDB source relations."),
             Label("The best option stays visible; expand its summary row to show every currently attainable worldwide option."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showObservedGathering", "Show Local Catch and Skinning History",
+                "Shows locally recorded fishing and skinning loot by zone, ranked by item count with sample sizes."),
+            { type = "button", text = "Clear Local Gathering History",
+              tooltip = "Forgets only Adventure Tracker's locally recorded fishing and skinning observations.",
+              onClick = function()
+                  if ns.ResetObservedGathering then ns.ResetObservedGathering() end
+                  if EUI.RefreshPage then EUI:RefreshPage() end
+              end })
         y = y - h
 
         _, h = W:SectionHeader(parent, "LIVE RECIPE DATA", y); y = y - h

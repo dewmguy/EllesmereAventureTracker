@@ -119,6 +119,7 @@ local DEFAULTS = {
     showProfessionTrainerRecipes = true,
     showProfessionMarketCosts = true,
     showProfessionAttainableRecipes = true,
+    showObservedGathering = true,
     professionRecipeCatalogExpandedByCharacter = {},
     showCompletedProfessions = false,
     showProfessionZoneHints = true,

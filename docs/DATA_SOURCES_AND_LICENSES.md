@@ -3,10 +3,10 @@
 Date: 2026-11-27
 
 This document records which external resources Adventure Tracker may use and
-how. It is an engineering policy and inventory. Version 0.5.0 ships a
+how. It is an engineering policy and inventory. Version 0.6.0 ships a
 coordinate-free Forever Nodes aggregate, Cooking recipe/output discovery seeds
-and an attributed build-stamped recipe catalogue; retained notices are in the
-root `THIRD_PARTY_NOTICES.md`.
+an attributed build-stamped recipe catalogue, and OneCast-derived Fishing
+thresholds; retained notices are in the root `THIRD_PARTY_NOTICES.md`.
 
 ## Rules
 
@@ -48,7 +48,9 @@ root `THIRD_PARTY_NOTICES.md`.
 - Source: <https://github.com/rynmon/OneCast>
 - Declared licence: MIT on the project's CurseForge licence page.
 - Intended use: zone Fishing skill baselines and clearly separated
-  player-confirmed Forever overrides from `ZoneLevels.lua` and `AtlasData.lua`.
+  player-confirmed Forever overrides from `ZoneLevels.lua` and `ZoneNames.lua`.
+- Included beginning in 0.6.0 as `Data/FishingLevels.lua`, pinned to revision
+  `2f4a6b02e25ef5f4ab025a14b09f48c352948c3a`.
 - Boundary: do not import `FishData.lua` zone ordering. Its own header documents
   mixed Wowhead, Classic database and player-report provenance.
 - Required notice: credit OneCast/rynmon and link the MIT declaration. Preserve
@@ -66,6 +68,12 @@ root `THIRD_PARTY_NOTICES.md`.
 - Privacy and quality: discard install pseudonyms after counting them; require
   agreement from at least three installs for a confirmed fact; never turn an
   absent record into a measured zero.
+- Deferred in 0.6.0: the public bulk `corpus.ndjson` pointer still names a
+  pre-launch empty snapshot from 2026-10-19, while the live anonymous corpus is
+  larger than the no-key paging allowance. Everloot's current profession pages
+  also report no confirmed leather, herb or ore zones. Adventure Tracker ships
+  no Everloot-derived observation pack until a complete, reproducible snapshot
+  can satisfy the rules above.
 
 ### QuestieDB
 
