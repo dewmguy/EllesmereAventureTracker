@@ -92,7 +92,7 @@ local function CustomColorDisabled(modeKey, additionalDisabled)
 end
 
 local TRACKER_KEYS = {
-    "enabled", "locked", "width", "scale", "frameStrata", "maximizePaneHeight", "paneGrowthDirection", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
+    "enabled", "locked", "width", "scale", "frameStrata", "maximizePaneHeight", "paneGrowthDirection", "paneHeightLimitMode", "paneHeightLimitPercent", "paneHeightLimitPixels", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
     "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor", "entryBackgroundColor", "entryHoverBackgroundColor",
     "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
     "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "contextTextColorMode", "contextTextColor",
@@ -142,8 +142,8 @@ local function BuildTracker(pageName, parent, yOffset)
         Label("Secure click surfaces for food and class buffs follow the selected pane strata when out of combat."))
     y = y - h
     _, h = W:DualRow(parent, y,
-        { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, width, scale and growth behavior.",
-          onClick = function() ns.ResetKeys({ "position", "width", "scale", "maximizePaneHeight", "paneGrowthDirection" }) end },
+        { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, width, scale, growth behavior and height limit.",
+          onClick = function() ns.ResetKeys({ "position", "width", "scale", "maximizePaneHeight", "paneGrowthDirection", "paneHeightLimitMode", "paneHeightLimitPercent", "paneHeightLimitPixels" }) end },
         { type = "button", text = "Reset Appearance", tooltip = "Restores spacing, backgrounds, border, title bar and text defaults.",
           onClick = function()
               ns.ResetKeys({ "frameStrata", "opacity", "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor",
@@ -168,6 +168,19 @@ local function BuildTracker(pageName, parent, yOffset)
     _, h = W:DualRow(parent, y,
         Toggle("maximizePaneHeight", "Allow Full Viewport Height", "Allows an unanchored pane to use all safe screen space in the selected growth direction instead of the normal 75% screen-height limit. A dynamic EllesmereUI anchor always uses the safe space between its fixed edge and the viewport."),
         Dropdown("paneGrowthDirection", "Pane Growth Direction", { DOWN = "Down", UP = "Up" }, { "DOWN", "UP" }, "Keeps an unanchored pane's top edge fixed when growing down, or its bottom edge fixed when growing up. A vertical EllesmereUI anchor determines the anchored pane's growth edge."))
+    y = y - h
+    local percentLimitDisabled = function() return ns.Get("paneHeightLimitMode") ~= "PERCENT" end
+    local pixelLimitDisabled = function() return ns.Get("paneHeightLimitMode") ~= "PIXELS" end
+    _, h = W:DualRow(parent, y,
+        Dropdown("paneHeightLimitMode", "Pane Height Limit", {
+            AUTO = "Automatic", PERCENT = "Viewport Percent", PIXELS = "UI Pixels",
+        }, { "AUTO", "PERCENT", "PIXELS" },
+            "Optionally caps the total pane height to a percentage of the viewport or an absolute number of UI pixels. The pane never exceeds the safe space available from its fixed edge.", nil, true),
+        Label("A custom limit overrides the normal or full-viewport cap, but never overrides a dynamic anchor or the screen edge."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("paneHeightLimitPercent", "Height Limit (%)", 10, 100, 1, "Maximum total pane height as a percentage of the full viewport height.", percentLimitDisabled),
+        Slider("paneHeightLimitPixels", "Height Limit (UI px)", 120, 1600, 10, "Maximum total pane height in UI pixels before the tracker reaches its anchored or selected viewport edge.", pixelLimitDisabled))
     y = y - h
 
     _, h = W:SectionHeader(parent, "VISIBILITY", y); y = y - h

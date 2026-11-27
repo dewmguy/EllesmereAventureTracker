@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.8 - 2026-11-26
+
+- Added an optional Pane Height Limit with Automatic, Viewport Percent and UI
+  Pixels modes, including independent percentage and absolute-value controls.
+- Kept custom limits subordinate to the pane's actual anchored viewport span,
+  so a requested cap can shorten the pane but can never push it through its
+  dynamic anchor or beyond the screen edge.
+
 ## 0.3.7 - 2026-11-26
 
 - Made a vertical EllesmereUI dynamic anchor authoritative over the tracker's

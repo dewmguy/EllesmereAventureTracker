@@ -807,6 +807,21 @@ end
 
 local function MaximumPanelHeight()
     local available = AvailablePanelHeight()
+    local frameScale = math.max(0.01, frame:GetEffectiveScale() or frame:GetScale() or 1)
+    local parentScale = math.max(0.01, UIParent and UIParent:GetEffectiveScale() or 1)
+    local scaleRatio = frameScale / parentScale
+    local screenHeight = UIParent and UIParent:GetHeight() or 768
+    local limitMode = tostring(ns.Get("paneHeightLimitMode") or "AUTO"):upper()
+    if limitMode == "PERCENT" then
+        local percent = Clamp(ns.Get("paneHeightLimitPercent"), 10, 100, 75)
+        local limit = math.floor((screenHeight * percent / 100) / scaleRatio)
+        return math.max(48, math.min(limit, available))
+    elseif limitMode == "PIXELS" then
+        local pixels = Clamp(ns.Get("paneHeightLimitPixels"), 120, 1600, 600)
+        local limit = math.floor(pixels / scaleRatio)
+        return math.max(48, math.min(limit, available))
+    end
+
     -- A live unlock-mode anchor already imposes the meaningful height limit:
     -- the space between its fixed edge and the viewport.  Applying the normal
     -- 75% cap on top of that leaves an arbitrary gap at the far screen edge.
@@ -814,10 +829,7 @@ local function MaximumPanelHeight()
         return available
     end
 
-    local frameScale = math.max(0.01, frame:GetEffectiveScale() or frame:GetScale() or 1)
-    local parentScale = math.max(0.01, UIParent and UIParent:GetEffectiveScale() or 1)
-    local screenHeight = UIParent and UIParent:GetHeight() or 768
-    local normalLimit = math.floor((screenHeight * 0.75) / (frameScale / parentScale))
+    local normalLimit = math.floor((screenHeight * 0.75) / scaleRatio)
     return math.max(48, math.min(normalLimit, available))
 end
 

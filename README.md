@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.7 establishes the addon structure and a playable first pass:
+Version 0.3.8 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -26,7 +26,8 @@ Version 0.3.7 establishes the addon structure and a playable first pass:
   downward pane growth; a vertical EllesmereUI anchor remains authoritative and
   uses the full safe span between its fixed edge and the viewport, while
   context/status lines and readiness icons remain fixed above the scrolling
-  recommendation sections;
+  recommendation sections; an optional custom limit can cap total pane height
+  by viewport percentage or absolute UI pixels without crossing that safe span;
 - one combined Tracker settings page with customizable pane padding, independent
   pane/section/entry backgrounds, font face, outline and text sizes, plus Class,
   Accent and Custom color modes for every tracker text category and a main-pane
