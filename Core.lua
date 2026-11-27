@@ -223,6 +223,7 @@ local DEFAULTS = {
     professionRecipeCatalogExpandedByCharacter = {},
     showCompletedProfessions = false,
     showProfessionZoneHints = true,
+    showProviderDiagnostics = false,
 
     showInstances = true,
     showInstanceRunTimer = true,
@@ -318,6 +319,7 @@ for _, key in ipairs({
     "showStatuses", "showFlightStatus", "showCombatStatus", "showRestingStatus", "showMountedStatus",
     "showInstanceStatus", "showPresenceStatus", "showLifeStatus", "showPlaytime", "showSessionPlaytime",
     "showTotalPlaytime", "showGoldStatus",
+    "showProviderDiagnostics",
 }) do RENDER_ONLY_SETTINGS[key] = true end
 
 local SETTING_PROVIDERS = {}
@@ -791,6 +793,20 @@ end
 
 local QueueProvider
 
+local function ProviderResultSectionCount(result)
+    if type(result) ~= "table" then return 0 end
+    if result.id then return 1 end
+    local count = 0
+    for index = 1, #result do
+        if type(result[index]) == "table" and result[index].id then count = count + 1 end
+    end
+    return count
+end
+
+local function HasProviderSections(result)
+    return ProviderResultSectionCount(result) > 0
+end
+
 QueueProvider = function(provider)
     if not providerRuntimeActive or not provider or not provider.dirty or provider.queued then return end
     provider.queued = true
@@ -801,10 +817,32 @@ QueueProvider = function(provider)
         local generation = provider.generation
         executionGeneration = generation
         local reason = provider.invalidationReason
-        local result = provider.build(reason)
+        provider.buildingReason = reason
+        provider.progressPublished = false
+        local function PublishProgress(result)
+            if provider.generation ~= generation or type(result) ~= "table" then return false end
+            local previous = provider.lastResult
+            provider.lastResult = result
+            provider.lastError = nil
+            provider.progressPublished = true
+            if provider.id == "professions" and ns.RequestRender then
+                -- The progress row is synthetic snapshot state, so a keyed
+                -- provider patch cannot add or update it safely.
+                ns.RequestRender("profession provider progress")
+            elseif ns.QueueProviderPresentation then
+                ns.QueueProviderPresentation(provider.id, previous, result)
+            elseif ns.RequestRender then
+                ns.RequestRender("provider progress: " .. provider.id)
+            end
+            return true
+        end
+        local result = provider.build(reason, PublishProgress, HasProviderSections(provider.lastResult))
         return result, generation
     end, function(result, builtGeneration)
         provider.queued = false
+        local publishedProgress = provider.progressPublished == true
+        provider.progressPublished = false
+        provider.buildingReason = nil
         if provider.generation == builtGeneration and type(result) == "table" then
             if provider.id == "professions" and ns.OnProfessionProviderCommitted then
                 ns.OnProfessionProviderCommitted()
@@ -814,7 +852,9 @@ QueueProvider = function(provider)
             provider.dirty = false
             provider.lastError = nil
             if ns.OnProviderCommitted then ns.OnProviderCommitted(provider.id) end
-            if ns.QueueProviderPresentation then
+            if provider.id == "professions" and publishedProgress and ns.RequestRender then
+                ns.RequestRender("profession provider completed")
+            elseif ns.QueueProviderPresentation then
                 ns.QueueProviderPresentation(provider.id, previous, result)
             elseif ns.RequestRender then
                 ns.RequestRender("provider committed: " .. provider.id)
@@ -829,6 +869,8 @@ QueueProvider = function(provider)
         return provider.combatSafe or not IsCombatRestricted()
     end, function(message)
         provider.queued = false
+        provider.progressPublished = false
+        provider.buildingReason = nil
         provider.lastError = tostring(message or "unknown provider error")
         if provider.id == "professions" and ns.OnProfessionProviderDiscarded then
             ns.OnProfessionProviderDiscarded()
@@ -838,6 +880,9 @@ QueueProvider = function(provider)
         else
             QueueProvider(provider)
         end
+        if provider.id == "professions" and ns.RequestRender then
+            ns.RequestRender("profession provider failed")
+        end
         ReportWorkError(nil, message)
     end)
 end
@@ -846,6 +891,25 @@ function ns.GetProviderRuntimeState(id)
     local provider = providersByID[id]
     if not provider then return nil end
     return provider.lastResult, provider.dirty == true, provider.queued == true, provider.lastError
+end
+
+local function ProviderStateName(provider)
+    if provider.lastError then return "error" end
+    if provider.queued then return provider.progressPublished and "enriching" or "building" end
+    if provider.dirty then return "waiting" end
+    return "ready"
+end
+
+function ns.PrintProviderDiagnostics()
+    print("Adventure Tracker provider diagnostics:")
+    for index = 1, #providers do
+        local provider = providers[index]
+        local reason = provider.buildingReason or provider.invalidationReason or "none"
+        print(string.format("%s: %s, %d sections, generation %d, reason %s",
+            provider.id, ProviderStateName(provider), ProviderResultSectionCount(provider.lastResult),
+            provider.generation or 0, tostring(reason)))
+        if provider.lastError then print("  error: " .. tostring(provider.lastError)) end
+    end
 end
 
 function ns.ActivateProviderRuntime()
@@ -869,6 +933,9 @@ function ns.InvalidateProvider(id, reason)
     provider.invalidationReason = reason
     provider.generation = (provider.generation or 0) + 1
     QueueProvider(provider)
+    if id == "professions" and ns.Get("showProviderDiagnostics") and ns.RequestRender then
+        ns.RequestRender("profession provider queued")
+    end
     return true
 end
 
@@ -914,6 +981,59 @@ local function AppendProviderResult(snapshot, result)
     end
 end
 
+local function ProfessionProviderStatusSection(provider)
+    if not provider or not ns.Get("showProfessions") then return nil end
+    local sectionCount = ProviderResultSectionCount(provider.lastResult)
+    local busy = provider.dirty or provider.queued
+    local errorMessage = provider.lastError
+    local diagnostic = ns.Get("showProviderDiagnostics") == true
+    local label, detail, state, attention
+
+    if errorMessage then
+        label = "Profession analysis failed"
+        detail = sectionCount > 0 and "Basic guidance remains available. Click for technical details."
+            or "No profession recommendations could be built. Click for technical details."
+        state, attention = "missing", "critical"
+    elseif provider.progressPublished and provider.queued then
+        label = "Expanding profession recommendations…"
+        detail = string.format("%d %s available; recipe, source and upgrade analysis is continuing.",
+            sectionCount, sectionCount == 1 and "section is" or "sections are")
+        state = "info"
+    elseif sectionCount == 0 and busy then
+        label = "Loading profession recommendations…"
+        detail = "Building rank and trainer guidance first; detailed recipes follow."
+        state = "info"
+    elseif diagnostic then
+        label = busy and "Refreshing profession recommendations…" or "Profession recommendations ready"
+        detail = string.format("%d %s loaded • provider %s.", sectionCount,
+            sectionCount == 1 and "section" or "sections", ProviderStateName(provider))
+        state = "info"
+    else
+        return nil
+    end
+
+    local reason = provider.buildingReason or provider.invalidationReason or "none"
+    local tooltip = string.format("State: %s\nSections: %d\nGeneration: %d\nReason: %s",
+        ProviderStateName(provider), sectionCount, provider.generation or 0, tostring(reason))
+    if errorMessage then tooltip = tooltip .. "\nError: " .. tostring(errorMessage) end
+    return {
+        id = "profession-provider-status",
+        title = "Profession status",
+        forceVisible = errorMessage ~= nil or sectionCount == 0,
+        rows = {{
+            key = "profession-provider-status",
+            label = label,
+            detail = detail,
+            tooltip = tooltip,
+            state = state,
+            attention = attention,
+            icon = errorMessage and 135813 or 136243,
+            onClick = ns.PrintProviderDiagnostics,
+            clickHint = "Click to print provider diagnostics in chat.",
+        }},
+    }
+end
+
 function ns.BuildSnapshot()
     -- Forever uses Midnight's secret-value rules. Aura and equipment providers
     -- can receive nil or unreadable values in combat even when the state is
@@ -923,6 +1043,9 @@ function ns.BuildSnapshot()
     for i = 1, #providers do
         if ns.YieldForBudget then ns.YieldForBudget() end
         local provider = providers[i]
+        if provider.id == "professions" then
+            AppendProviderResult(snapshot, ProfessionProviderStatusSection(provider))
+        end
         AppendProviderResult(snapshot, provider.lastResult)
     end
     return snapshot
@@ -965,6 +1088,14 @@ SlashCmdList.EUIADVENTURETRACKER = function(message)
                 key, metric.last or 0, metric.average or 0, metric.maximum or 0, metric.count or 0,
                 metric.examined and (", examined " .. tostring(metric.examined)) or ""))
         end
+        for index = 1, #providers do
+            local provider = providers[index]
+            if provider.lastError then
+                print(string.format("provider:%s error: %s", provider.id, provider.lastError))
+            end
+        end
+    elseif command == "providers" or command == "diagnostics" then
+        ns.PrintProviderDiagnostics()
     elseif command == "show" then
         ns.Set("enabled", true)
     elseif command == "hide" then

@@ -1347,7 +1347,28 @@ local function BuildProfessionRows(profession, professions, mapID, zoneName, inv
     return rows
 end
 
-local function Build(invalidationReason)
+local function BuildQuickProfessionRows(profession, mapID, zoneName)
+    local rows = {}
+    if CRAFTING_PROFESSIONS[profession.skillLineID] or GATHERING_KINDS[profession.skillLineID] then
+        AddRankPlan(rows, profession, mapID)
+    end
+    if TRAINER_PROFESSIONS[profession.skillLineID] then AddTrainerRecipeRows(rows, profession) end
+    if profession.skillLineID == 356 then AddFishingSkillRow(rows, profession, zoneName) end
+    if ns.Get("showProfessionZoneHints") and GATHERING_HINTS[profession.skillLineID] then
+        local kind = GATHERING_KINDS[profession.skillLineID]
+        local summary = GatheringSummary(mapID, kind)
+        rows[#rows + 1] = {
+            key = "local-" .. tostring(profession.skillLineID),
+            label = summary and "Available here" or "Local opportunities",
+            detail = summary or GATHERING_HINTS[profession.skillLineID],
+            state = "info",
+            icon = profession.icon,
+        }
+    end
+    return rows
+end
+
+local function Build(invalidationReason, publishProgress, hasPreviousResult)
     local inventoryOnly = invalidationReason == "BAG_UPDATE_DELAYED"
     if ns.BeginProfessionRouteBuild then ns.BeginProfessionRouteBuild(inventoryOnly) end
     if not inventoryOnly then
@@ -1360,6 +1381,28 @@ local function Build(invalidationReason)
     end
     local professions = ProfessionList()
     local zoneName, mapID = ns.GetZoneName()
+    if not hasPreviousResult and type(publishProgress) == "function" and #professions > 0 then
+        local quickSections = {}
+        for index = 1, #professions do
+            local profession = professions[index]
+            if CRAFTING_PROFESSIONS[profession.skillLineID] or GATHERING_KINDS[profession.skillLineID]
+                or TRAINER_PROFESSIONS[profession.skillLineID] then
+                local rows = BuildQuickProfessionRows(profession, mapID, zoneName)
+                if #rows > 0 then
+                    quickSections[#quickSections + 1] = {
+                        id = "profession-" .. tostring(profession.skillLineID),
+                        title = string.format("%s %d/%d", profession.name, profession.rank, profession.maxRank),
+                        rows = rows,
+                    }
+                end
+            end
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
+        if #quickSections > 0 then
+            publishProgress(quickSections)
+            if ns.YieldForBudget then ns.YieldForBudget(true) end
+        end
+    end
     local sections = {}
     for i = 1, #professions do
         local profession = professions[i]

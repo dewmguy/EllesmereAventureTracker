@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.2 - 2026-11-27
+
+- Fixed the profession area remaining completely absent while its detailed
+  recipe, source, upgrade and route analysis was still running inside the frame
+  budget. The provider now publishes lightweight rank, trainer, fishing and
+  gathering recommendations first, then atomically replaces them with the full
+  result when detailed analysis finishes.
+- Preserved that lightweight profession result if a detailed analysis fails,
+  so one bad enrichment can no longer hide every profession section.
+- Included stored provider errors in `/at profile report`, making a persistent
+  detailed-analysis failure identifiable without enabling a separate debugger.
+- Added a persistent profession status row while recommendations are loading or
+  have failed. Optional diagnostics keep the row visible when ready; hovering
+  shows runtime state and clicking prints every provider's state in chat.
+- Corrected the prior-result check so an empty result cannot prevent the fast
+  profession summary from being published on a same-session retry.
+
 ## 0.9.1 - 2026-11-27
 
 - Fixed profession recommendations disappearing after reload when the new

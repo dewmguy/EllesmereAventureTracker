@@ -19,6 +19,14 @@ presentation timers into repeated database queries.
   profession provider stages selected routes and their reagent signature while
   building; bag-signature work sees only the last committed route set. A stale
   or failed provider generation discards its staging table.
+- A provider may publish an immutable lightweight progress snapshot while a
+  slower enrichment continues. Profession rank, trainer and gathering rows use
+  this path so frame budgeting never makes the whole profession area appear
+  absent; the provider's final generation check still controls the full result.
+- The profession provider exposes loading, enrichment and failure state in a
+  synthetic summary row. This row never starts data work; it reads provider
+  state only. `/at providers` prints generations, reasons, section counts and
+  stored errors, and the optional setting keeps the row visible when idle.
 - Work keys coalesce event bursts into the latest pending rerun. Structural
   result changes queue one time-sliced pane layout; results with identical
   section, status and row geometry patch their visible keyed elements in place.

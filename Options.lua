@@ -182,7 +182,7 @@ local QUEST_KEYS = {
     "showZoneQuests", "zoneQuestExpandedByCharacter", "zoneQuestVisitedByCharacter",
     "warnFutureQuestItems", "futureQuestItemsByCharacter",
 }
-local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showProfessionAttainableRecipes", "showObservedGathering", "professionRecipeCatalogExpandedByCharacter", "showCompletedProfessions", "showProfessionZoneHints" }
+local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showProfessionAttainableRecipes", "showObservedGathering", "professionRecipeCatalogExpandedByCharacter", "showCompletedProfessions", "showProfessionZoneHints", "showProviderDiagnostics" }
 local INSTANCE_KEYS = { "showInstances", "showInstanceRunTimer", "showInstanceBossTimer", "showInstanceQuests", "showInstanceLoot", "instanceQuestLimit", "instanceLootLimit" }
 local FLIGHT_KEYS = {
     "showFlightTimer", "flightTimerShowDestination", "flightTimerShowElapsed", "flightTimerShowRemaining", "flightTimerShowTotal",
@@ -655,6 +655,13 @@ local function BuildProfessions(pageName, parent, yOffset)
                 "Scores otherwise comparable profession plans by estimated missing-material cost. TradeSkillMaster is preferred, then Auctionator."),
             Label(priceProvider and (priceProvider .. " price data detected.")
                 or "No supported price API is currently available; recommendations continue without a price score."))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "DIAGNOSTICS", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showProviderDiagnostics", "Show Recommendation Status",
+                "Keeps a profession provider status row visible after loading. Hover it for state details or click it to print all provider diagnostics."),
+            Label("Loading and failure states appear automatically even when this setting is disabled."))
         y = y - h
     else
         _, h = W:SectionHeader(parent, "CURRENT ZONE", y); y = y - h

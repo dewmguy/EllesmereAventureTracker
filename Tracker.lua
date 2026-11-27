@@ -1826,7 +1826,8 @@ local function QueueProfessionLoginRecovery()
             local professions = ns.GetProfessionList()
             local result, dirty, queued, lastError = ns.GetProviderRuntimeState("professions")
             local hasSections = type(result) == "table" and (result.id ~= nil or #result > 0)
-            return #professions > 0 and not hasSections and not dirty and not queued, lastError
+            return (lastError ~= nil or (#professions > 0 and not hasSections))
+                and not dirty and not queued, lastError
         end, function(shouldRetry, lastError)
             if shouldRetry then
                 ns.RequestRefresh("professions", lastError and "profession provider recovery"

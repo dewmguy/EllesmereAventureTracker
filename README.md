@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.9.1 includes:
+Version 0.9.2 includes:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -98,6 +98,9 @@ Version 0.9.1 includes:
 - provider computation separated from presentation: the pane always renders
   cached results, structural changes use a time-sliced layout pass, and stable
   rows, headings and readiness icons update in place without rebuilding the pane;
+- an explicit profession loading or failure row while detailed recommendations
+  are being prepared, with optional persistent provider diagnostics available
+  from the Professions settings or `/at providers`;
 - red, breathing future quest-material warnings when a newly vendored item is
   still needed by a meaningful unaccepted quest in a visited zone, with direct
   merchant buyback while available and an explicit per-item dismiss button;
