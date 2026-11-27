@@ -488,6 +488,11 @@ local function DurationDetail(prefix, remaining)
     return duration and (prefix .. " • " .. duration .. " remaining") or prefix
 end
 
+local function AddReadinessRow(rows, status)
+    if status.expiringSoon then return end
+    if status.state ~= "ready" or ns.Get("showCompletedReadiness") then rows[#rows + 1] = status end
+end
+
 local function BuildCamp(statuses, rows, warnSeconds)
     if not ns.Get("trackCamp") then return nil end
     local aura, readable = GetAura(CAMP_BENEFITS)
@@ -497,13 +502,14 @@ local function BuildCamp(statuses, rows, warnSeconds)
     elseif aura then
         local remaining
         status.state, remaining = TimedState(aura, warnSeconds)
+        status.expiringSoon = status.state == "warning"
         status.detail = DurationDetail("Camp Benefits active", remaining)
     else
         status.state = "missing"
         status.detail = "Rest beside a campfire for one minute."
     end
     statuses[#statuses + 1] = status
-    if status.state ~= "ready" or ns.Get("showCompletedReadiness") then rows[#rows + 1] = status end
+    AddReadinessRow(rows, status)
     return aura
 end
 
@@ -523,6 +529,7 @@ local function BuildSleeping(statuses, rows, warnSeconds)
         if stacks >= 3 then
             local remaining
             status.state, remaining = TimedState(aura, warnSeconds)
+            status.expiringSoon = status.state == "warning"
             status.detail = DurationDetail("Well-Rested 3/3", remaining)
         elseif stacks > 0 then
             status.state = "warning"
@@ -533,7 +540,7 @@ local function BuildSleeping(statuses, rows, warnSeconds)
         end
     end
     statuses[#statuses + 1] = status
-    if status.state ~= "ready" or ns.Get("showCompletedReadiness") then rows[#rows + 1] = status end
+    AddReadinessRow(rows, status)
 end
 
 local function BuildFood(statuses, rows, warnSeconds)
@@ -545,6 +552,7 @@ local function BuildFood(statuses, rows, warnSeconds)
     elseif aura then
         local remaining
         status.state, remaining = TimedState(aura, warnSeconds)
+        status.expiringSoon = status.state == "warning"
         status.detail = DurationDetail("A food buff is active", remaining)
     else
         status.state = "missing"
@@ -565,7 +573,7 @@ local function BuildFood(statuses, rows, warnSeconds)
         end
     end
     statuses[#statuses + 1] = status
-    if status.state ~= "ready" or ns.Get("showCompletedReadiness") then rows[#rows + 1] = status end
+    AddReadinessRow(rows, status)
 end
 
 local function WeaponState()
@@ -629,6 +637,7 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                     status.state, status.detail = "unknown", "Weapon enhancement state cannot be read."
                 elseif active then
                     status.state = remaining and remaining <= warnSeconds and "warning" or "ready"
+                    status.expiringSoon = status.state == "warning"
                     status.detail = DurationDetail(req.label .. " active", remaining)
                 else
                     status.state, status.detail = "missing", "Apply a suitable " .. req.label:lower() .. "."
@@ -665,6 +674,7 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                         or "Apply " .. req.label .. "."
                 elseif #expiring > 0 then
                     status.state = "warning"
+                    status.expiringSoon = true
                     status.detail = DurationDetail(req.label .. " expiring on " .. UnitList(expiring), shortest)
                 elseif #units > 1 then
                     status.state = "ready"
@@ -681,7 +691,7 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                 status.attention = "critical"
             end
             statuses[#statuses + 1] = status
-            if status.state ~= "ready" or ns.Get("showCompletedReadiness") then rows[#rows + 1] = status end
+            AddReadinessRow(rows, status)
         end
     end
 end

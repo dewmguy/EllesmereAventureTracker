@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.20 establishes the addon structure and a playable first pass:
+Version 0.1.21 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -30,7 +30,8 @@ Version 0.1.20 establishes the addon structure and a playable first pass:
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
   states;
 - live Camp Benefits, Well-Rested, food, class-buff and weapon-enhancement
-  checks;
+  checks, with expiring-soon states kept in the icon strip instead of duplicated
+  as entries under Missing Buffs;
 - combat-safe state retention so restricted aura reads do not become false
   missing-buff warnings;
 - a role-aware Well Fed recommendation that prefers suitable food already in

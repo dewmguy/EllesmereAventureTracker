@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.21 - 2026-11-26
+
+- Removed duration-only expiring-soon entries from the Missing Buffs section.
+- Kept those buffs amber in the readiness icon strip with their remaining time
+  available in the icon tooltip.
+- Preserved actionable warning rows such as incomplete Well-Rested stacks and
+  all genuinely missing or unreadable readiness items.
+
 ## 0.1.20 - 2026-11-26
 
 - Added a soft, synchronized yellow or red background pulse to alerted section
