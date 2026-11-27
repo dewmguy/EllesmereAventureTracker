@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.3 establishes the addon structure and a playable first pass:
+Version 0.3.4 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,

@@ -114,6 +114,11 @@ local SLOT_LABELS = {
     INVTYPE_RANGEDRIGHT = "Ranged", INVTYPE_THROWN = "Ranged",
 }
 
+-- Versioned because early scans used GetBaseProfessionInfo().profession, which
+-- is not the open profession's skill-line ID on Forever and could merge Cooking
+-- recipes into Blacksmithing or First Aid caches.
+local RECIPE_CACHE_VERSION = 2
+
 local function ProfessionList()
     if not GetProfessions or not GetProfessionInfo then return {} end
     local ok, primary1, primary2, archaeology, fishing, cooking, firstAid = pcall(GetProfessions)
@@ -143,12 +148,22 @@ local function ProfessionList()
 end
 ns.GetProfessionList = ProfessionList
 
+local function PublicNumber(value)
+    if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+    return tonumber(value)
+end
+
 local function FindProfession(skillLineID, name)
     local professions = ProfessionList()
-    for i = 1, #professions do
-        local profession = professions[i]
-        if (skillLineID and profession.skillLineID == skillLineID) or (name and profession.name == name) then
-            return profession
+    if name then
+        for i = 1, #professions do
+            if professions[i].name == name then return professions[i] end
+        end
+    end
+    skillLineID = PublicNumber(skillLineID)
+    if skillLineID then
+        for i = 1, #professions do
+            if PublicNumber(professions[i].skillLineID) == skillLineID then return professions[i] end
         end
     end
 end
@@ -187,10 +202,20 @@ local function DifficultyRank(value)
     return 0
 end
 
-local function RecipeCache(skillLineID)
+local function RecipeCache(skillLineID, professionName)
     local root = ns.DB().professionRecipeCache
     local character = type(root) == "table" and root[ns.CharacterKey()]
-    return type(character) == "table" and character[tostring(skillLineID)] or nil
+    if type(character) ~= "table" then return nil end
+    local cacheKey = tostring(skillLineID)
+    local cache = character[cacheKey]
+    if type(cache) ~= "table" then return nil end
+    if cache.cacheVersion ~= RECIPE_CACHE_VERSION
+        or tonumber(cache.skillLineID) ~= tonumber(skillLineID)
+        or (professionName and cache.professionName ~= professionName) then
+        character[cacheKey] = nil
+        return nil
+    end
+    return cache
 end
 
 local function FormatMoney(amount)
@@ -430,6 +455,17 @@ local function ShowLiveTrainerTooltip(owner, service)
     return true
 end
 
+local function RecipeBelongsToProfession(recipeID, skillLineID)
+    if not (C_TradeSkillUI and C_TradeSkillUI.GetTradeSkillLineForRecipe) then return true end
+    local ok, recipeSkillLine, _, rootSkillLine = pcall(C_TradeSkillUI.GetTradeSkillLineForRecipe, recipeID)
+    if not ok then return true end
+    recipeSkillLine = PublicNumber(recipeSkillLine)
+    rootSkillLine = PublicNumber(rootSkillLine)
+    if not recipeSkillLine and not rootSkillLine then return true end
+    skillLineID = PublicNumber(skillLineID)
+    return recipeSkillLine == skillLineID or rootSkillLine == skillLineID
+end
+
 function ns.ScanProfessionRecipes()
     if ns.IsCombatRestricted() or not (C_TradeSkillUI and C_TradeSkillUI.GetBaseProfessionInfo
         and C_TradeSkillUI.GetFilteredRecipeIDs and C_TradeSkillUI.GetRecipeInfo
@@ -446,9 +482,11 @@ function ns.ScanProfessionRecipes()
     local ok, base = pcall(C_TradeSkillUI.GetBaseProfessionInfo)
     if not ok or type(base) ~= "table" then return false end
     local professionName = base.parentProfessionName or base.professionName
-    local skillLineID = tonumber(base.profession or base.parentProfessionID or base.professionID)
-    local profession = FindProfession(skillLineID, professionName)
+    local reportedProfessionID = PublicNumber(base.professionID)
+    local skillLineID = reportedProfessionID or PublicNumber(base.parentProfessionID or base.profession)
+    local profession = FindProfession(nil, professionName) or FindProfession(skillLineID, nil)
     if not profession then return false end
+    if reportedProfessionID and PublicNumber(profession.skillLineID) ~= reportedProfessionID then return false end
     skillLineID = profession.skillLineID
 
     local recipeIDs = {}
@@ -463,14 +501,16 @@ function ns.ScanProfessionRecipes()
     if type(db.professionRecipeCache[characterKey]) ~= "table" then db.professionRecipeCache[characterKey] = {} end
     local character = db.professionRecipeCache[characterKey]
     local cacheKey = tostring(skillLineID)
-    local cache = type(character[cacheKey]) == "table" and character[cacheKey] or {}
-    if type(cache.recipes) ~= "table" then cache.recipes = {} end
+    -- Every scan is a full snapshot of the open profession. Never merge it with
+    -- an older cache, since stale recipes may belong to a different profession.
+    local cache = { recipes = {} }
 
     local learnedCount = 0
     for i = 1, #recipeIDs do
         local recipeID = recipeIDs[i]
         local infoOK, info = pcall(C_TradeSkillUI.GetRecipeInfo, recipeID)
-        if infoOK and type(info) == "table" and info.learned then
+        if infoOK and type(info) == "table" and info.learned
+            and RecipeBelongsToProfession(recipeID, skillLineID) then
             local schematicOK, schematic = pcall(C_TradeSkillUI.GetRecipeSchematic, recipeID, false)
             if schematicOK and type(schematic) == "table" then
                 local reagents = {}
@@ -519,6 +559,8 @@ function ns.ScanProfessionRecipes()
     end
 
     cache.professionName = profession.name
+    cache.skillLineID = skillLineID
+    cache.cacheVersion = RECIPE_CACHE_VERSION
     cache.rank = profession.rank
     cache.scannedAt = time and time() or 0
     cache.learnedCount = learnedCount
@@ -744,7 +786,7 @@ local function HasProfession(professions, skillLineID)
 end
 
 local function BestSkillUpRecipe(profession, professions, mapID)
-    local cache = RecipeCache(profession.skillLineID)
+    local cache = RecipeCache(profession.skillLineID, profession.name)
     if not cache or type(cache.recipes) ~= "table" then return nil end
     if cache.rank ~= profession.rank then return nil end
     local hasMining = HasProfession(professions, 186)
@@ -849,7 +891,7 @@ local function IsUsableEquippable(itemID, item)
 end
 
 local function BestGearRecipe(profession, professions, mapID)
-    local cache = RecipeCache(profession.skillLineID)
+    local cache = RecipeCache(profession.skillLineID, profession.name)
     if not cache or type(cache.recipes) ~= "table" then return nil end
     local hasMining = HasProfession(professions, 186)
     local best, bestItem, bestFacts, bestDelta, bestScore
@@ -985,7 +1027,7 @@ local function BuildProfessionRows(profession, professions, mapID)
     local rows = {}
     if CRAFTING_PROFESSIONS[profession.skillLineID] then
         AddRankPlan(rows, profession, mapID)
-        local cache = RecipeCache(profession.skillLineID)
+        local cache = RecipeCache(profession.skillLineID, profession.name)
         local addedRecipe = false
         if ns.Get("showProfessionSynergy") then
             addedRecipe = AddRecipePlan(rows, profession, professions, mapID)

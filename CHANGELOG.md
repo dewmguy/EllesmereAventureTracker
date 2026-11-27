@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.4 - 2026-11-26
+
+- Fixed learned Cooking recipes leaking into Blacksmithing and First Aid
+  skill-up recommendations because the scanner used the wrong profession-info
+  field and merged new scans into existing recipe caches.
+- Versioned and invalidated older learned-recipe caches. Open each crafting
+  profession once after updating to rebuild a clean profession-owned snapshot.
+- Changed learned-recipe scans to replace the open profession's snapshot rather
+  than merging it with stale recipes.
+
 ## 0.3.3 - 2026-11-26
 
 - Kept the context/status lines and readiness buff icons fixed at the top of the
