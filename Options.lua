@@ -305,19 +305,19 @@ local function BuildWorldBuffs(pageName, parent, yOffset)
             Toggle("showActiveWorldBuffs", "Show Active Buffs", "Shows known world buffs currently active on this character."))
         y = y - h
         _, h = W:DualRow(parent, y,
-            Toggle("showMissingWorldBuffs", "Show Missing Buffs", "Shows selected known world buffs you do not have, including where to obtain them."),
+            Toggle("showMissingWorldBuffs", "Show Additional Missing Buffs", "Shows other known world buffs you do not have, including where to obtain them. Your faction's Rend buff is always tracked."),
             Slider("worldBuffWarnMinutes", "Expiring Soon", 0, 60, 1, "An active world buff becomes amber this many minutes before it expires."))
         y = y - h
 
         _, h = W:SectionHeader(parent, "DEFAULT BEHAVIOR", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Label("Active buffs are shown by default; missing buffs are opt-in so the tracker does not treat every possible world buff as mandatory."),
-            Label("World buffs are kept separate from the core readiness strip."))
+            Label("Might of Stormwind or Warchief's Blessing stays visible with an acquisition hint when missing."),
+            Label("Other missing buffs are opt-in so the tracker does not treat every possible world buff as mandatory."))
         y = y - h
     else
         _, h = W:SectionHeader(parent, "ACQUISITION SOURCES", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Toggle("worldBuffCurrentZoneOnly", "Only Missing Buffs Available Here", "When missing-buff tracking is enabled, only shows buffs whose known acquisition zone matches your current zone."),
+            Toggle("worldBuffCurrentZoneOnly", "Only Additional Buffs Available Here", "Limits optional missing buffs to those obtainable in the current zone. Your faction's Rend buff stays visible everywhere."),
             nil)
         y = y - h
         _, h = W:SectionHeader(parent, "FIRST VERIFIED SET", y); y = y - h

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.9 - 2026-11-26
+
+- Kept the faction Rend world buff visible when missing: Alliance characters
+  see Might of Stormwind and Horde characters see Warchief's Blessing.
+- Replaced the terse source text with a direct hint naming the turn-in NPC and
+  the towns where the character can wait for the buff.
+- Other missing world buffs remain optional to avoid filling the tracker with
+  unrelated acquisition goals.
+
 ## 0.1.8 - 2026-11-26
 
 - Made owned-food recommendations clickable: clicking the Well Fed icon or row

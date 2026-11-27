@@ -7,18 +7,20 @@ local WORLD_BUFFS = {
     {
         key = "faction-rend",
         alliance = true,
+        alwaysShowMissing = true,
         label = "Might of Stormwind",
         spells = { 1304678, 460940, 460939 },
-        source = "Stormwind City, Goldshire, Lakeshire or Sentinel Hill after a Head of Rend turn-in.",
+        source = "Wait in Stormwind City, Goldshire, Lakeshire or Sentinel Hill when an Alliance player turns in Rend Blackhand's head to Mathias Shaw.",
         zones = { ["Stormwind City"] = true, ["Elwynn Forest"] = true, ["Redridge Mountains"] = true, ["Westfall"] = true },
     },
     {
         key = "faction-rend",
         horde = true,
+        alwaysShowMissing = true,
         label = "Warchief's Blessing",
         spells = { 16609 },
-        source = "Orgrimmar after a Head of Rend turn-in.",
-        zones = { ["Orgrimmar"] = true },
+        source = "Wait in Orgrimmar, Razor Hill or the Crossroads when a Horde player turns in Rend Blackhand's head to Thrall.",
+        zones = { ["Orgrimmar"] = true, ["Durotar"] = true, ["Northern Barrens"] = true, ["The Barrens"] = true },
     },
     {
         key = "dragonslayer",
@@ -122,8 +124,8 @@ local function Build()
                     state = "unknown",
                     icon = Texture(buff.spells[1]),
                 }
-            elseif ns.Get("showMissingWorldBuffs")
-                and (not ns.Get("worldBuffCurrentZoneOnly") or (buff.zones and buff.zones[zone])) then
+            elseif not aura and (buff.alwaysShowMissing or ns.Get("showMissingWorldBuffs"))
+                and (buff.alwaysShowMissing or not ns.Get("worldBuffCurrentZoneOnly") or (buff.zones and buff.zones[zone])) then
                 rows[#rows + 1] = {
                     key = "world-missing-" .. buff.key,
                     label = buff.label,

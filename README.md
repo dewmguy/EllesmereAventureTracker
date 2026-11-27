@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.8 establishes the addon structure and a playable first pass:
+Version 0.1.9 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
   mover, precise anchoring and width adjustment;
@@ -28,7 +28,8 @@ Version 0.1.8 establishes the addon structure and a playable first pass:
 - an explicit per-character activity role because Forever does not reliably
   expose a solo specialization role;
 - a separate World Buffs submenu and tracker section for active timers and
-  opt-in missing-buff acquisition sources;
+  acquisition hints, with the faction Rend buff retained while missing and
+  other missing buffs opt-in;
 - unspent Legacy point reminders and a current-zone provider boundary;
 - an unspent talent reminder that can replace Blizzard's callout to the hidden
   Player Spells microbutton;
