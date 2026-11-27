@@ -89,6 +89,16 @@ local DEFAULTS = {
     showProfessionTrainerRecipes = true,
     showCompletedProfessions = false,
     showProfessionZoneHints = true,
+
+    showInstances = true,
+    showInstanceRunTimer = true,
+    showInstanceBossTimer = true,
+    showInstanceQuests = true,
+    showInstanceLoot = true,
+    instanceQuestLimit = 8,
+    instanceLootLimit = 8,
+    instanceRunBestsByCharacter = {},
+    instanceBossBestsByCharacter = {},
 }
 ns.DEFAULTS = DEFAULTS
 
@@ -203,9 +213,14 @@ local function IsCombatRestricted()
 end
 ns.IsCombatRestricted = IsCombatRestricted
 
-function ns.RegisterProvider(id, order, build)
+function ns.RegisterProvider(id, order, build, options)
     if type(id) ~= "string" or type(build) ~= "function" then return false end
-    providers[#providers + 1] = { id = id, order = order or 100, build = build }
+    providers[#providers + 1] = {
+        id = id,
+        order = order or 100,
+        build = build,
+        combatSafe = type(options) == "table" and options.combatSafe == true,
+    }
     table.sort(providers, function(a, b)
         if a.order == b.order then return a.id < b.id end
         return a.order < b.order
@@ -213,42 +228,48 @@ function ns.RegisterProvider(id, order, build)
     return true
 end
 
-local lastStableSnapshot
-function ns.BuildSnapshot()
-    -- Forever uses Midnight's secret-value rules. Aura and equipment providers
-    -- can receive nil or unreadable values in combat even when the state is
-    -- still active. Keep the last trustworthy out-of-combat snapshot instead
-    -- of turning those temporary misses into red "missing" results.
-    if IsCombatRestricted() then
-        return lastStableSnapshot or { sections = {}, statuses = {}, actionable = false }
-    end
-
-    local snapshot = { sections = {}, statuses = {}, actionable = false }
-    for i = 1, #providers do
-        local provider = providers[i]
-        local ok, result = xpcall(provider.build, geterrorhandler())
-        if ok and type(result) == "table" then
-            local sections = result.id and { result } or result
-            for j = 1, #sections do
-                local section = sections[j]
-                if type(section) == "table" and section.id then
-                    snapshot.sections[#snapshot.sections + 1] = section
-                    if type(section.statuses) == "table" then
-                        for k = 1, #section.statuses do
-                            snapshot.statuses[#snapshot.statuses + 1] = section.statuses[k]
-                        end
-                    end
-                    if type(section.rows) == "table" then
-                        for k = 1, #section.rows do
-                            local state = section.rows[k].state
-                            if state == "missing" or state == "warning" then snapshot.actionable = true end
-                        end
-                    end
+local function AppendProviderResult(snapshot, result)
+    if type(result) ~= "table" then return end
+    local sections = result.id and { result } or result
+    for j = 1, #sections do
+        local section = sections[j]
+        if type(section) == "table" and section.id then
+            snapshot.sections[#snapshot.sections + 1] = section
+            if section.forceVisible then snapshot.forceVisible = true end
+            if type(section.statuses) == "table" then
+                for k = 1, #section.statuses do
+                    snapshot.statuses[#snapshot.statuses + 1] = section.statuses[k]
+                end
+            end
+            if type(section.rows) == "table" then
+                for k = 1, #section.rows do
+                    local state = section.rows[k].state
+                    if state == "missing" or state == "warning" then snapshot.actionable = true end
                 end
             end
         end
     end
-    lastStableSnapshot = snapshot
+end
+
+function ns.BuildSnapshot()
+    -- Forever uses Midnight's secret-value rules. Aura and equipment providers
+    -- can receive nil or unreadable values in combat even when the state is
+    -- still active. Keep each provider's last trustworthy out-of-combat result;
+    -- only providers that explicitly opt in may rebuild while combat restricted.
+    local combatRestricted = IsCombatRestricted()
+    local snapshot = { sections = {}, statuses = {}, actionable = false, forceVisible = false }
+    for i = 1, #providers do
+        local provider = providers[i]
+        local result = provider.lastResult
+        if not combatRestricted or provider.combatSafe then
+            local ok, built = xpcall(provider.build, geterrorhandler())
+            if ok and type(built) == "table" then
+                result = built
+                provider.lastResult = built
+            end
+        end
+        AppendProviderResult(snapshot, result)
+    end
     return snapshot
 end
 

@@ -91,6 +91,7 @@ local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBli
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals" }
 local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showCompletedProfessions", "showProfessionZoneHints" }
+local INSTANCE_KEYS = { "showInstances", "showInstanceRunTimer", "showInstanceBossTimer", "showInstanceQuests", "showInstanceLoot", "instanceQuestLimit", "instanceLootLimit" }
 
 local function BuildTracker(pageName, parent, yOffset)
     local W, y, h = EUI.Widgets, yOffset
@@ -133,7 +134,7 @@ local function BuildTracker(pageName, parent, yOffset)
 
     _, h = W:SectionHeader(parent, "VISIBILITY", y); y = y - h
     _, h = W:DualRow(parent, y,
-        Toggle("hideInCombat", "Hide in Combat", "Hides the tracker while you are in combat."),
+        Toggle("hideInCombat", "Hide in Combat", "Hides the tracker while you are in combat. An enabled boss timer temporarily overrides this so the encounter clock remains visible."),
         Toggle("hideInInstances", "Hide in Instances", "Hides the tracker inside dungeons, raids and PvP instances."))
     y = y - h
     _, h = W:DualRow(parent, y,
@@ -432,6 +433,44 @@ local function BuildProfessions(pageName, parent, yOffset)
     return math.abs(y)
 end
 
+local function BuildInstances(pageName, parent, yOffset)
+    local W, y, h = EUI.Widgets, yOffset
+    if EUI.ClearContentHeader then EUI:ClearContentHeader() end
+    parent._showRowDivider = true
+
+    _, h = W:SectionHeader(parent, "INSTANCE TRACKING", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("showInstances", "Enable Instance Sections", "Shows timers, known missing quests and spec-filtered upgrades while inside a dungeon or raid.", true),
+        Toggle("showInstanceRunTimer", "Instance Run Timer", "Starts on entry and records a per-character personal best when the final boss or dungeon-completion event is detected."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("showInstanceBossTimer", "Boss Encounter Timer", "Shows the current boss duration and the per-character personal best for this difficulty. It remains visible during the encounter even when Hide in Combat is enabled."),
+        Label("Personal bests are separated by character, instance and difficulty."))
+    y = y - h
+
+    _, h = W:SectionHeader(parent, "INSTANCE QUESTS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("showInstanceQuests", "Known Missing Quests", "Lists eligible, incomplete instance quests that are not already in the quest log. No coordinates, routes or objectives are shown."),
+        Slider("instanceQuestLimit", "Maximum Quest Suggestions", 1, 20, 1, "Limits visible quest suggestions so a large dungeon quest set does not overwhelm the tracker."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Label("NPC-started quests show the giver. Item-started quests show the item and the mobs that drop it."),
+        Label((_G.LibQuestieDB and "QuestieDB detected." or "QuestieDB is not installed or enabled."), "QuestieDB is an optional runtime provider; Adventure Tracker does not copy its database or expose its map data."))
+    y = y - h
+
+    _, h = W:SectionHeader(parent, "DUNGEON UPGRADES", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("showInstanceLoot", "Spec-Filtered Upgrade Drops", "Uses the Encounter Journal's current class and specialization filter, then keeps only equippable item-level upgrades."),
+        Slider("instanceLootLimit", "Maximum Upgrade Suggestions", 1, 20, 1, "Limits visible dungeon upgrade suggestions."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Label("Each suggestion names the dropping encounter and compares its item level with the relevant equipped slot."),
+        Label((type(EJ_GetNumLoot) == "function" and type(EJ_SetLootFilter) == "function")
+            and "Encounter Journal loot data detected." or "Encounter Journal loot data is unavailable on this client."))
+    y = y - h
+    return math.abs(y)
+end
+
 local registered = false
 local function Register()
     if registered then return true end
@@ -460,6 +499,12 @@ local function Register()
                 description = "Active world buffs and where missing ones come from.",
                 pages = { "Tracking", "Sources" }, buildPage = BuildWorldBuffs,
                 onReset = function() ns.ResetKeys(WORLD_BUFF_KEYS) end,
+            },
+            {
+                key = "instances", title = "Instances",
+                description = "Dungeon timers, missing quests and spec-filtered upgrades.",
+                pages = { "Tracking" }, buildPage = BuildInstances,
+                onReset = function() ns.ResetKeys(INSTANCE_KEYS) end,
             },
             {
                 key = "legacy", title = "Legacy",

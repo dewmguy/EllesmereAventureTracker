@@ -787,7 +787,8 @@ header:SetScript("OnLeave", function() C_Timer.After(0, UpdateLockFade) end)
 
 local function BaseVisibilityAllows()
     if not ns.Get("enabled") then return false end
-    if ns.Get("hideInCombat") and InCombatLockdown and InCombatLockdown() then return false end
+    if ns.Get("hideInCombat") and InCombatLockdown and InCombatLockdown()
+        and not (ns.IsInstanceBossTimerActive and ns.IsInstanceBossTimerActive()) then return false end
     if ns.Get("hideInInstances") then
         local inInstance = IsInInstance and IsInInstance()
         if inInstance then return false end
@@ -801,7 +802,7 @@ local function Render()
     SetAttention(collapseButton, nil)
     if not BaseVisibilityAllows() then frame:Hide(); return end
     local snapshot = ns.BuildSnapshot()
-    if ns.Get("hideWhenReady") and not snapshot.actionable then frame:Hide(); return end
+    if ns.Get("hideWhenReady") and not snapshot.actionable and not snapshot.forceVisible then frame:Hide(); return end
     frame:Show()
 
     local width = math.max(280, math.min(480, tonumber(ns.Get("width")) or 340))

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0 - 2026-11-26
+
+- Added an instance run timer with per-character, per-difficulty personal bests
+  recorded only when a final-boss or dungeon-completion signal is detected.
+- Added boss encounter timers and per-boss personal bests. Active boss timers
+  remain visible even when the general Hide in Combat option is enabled.
+- Added an Instances settings group with independent timer, quest and loot
+  controls plus compact display limits.
+- Added an optional QuestieDB runtime integration for known instance quests
+  that are eligible, incomplete and absent from the quest log. It shows only
+  the quest giver or starting item and its dropping mobs—never routes, pins,
+  coordinates or objectives.
+- Added live Encounter Journal suggestions for class/spec-filtered equippable
+  drops that improve item level over the relevant equipped slot.
+- Preserved the combat-safe aura snapshot while allowing the explicitly marked
+  instance timer provider to update during encounters.
+
 ## 0.1.22 - 2026-11-26
 
 - Made class-buff readiness icons use the exact spell currently active on the

@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.22 establishes the addon structure and a playable first pass:
+Version 0.2.0 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -59,6 +59,18 @@ Version 0.1.22 establishes the addon structure and a playable first pass:
   active choice per character and role, and fall back to a suitable known spell;
 - real spell tooltips and secure out-of-combat self-casting when a class-buff
   readiness icon is clicked;
+- an instance run timer that begins on entry and records per-character,
+  per-difficulty personal bests when the final boss or dungeon-completion event
+  is detected;
+- live boss encounter timers with their own per-character personal bests, kept
+  visible during boss combat even when the general Hide in Combat option is on;
+- compact, collapsible instance-quest suggestions from an optional QuestieDB
+  runtime provider, limited to eligible quests that are incomplete and absent
+  from the quest log, with only a quest giver or starting item and its dropping
+  mobs shown;
+- Encounter Journal upgrade suggestions filtered for the current class and
+  specialization and then limited to drops whose item level beats the relevant
+  equipped slot;
 - profession Legacy checkpoints kept in the Legacy section;
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;
@@ -74,7 +86,7 @@ Version 0.1.22 establishes the addon structure and a playable first pass:
 - a researched zone-gathering design for ranked herbs and ore, observed
   skinning materials, available fish and recommended effective Fishing skill;
 - an `Adventure Tracker` sidebar section in EllesmereUI with Tracker,
-  Readiness, Legacy and Professions submenu groups.
+  Readiness, World Buffs, Instances, Legacy and Professions submenu groups.
 
 Current-zone Legacy objectives and exact profession node/mob recommendations are
 hidden until their providers can return verified actions. The researched source,
@@ -117,6 +129,8 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `WorldBuffs.lua` — world-buff presence, timers and acquisition sources
 - `Legacy.lua` — Legacy points and current-zone provider
 - `Professions.lua` — rank goals, learned-recipe plans, gear and local resources
+- `Instances.lua` — run and boss timers, QuestieDB quest suggestions and
+  Encounter Journal upgrade drops
 - `Data/GatheringCatalog.lua` — generated per-zone node types and known-position counts
 - `Data/CookingFoods.lua` — Cooking recipe/output discovery seeds
 - `Tracker.lua` — floating tracker window

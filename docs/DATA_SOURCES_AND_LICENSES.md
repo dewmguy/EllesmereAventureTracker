@@ -73,11 +73,17 @@ seeds; their retained notices are in the root `THIRD_PARTY_NOTICES.md`.
   NPC, item, vendor and drop relationships.
 - Boundary: do not copy its database into this repository. Do not expose its
   coordinates, routes or map pins through Adventure Tracker.
+- Implemented in 0.2.0 for instance quests. The adapter reads only quest
+  eligibility, chain prerequisites, quest names, NPC names, starting items and
+  item-to-mob drop relationships. QuestieDB remains an optional dependency.
 
 ### Blizzard client data
 
 - Source: the installed WoW Forever client and documented in-game APIs.
 - Intended use: live character state and build-stamped recipe/item facts.
+- Version 0.2.0 also uses Encounter Journal class/spec loot filters, encounter
+  names and item IDs at runtime, then compares live item levels with equipped
+  slots. No Encounter Journal database is copied into the addon.
 - Boundary: Blizzard game data is not relicensed as Adventure Tracker content.
   Generated files identify the client build and retain the appropriate Blizzard
   ownership notice.
