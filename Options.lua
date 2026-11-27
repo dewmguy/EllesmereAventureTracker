@@ -91,6 +91,67 @@ local function CustomColorDisabled(modeKey, additionalDisabled)
     end
 end
 
+local function TextColorSwatches(modeKey, colorKey, text)
+    local function SetMode(mode)
+        AppearanceSet(modeKey, mode, true)
+    end
+    local function ClassColor()
+        if EUI.GetPlayerClassColor then
+            local ok, r, g, b = pcall(EUI.GetPlayerClassColor)
+            if ok and r and g and b then return r, g, b, 1 end
+        end
+        return 1, 1, 1, 1
+    end
+    local function AccentColor()
+        if EUI.GetAccentColor then
+            local ok, r, g, b = pcall(EUI.GetAccentColor)
+            if ok and r and g and b then return r, g, b, 1 end
+        end
+        return 1, 1, 1, 1
+    end
+    local function CustomColor()
+        local color = ns.Get(colorKey)
+        local fallback = ns.DEFAULTS[colorKey] or {}
+        if type(color) ~= "table" then color = fallback end
+        return color.r or fallback.r or 1, color.g or fallback.g or 1,
+            color.b or fallback.b or 1, color.a == nil and (fallback.a or 1) or color.a
+    end
+
+    return {
+        type = "multiSwatch", text = text,
+        swatches = {
+            {
+                tooltip = "Class Color", hasAlpha = false,
+                getValue = ClassColor, setValue = function() end,
+                onClick = function() SetMode("class") end,
+                refreshAlpha = function() return ns.Get(modeKey) == "class" and 1 or 0.3 end,
+            },
+            {
+                tooltip = "Accent Color", hasAlpha = false,
+                getValue = AccentColor, setValue = function() end,
+                onClick = function() SetMode("accent") end,
+                refreshAlpha = function() return ns.Get(modeKey) == "accent" and 1 or 0.3 end,
+            },
+            {
+                tooltip = "Custom Color", hasAlpha = true,
+                getValue = CustomColor,
+                setValue = function(r, g, b, a)
+                    ns.Set(modeKey, "custom", true)
+                    AppearanceSet(colorKey, { r = r, g = g, b = b, a = a or 1 })
+                end,
+                onClick = function(self)
+                    if ns.Get(modeKey) ~= "custom" then
+                        SetMode("custom")
+                        return
+                    end
+                    if self._eabOrigClick then self._eabOrigClick(self) end
+                end,
+                refreshAlpha = function() return ns.Get(modeKey) == "custom" and 1 or 0.3 end,
+            },
+        },
+    }
+end
+
 local TRACKER_KEYS = {
     "enabled", "locked", "width", "scale", "frameStrata", "maximizePaneHeight", "paneGrowthDirection", "paneHeightLimitMode", "paneHeightLimitPercent", "paneHeightLimitPixels", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
     "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor", "entryBackgroundColor", "entryHoverBackgroundColor",
@@ -257,48 +318,23 @@ local function BuildTracker(pageName, parent, yOffset)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("contextFontSize", "Context Font Size", 8, 24, 1, "Size of the zone, class, specialization and role line."),
-        TextColorMode("contextTextColorMode", "Context Text Color", "Use the player class, EllesmereUI accent, or a custom context/status color."))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorPicker("contextTextColor", "Custom Context Color", "Custom color and alpha of the context and status line.", true,
-            CustomColorDisabled("contextTextColorMode")),
-        nil)
+        TextColorSwatches("contextTextColorMode", "contextTextColor", "Context Text Color"))
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("sectionFontSize", "Section Font Size", 8, 24, 1, "Size of collapsible section titles."),
-        TextColorMode("sectionTextColorMode", "Section Text Color", "Use the player class, EllesmereUI accent, or a custom section-title color."))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorPicker("sectionTextColor", "Custom Section Color", "Custom color and alpha of section titles.", true,
-            CustomColorDisabled("sectionTextColorMode")),
-        nil)
+        TextColorSwatches("sectionTextColorMode", "sectionTextColor", "Section Text Color"))
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("entryLabelFontSize", "Entry Label Font Size", 8, 24, 1, "Size of recommendation entry labels."),
-        TextColorMode("entryLabelTextColorMode", "Entry Label Color", "Use the player class, EllesmereUI accent, or a custom recommendation-label color."))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorPicker("entryLabelTextColor", "Custom Entry Label Color", "Custom color and alpha of recommendation labels.", true,
-            CustomColorDisabled("entryLabelTextColorMode")),
-        nil)
+        TextColorSwatches("entryLabelTextColorMode", "entryLabelTextColor", "Entry Label Color"))
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("entryDetailFontSize", "Entry Detail Font Size", 8, 24, 1, "Size of recommendation detail text."),
-        TextColorMode("entryDetailTextColorMode", "Entry Detail Color", "Use the player class, EllesmereUI accent, or a custom recommendation-detail color."))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorPicker("entryDetailTextColor", "Custom Entry Detail Color", "Custom color and alpha of recommendation details.", true,
-            CustomColorDisabled("entryDetailTextColorMode")),
-        nil)
+        TextColorSwatches("entryDetailTextColorMode", "entryDetailTextColor", "Entry Detail Color"))
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("badgeFontSize", "Icon Badge Font Size", 8, 24, 1, "Size of small text badges on readiness icons."),
-        TextColorMode("badgeTextColorMode", "Icon Badge Text Color", "Use the player class, EllesmereUI accent, or a custom readiness-badge color."))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        ColorPicker("badgeTextColor", "Custom Icon Badge Color", "Custom color and alpha of readiness icon badge text.", true,
-            CustomColorDisabled("badgeTextColorMode")),
-        nil)
+        TextColorSwatches("badgeTextColorMode", "badgeTextColor", "Icon Badge Text Color"))
     y = y - h
     return math.abs(y)
 end

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.15 - 2026-11-26
+
+- Replaced the five Tracker Text color-mode dropdowns and separate custom-color
+  rows with compact, adjacent Class, Accent and Custom color swatches.
+- Kept class and accent colors live from EllesmereUI while preserving the
+  existing custom colors and alpha picker.
+
 ## 0.3.14 - 2026-11-26
 
 - Renamed the tracker section heading from `Legacy` to `Legacy Progress` so its

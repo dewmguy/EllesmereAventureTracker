@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.14 establishes the addon structure and a playable first pass:
+Version 0.3.15 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -30,9 +30,9 @@ Version 0.3.14 establishes the addon structure and a playable first pass:
   recommendation sections; an optional custom limit can cap total pane height
   by viewport percentage or absolute UI pixels without crossing that safe span;
 - one combined Tracker settings page with customizable pane padding, independent
-  pane/section/entry backgrounds, font face, outline and text sizes, plus Class,
-  Accent and Custom color modes for every tracker text category and a main-pane
-  strata picker for controlling its position relative to other UI windows;
+  pane/section/entry backgrounds, font face, outline and text sizes, plus compact
+  Class, Accent and Custom color swatches for every tracker text category and a
+  main-pane strata picker for controlling its position relative to other UI windows;
 - a Quest Tracker-style minimize glyph and a Damage Meter-style lock control;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
   states;
