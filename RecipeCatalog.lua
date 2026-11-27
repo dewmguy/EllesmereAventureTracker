@@ -160,6 +160,25 @@ local function Names(entity, ids, limit)
     return text, total
 end
 
+local function FactionEligibleVendors(npcDB, ids)
+    if type(ids) ~= "table" then return nil end
+    local playerFaction = UnitFactionGroup and UnitFactionGroup("player")
+    local factionCode = playerFaction == "Alliance" and "A"
+        or playerFaction == "Horde" and "H" or nil
+    if not factionCode then return ids end
+
+    local eligible = {}
+    for _, id in pairs(ids) do
+        id = tonumber(id)
+        local friendlyTo = id and ns.QuestData.Value(npcDB, "friendlyToFaction", id) or nil
+        if friendlyTo == factionCode or friendlyTo == "AH" then
+            eligible[#eligible + 1] = id
+        end
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+    return #eligible > 0 and eligible or nil
+end
+
 local function SpawnsHere(entity, id, areaID)
     if not areaID then return false end
     local spawns = ns.QuestData.Value(entity, "spawns", tonumber(id))
@@ -262,12 +281,12 @@ local function BestSourceForItem(itemID, areaID, ignoreInventory)
         end
     end
 
-    local vendors = ns.QuestData.Value(itemDB, "vendors", itemID)
+    local vendors = FactionEligibleVendors(npcDB, ns.QuestData.Value(itemDB, "vendors", itemID))
     local vendorNames, vendorCount = Names(npcDB, vendors, 3)
     if vendorCount > 0 then
         local localSource = AnySpawnHere(npcDB, vendors, areaID)
         Consider(120, localSource, "Sold by " .. vendorNames,
-            "Known vendor source. Stock and price can vary; Adventure Tracker does not show vendor coordinates.",
+            "Known vendor source available to your faction. Stock and price can vary; Adventure Tracker does not show vendor coordinates.",
             "vendor", SpawnZoneName(npcDB, vendors, areaID), vendorNames)
     end
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.3 - 2026-11-27
+
+- Filtered purchased recipe sources by the current character's faction before
+  scoring attainability, locality or display names. Shared recipes now show the
+  matching Alliance or Horde vendor instead of combining both faction-specific
+  vendors, while neutral vendors remain eligible to either faction.
+
 ## 0.9.2 - 2026-11-27
 
 - Fixed the profession area remaining completely absent while its detailed

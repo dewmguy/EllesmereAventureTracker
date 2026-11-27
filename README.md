@@ -167,7 +167,8 @@ Version 0.9.2 includes:
   Auctionator, without making either addon mandatory;
 - an attributed, build-stamped catalogue of 2,090 Forever recipes with
   QuestieDB vendor, reasonable-level mob-drop, object-loot and currently
-  eligible quest-reward overlays;
+  eligible quest-reward overlays; vendor sources are filtered to the current
+  character's faction while neutral vendors remain available to both;
 - a best attainable unlearned recipe recommendation plus an expandable
   per-character worldwide list, with source details but no coordinates;
 - cross-profession reagent goals when one opened profession can craft a
