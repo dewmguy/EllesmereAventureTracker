@@ -316,4 +316,3 @@
   boundary.
 - Added profession Legacy checkpoints, skill-cap reminders and gathering
   context.
-

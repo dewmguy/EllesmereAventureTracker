@@ -164,4 +164,3 @@ Third-party data sources and retained notices are recorded in
 
 Protected actions, combat-sensitive reads and their supported implementation
 patterns are recorded in [`docs/API_RESTRICTIONS.md`](docs/API_RESTRICTIONS.md).
-

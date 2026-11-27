@@ -438,4 +438,3 @@ suppressor:SetScript("OnEvent", function()
         ns.ApplyTalentAlertSuppression()
     end)
 end)
-

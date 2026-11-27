@@ -370,4 +370,3 @@ if C_Timer and C_Timer.NewTicker then
         if ns.RefreshTrackerContextText then ns.RefreshTrackerContextText() end
     end)
 end
-

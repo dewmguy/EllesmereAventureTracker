@@ -1369,4 +1369,3 @@ if EUI.RegisterSkin then
         ApplyWindowStyle()
     end)
 end
-

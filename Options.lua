@@ -736,4 +736,3 @@ if not Register() then
         if addonName == "EllesmereUI" and Register() then self:UnregisterAllEvents() end
     end)
 end
-

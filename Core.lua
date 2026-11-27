@@ -347,4 +347,3 @@ SlashCmdList.EUIADVENTURETRACKER = function(message)
         ns.Set("enabled", not ns.Get("enabled"))
     end
 end
-
