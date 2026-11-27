@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.18 - 2026-11-26
+
+- Made the unlocked tracker draggable from its background, context and scroll
+  areas, section headers, readiness icons and recommendation rows.
+- Kept the lock and overall collapse controls dedicated to their own actions.
+- Suppressed a row, icon or section's click action when that same gesture moved
+  the tracker, preventing accidental activation after repositioning.
+
 ## 0.1.17 - 2026-11-26
 
 - Removed the empty vertical row that remained above the context line when the

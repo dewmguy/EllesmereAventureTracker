@@ -8,10 +8,11 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.17 establishes the addon structure and a playable first pass:
+Version 0.1.18 establishes the addon structure and a playable first pass:
 
-- a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
-  mover, precise anchoring and width adjustment;
+- a draggable, lockable and collapsible window that can be repositioned from
+  its background, content, section headers, status icons or recommendation rows,
+  plus an EllesmereUI Unlock Mode mover for precise anchoring and width;
 - a context line showing zone, specialization, class and selected activity role;
 - custom, player-class or EllesmereUI-accent coloring for the title and collapse
   glyph, which aligns with the zone/class context line when the title bar is

@@ -38,7 +38,6 @@ header:SetHeight(28)
 header:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
 header:SetBackdropColor(0.04, 0.055, 0.065, 0.98)
 header:EnableMouse(true)
-header:RegisterForDrag("LeftButton")
 
 local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 title:SetPoint("LEFT", 9, 0)
@@ -92,6 +91,7 @@ contextText:SetTextColor(0.67, 0.72, 0.75)
 local iconPool, sectionPool, rowPool = {}, {}, {}
 local skin
 local UpdateLockFade
+local RegisterDragSurface
 
 local function StateColor(state)
     local color = COLORS[state] or COLORS.info
@@ -173,7 +173,11 @@ local function AcquireIcon(index)
         GameTooltip_Hide()
         if UpdateLockFade then C_Timer.After(0, UpdateLockFade) end
     end)
-    button:SetScript("OnClick", function(self) if self.data and self.data.onClick then self.data.onClick() end end)
+    button:SetScript("OnClick", function(self)
+        if self._trackerDragged then return end
+        if self.data and self.data.onClick then self.data.onClick() end
+    end)
+    if RegisterDragSurface then RegisterDragSurface(button) end
     iconPool[index] = button
     if skin then skin.SquareIcon(button.icon) end
     return button
@@ -206,8 +210,10 @@ local function AcquireSection(index)
         GameTooltip_Hide()
     end)
     button:SetScript("OnClick", function(self)
+        if self._trackerDragged then return end
         if self.sectionID and self.ToggleSection then self.ToggleSection(self.sectionID) end
     end)
+    if RegisterDragSurface then RegisterDragSurface(button) end
     sectionPool[index] = button
     if skin then skin.Font(button.text) end
     return button
@@ -247,7 +253,11 @@ local function AcquireRow(index)
         GameTooltip_Hide()
         if UpdateLockFade then C_Timer.After(0, UpdateLockFade) end
     end)
-    row:SetScript("OnClick", function(self) if self.data and self.data.onClick then self.data.onClick() end end)
+    row:SetScript("OnClick", function(self)
+        if self._trackerDragged then return end
+        if self.data and self.data.onClick then self.data.onClick() end
+    end)
+    if RegisterDragSurface then RegisterDragSurface(row) end
     rowPool[index] = row
     if skin then
         skin.Font(row.label)
@@ -518,13 +528,31 @@ local function SavePosition()
     ns.Set("position", { point = point, relativePoint = relativePoint, x = x, y = y }, true)
 end
 
-header:SetScript("OnDragStart", function()
-    if not ns.Get("locked") and not HasUnlockAnchor() then frame:StartMoving() end
-end)
-header:SetScript("OnDragStop", function()
+local function BeginTrackerDrag(surface)
+    if ns.Get("locked") or HasUnlockAnchor() then return end
+    surface._trackerDragged = true
+    GameTooltip_Hide()
+    frame:StartMoving()
+end
+
+local function EndTrackerDrag(surface)
+    if not surface._trackerDragged then return end
     frame:StopMovingOrSizing()
     SavePosition()
-end)
+    C_Timer.After(0, function() surface._trackerDragged = nil end)
+end
+
+RegisterDragSurface = function(surface)
+    surface:EnableMouse(true)
+    surface:RegisterForDrag("LeftButton")
+    surface:SetScript("OnDragStart", BeginTrackerDrag)
+    surface:SetScript("OnDragStop", EndTrackerDrag)
+end
+
+RegisterDragSurface(frame)
+RegisterDragSurface(header)
+RegisterDragSurface(scrollFrame)
+RegisterDragSurface(content)
 
 collapseButton:SetScript("OnClick", function()
     ns.Set("collapsed", not ns.Get("collapsed"))
