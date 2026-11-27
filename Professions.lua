@@ -759,6 +759,39 @@ local function ZoneOreKeys(mapID)
     return keys
 end
 
+function ns.GetMiningMaterialPlan(itemID, mapID, need)
+    local source = MINING_MATERIALS[tonumber(itemID)]
+    if not source then return nil end
+    local zoneKeys = ZoneOreKeys(mapID)
+    local available, names = 0, {}
+    for index = 1, #source.nodes do
+        local key = source.nodes[index]
+        if zoneKeys[key] then
+            available = available + 1
+            names[#names + 1] = NODE_NAMES[key] or source.names[index]
+        end
+    end
+    local localSource = source.requiresAll and available == #source.nodes or not source.requiresAll and available > 0
+    if not localSource then names = source.names end
+    local material = ItemName(itemID)
+    local nodes = HumanList(names)
+    local label
+    if source.action == "mine" then
+        label = string.format("Mine %dx %s from %s", need, material, nodes)
+    elseif source.action == "smelt" then
+        label = string.format("Farm %s for %dx %s", nodes, need, material)
+    else
+        label = string.format("Farm %s for %dx %s", nodes, need, material)
+    end
+    return {
+        label = label,
+        detail = source.action == "smelt" and (label .. ", then smelt it.") or label,
+        kind = "profession",
+        localSource = localSource,
+        names = nodes,
+    }
+end
+
 local function MaterialFacts(recipe, hasMining, mapID)
     local total, missing = 0, 0
     local materialLines, missingNames, otherNeeds = {}, {}, {}
@@ -1025,6 +1058,9 @@ local function BestGearRecipe(profession, professions, mapID)
 end
 
 local function AddRecipePlan(rows, profession, professions, mapID)
+    if ns.AddProfessionRouteRow then
+        return ns.AddProfessionRouteRow(rows, profession, professions, mapID, ns.GetZoneName and ns.GetZoneName())
+    end
     local recipe, facts = BestSkillUpRecipe(profession, professions, mapID)
     if recipe then
         rows[#rows + 1] = {
@@ -1066,47 +1102,52 @@ local function AddGearPlan(rows, profession, professions, mapID)
     return true
 end
 
-local function AddScanPrompt(rows, profession, stale)
-    rows[#rows + 1] = {
-        key = "scan-profession-" .. tostring(profession.skillLineID),
-        label = (stale and "Refresh " or "Open ") .. profession.name .. " recipes",
-        detail = stale
-            and "Open the profession once to update skill-up difficulty and material advice."
-            or "Open the profession once so Adventure Tracker can evaluate learned recipes.",
-        state = "info",
-        icon = profession.icon,
-        onClick = function() OpenProfession(profession.name) end,
-    }
+local function PermanentTrainerServices(profession)
+    local services = {}
+    local playerLevel = UnitLevel and UnitLevel("player") or 0
+    for _, fact in ipairs(ns.GetPermanentProfessionTraining
+        and ns.GetPermanentProfessionTraining(profession.skillLineID) or {}) do
+        local trainer = fact.source and fact.source:find("trainer", 1, true)
+        local known = ns.IsProfessionRecipeKnown and ns.IsProfessionRecipeKnown(fact.spellID, profession)
+        if trainer and not fact.rank and fact.productID > 0 and fact.learnAt <= profession.rank
+            and (fact.level <= 0 or fact.level <= playerLevel) and not known then
+            local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(fact.spellID)
+                or ItemName(fact.productID)
+            local icon = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(fact.productID)
+            services[#services + 1] = {
+                spellID = fact.spellID,
+                name = name,
+                icon = icon or profession.icon,
+                cost = fact.cost,
+                requiredSkill = fact.learnAt,
+                tooltipText = string.format("Available from a %s trainer at %d skill. Permanent catalog cost: %s.",
+                    profession.name, fact.learnAt, FormatMoney(fact.cost)),
+            }
+        end
+    end
+    table.sort(services, function(a, b)
+        if a.requiredSkill ~= b.requiredSkill then return a.requiredSkill < b.requiredSkill end
+        return a.name < b.name
+    end)
+    return services
 end
 
 local function AddTrainerRecipeRows(rows, profession)
     if not ns.Get("showProfessionTrainerRecipes") then return end
-    local cache = ProfessionTrainerCache(profession.skillLineID)
-    if not cache then
-        rows[#rows + 1] = {
-            key = "trainer-recipes-scan-" .. tostring(profession.skillLineID),
-            label = "Trainer recipes not scanned",
-            detail = string.format("Visit a %s trainer once to load available recipes and prices.", profession.name),
-            state = "info",
-            icon = profession.icon,
-        }
-        return
-    end
-
-    local services = type(cache.services) == "table" and cache.services or {}
-    local stale = (tonumber(cache.rank) or 0) ~= profession.rank
+    local services = PermanentTrainerServices(profession)
     if #services == 0 then return end
+
+    local total = 0
+    for index = 1, #services do total = total + (tonumber(services[index].cost) or 0) end
 
     local expanded = ProfessionTrainerExpanded(profession.skillLineID)
     rows[#rows + 1] = {
         key = "trainer-recipes-total-" .. tostring(profession.skillLineID),
         label = string.format("%s %d trainer recipe%s available",
             expanded and "−" or "+", #services, #services == 1 and "" or "s"),
-        detail = string.format("Total training cost: %s%s", FormatMoney(cache.total),
-            stale and " • rescan after gaining skill" or ""),
-        tooltip = string.format("Last scanned from %s at %d %s. Learn every listed recipe for %s. %s%s",
-            cache.trainerName or "a profession trainer", tonumber(cache.rank) or 0, profession.name,
-            FormatMoney(cache.total), stale and "Visit a trainer to include newly available recipes. " or "",
+        detail = string.format("Total training cost: %s", FormatMoney(total)),
+        tooltip = string.format("Permanent WoW Forever trainer catalog at %d %s skill. Learn every listed recipe for %s. %s",
+            profession.rank, profession.name, FormatMoney(total),
             expanded and "Collapse the individual recipe list." or "Expand the individual recipe list."),
         clickHint = expanded and "Click to collapse trainer recipes." or "Click to expand trainer recipes.",
         onClick = function() ToggleProfessionTrainer(profession.skillLineID) end,
@@ -1123,9 +1164,8 @@ local function AddTrainerRecipeRows(rows, profession)
             key = string.format("trainer-recipe-%s-%d", tostring(profession.skillLineID), index),
             label = label,
             detail = "Cost: " .. FormatMoney(service.cost),
-            tooltip = service.tooltipText or string.format("Unlearned recipe available from %s.",
-                cache.trainerName or "your profession trainer"),
-            tooltipFunc = function(owner) return ShowLiveTrainerTooltip(owner, service) end,
+            tooltip = service.tooltipText,
+            spellID = service.spellID,
             state = "warning",
             icon = service.icon or profession.icon,
             indentLevel = 1,
@@ -1137,17 +1177,10 @@ local function BuildProfessionRows(profession, professions, mapID, zoneName)
     local rows = {}
     if CRAFTING_PROFESSIONS[profession.skillLineID] then
         AddRankPlan(rows, profession, mapID)
-        local cache = RecipeCache(profession.skillLineID, profession.name)
-        local addedRecipe = false
         if ns.Get("showProfessionSynergy") then
-            addedRecipe = AddRecipePlan(rows, profession, professions, mapID)
+            AddRecipePlan(rows, profession, professions, mapID)
         end
         if ns.Get("showProfessionGear") then AddGearPlan(rows, profession, professions, mapID) end
-        if (ns.Get("showProfessionSynergy") or ns.Get("showProfessionGear")) and not cache then
-            AddScanPrompt(rows, profession, false)
-        elseif ns.Get("showProfessionSynergy") and cache and cache.rank ~= profession.rank and not addedRecipe then
-            AddScanPrompt(rows, profession, true)
-        end
     elseif GATHERING_KINDS[profession.skillLineID] then
         AddRankPlan(rows, profession, mapID)
     end

@@ -598,7 +598,7 @@ local function BuildProfessions(pageName, parent, yOffset)
             Toggle("showProfessionProgress", "Rank Guidance", "Shows when the next profession rank becomes trainable and how many skill-ups remain."))
         y = y - h
         _, h = W:DualRow(parent, y,
-            Toggle("showProfessionSynergy", "Skill-up and Gathering Plan", "Recommends a learned skill-up recipe and uses a paired gathering profession when its materials can be gathered."),
+            Toggle("showProfessionSynergy", "Skill-up and Gathering Plan", "Builds a permanent skill route from profession level, learned recipes, bags, prices and local material sources."),
             Toggle("showProfessionGear", "Useful Crafted Gear", "Recommends a usable learned craft, preferring an upgrade over currently equipped gear."))
         y = y - h
         _, h = W:DualRow(parent, y,
@@ -609,8 +609,8 @@ local function BuildProfessions(pageName, parent, yOffset)
         _, h = W:SectionHeader(parent, "TRAINER RECIPES", y); y = y - h
         _, h = W:DualRow(parent, y,
             Toggle("showProfessionTrainerRecipes", "Available Unlearned Recipes",
-                "Shows a collapsible list and total cost for recipes currently learnable from the last trainer visited for each profession."),
-            Label("Visit each profession trainer once to scan its current offerings and prices."))
+                "Shows a collapsible permanent list and total cost for recipes currently learnable from each profession trainer."),
+            Label("Trainer visits are player objectives only; Adventure Tracker already carries the recipe requirements and base prices."))
         y = y - h
         _, h = W:DualRow(parent, y,
             Toggle("showProfessionAttainableRecipes", "Looted and Purchased Recipes",
@@ -628,9 +628,9 @@ local function BuildProfessions(pageName, parent, yOffset)
               end })
         y = y - h
 
-        _, h = W:SectionHeader(parent, "LIVE RECIPE DATA", y); y = y - h
+        _, h = W:SectionHeader(parent, "ROUTE DATA", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Label("Open a profession once to let Adventure Tracker evaluate its learned recipes, reagents and outputs."),
+            Label("Permanent Forever recipe facts drive skill targets, expected crafts, trainer steps and material requirements."),
             Label("Legacy skill checkpoints now appear in the Legacy section; gathering skills remain visible here."))
         y = y - h
         local priceProvider = ns.GetPriceProviderName and ns.GetPriceProviderName()
@@ -650,7 +650,7 @@ local function BuildProfessions(pageName, parent, yOffset)
         _, h = W:SectionHeader(parent, "DATA SOURCES", y); y = y - h
         _, h = W:DualRow(parent, y,
             Label("Herb, ore and fishing summaries use the attributed, coordinate-free Forever Nodes catalogue."),
-            Label("Skill-up and crafted-gear plans use the character's learned recipes, bags and equipped items."))
+            Label("Skill-up plans use permanent trainer and recipe data plus live learned state, bags, prices and equipped items."))
         y = y - h
     end
     return math.abs(y)

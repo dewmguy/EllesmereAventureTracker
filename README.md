@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.7.0 establishes the addon structure and a playable first pass:
+Version 0.8.0 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -105,10 +105,15 @@ Version 0.7.0 establishes the addon structure and a playable first pass:
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;
 - collapsible per-profession lists of currently available unlearned trainer
-  recipes, their individual prices and the total cost to learn them all;
-- learned-recipe scanning that recommends a dependable next skill-up, turns
-  Mining materials into a concrete ore/bar plan, and favors materials available
-  in the current zone;
+  recipes, their individual prices and the total cost to learn them all from a
+  permanent Forever catalog, without requiring a trainer scan;
+- an inventory-aware profession route that prefers orange/guaranteed crafts,
+  estimates crafts to the next useful skill target, recommends the next trainer
+  recipe when needed and turns missing materials into a concrete local mob,
+  object, vendor or paired-Mining action;
+- a narrow useful-bulk exception for reusable components such as grinding
+  stones when the character already carries enough material for a worthwhile
+  batch, instead of blindly discarding every yellow or green option;
 - optional missing-material cost scoring that automatically prefers
   TradeSkillMaster when its price API is available and falls back to
   Auctionator, without making either addon mandatory;
@@ -189,7 +194,11 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `Data/CookingFoods.lua` — Cooking recipe/output discovery seeds
 - `Data/ClassTraining/` — attributed static Forever class-trainer catalog
 - `Data/RecipeCatalog.lua` — attributed build-stamped recipe and reagent facts
+- `Data/ProfessionTraining.lua` — attributed permanent learn-at, source and
+  trainer-price facts for every Forever profession
 - `RecipeCatalog.lua` — learned-state, source, synergy and upgrade evaluation
+- `ProfessionRoutes.lua` — level-, inventory-, price- and zone-aware profession
+  progression routes
 - `Tracker.lua` — floating tracker window
 - `Options.lua` — supported EllesmereUI plugin settings integration
 - `docs/API_RESTRICTIONS.md` — protected-action and combat-data rules

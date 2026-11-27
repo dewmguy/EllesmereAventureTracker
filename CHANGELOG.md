@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.8.0 - 2026-11-27
+
+- Replaced the generic highest-scoring learned-recipe suggestion with a
+  permanent profession route that strongly prefers orange/guaranteed crafts,
+  calculates an expected craft count and names the skill target to stop at.
+- Added a narrow useful-bulk exception for reusable components when the bags
+  already support a worthwhile batch, so grinding stones and similar inputs
+  are not discarded merely because they have turned yellow or green.
+- Added 2,193 attributed Forever profession learn-at, trainer-price, level and
+  acquisition facts from the pinned MIT-licensed What's Training? snapshot.
+- Replaced profession-trainer scan/setup prompts with a permanent collapsible
+  list of currently available unlearned trainer recipes and their total cost.
+- Added inventory-aware material goals backed by QuestieDB mob, object, vendor
+  and zone relations, plus Mining-aware ore, stone and smelting actions.
+- Kept optional TradeSkillMaster pricing with Auctionator fallback as a route
+  tie-breaker, without making either addon or an opened profession pane a
+  requirement.
+
 ## 0.6.0 - 2026-11-27
 
 - Added a OneCast-derived, attributed fishing-threshold table with documented

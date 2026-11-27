@@ -100,12 +100,14 @@ root `THIRD_PARTY_NOTICES.md`.
 - Intended use: a static class-trainer spell, level, prerequisite and base-cost
   catalogue so Adventure Tracker never asks the player to visit a trainer just
   to populate addon data.
-- Included beginning in 0.7.0 as `Data/ClassTraining/`, pinned to revision
+- Included beginning in 0.7.0 as `Data/ClassTraining/`, and beginning in 0.8.0
+  as the compact `Data/ProfessionTraining.lua`, pinned to revision
   `59763c2105428ccf99926919824c23d850bfbaa4`.
-- Boundary: Adventure Tracker imports only the nine Forever class tables. It
-  does not copy What's Training's interface, navigation, weapon-master data,
-  profession catalogue, saved variables or ignored-spell system. Live trainer
-  reads remain a quiet price/description refinement.
+- Boundary: Adventure Tracker imports the nine Forever class tables plus
+  profession spell IDs, learn-at skill, output item, acquisition kind, base
+  trainer cost and level gate. It does not copy What's Training's interface,
+  navigation, route planner, weapon-master data, saved variables or
+  ignored-spell system. Live trainer reads remain a quiet refinement.
 - Required notice: the What's Training MIT text in
   `THIRD_PARTY_NOTICES.md` and an attribution header on every imported table.
 

@@ -115,9 +115,11 @@ World of Warcraft game data and names are © Blizzard Entertainment, Inc.
 
 ## What's Training?
 
-The static WoW: Forever class-trainer catalog in `Data/ClassTraining/` is
-adapted from [What's Training?](https://github.com/fusionpit/WhatsTraining),
-commit `59763c2105428ccf99926919824c23d850bfbaa4`.
+The static WoW: Forever class-trainer catalog in `Data/ClassTraining/` and the
+profession learn-at/source/base-price facts in `Data/ProfessionTraining.lua`
+are adapted from [What's Training?](https://github.com/fusionpit/WhatsTraining),
+commit `59763c2105428ccf99926919824c23d850bfbaa4`. Adventure Tracker does not copy
+the upstream UI, route planner, saved variables or player observations.
 
 MIT License
 

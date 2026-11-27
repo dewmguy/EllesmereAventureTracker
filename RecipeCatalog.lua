@@ -23,6 +23,16 @@ local recipeItemsBySpell
 local sourceIndexState
 local sourceIndexCoroutine
 local sourceIndexFrame
+local RecipeSource
+
+local function Materialize(value)
+    if type(value) == "table" then return value end
+    if type(value) ~= "string" or type(loadstring) ~= "function" then return nil end
+    local chunk = loadstring(value)
+    if type(chunk) ~= "function" then return nil end
+    local ok, result = pcall(chunk)
+    return ok and type(result) == "table" and result or nil
+end
 
 local function ItemCount(itemID)
     local api = C_Item and C_Item.GetItemCount or _G.GetItemCount
@@ -211,6 +221,45 @@ local function AnySpawnHere(entity, ids, areaID)
     return false
 end
 
+local function LocalSpawnIDs(entity, ids, areaID)
+    if type(ids) ~= "table" or not areaID then return ids end
+    local localIDs = {}
+    for _, id in pairs(ids) do
+        if SpawnsHere(entity, id, areaID) then localIDs[#localIDs + 1] = id end
+    end
+    return #localIDs > 0 and localIDs or ids
+end
+
+local function AreaName(areaID)
+    local library = _G.LibQuestieDB
+    if not (library and library.Support and type(library.Support.Get) == "function") then return nil end
+    local ok, zones = pcall(library.Support.Get, "ZoneDB")
+    if not ok or type(zones) ~= "table" then return nil end
+    local private = type(zones.private) == "table" and zones.private or {}
+    local reverse = Materialize(zones.areaIdToUiMapId or private.areaIdToUiMapId)
+    local mapID = reverse and tonumber(reverse[tonumber(areaID)])
+    local info = mapID and C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+    return info and info.name or nil
+end
+
+local function SpawnZoneName(entity, ids, preferredAreaID)
+    if AnySpawnHere(entity, ids, preferredAreaID) then return AreaName(preferredAreaID) end
+    local names = {}
+    for _, id in pairs(type(ids) == "table" and ids or {}) do
+        local spawns = ns.QuestData.Value(entity, "spawns", tonumber(id))
+        if type(spawns) == "table" then
+            for areaID in pairs(spawns) do
+                local name = AreaName(areaID)
+                if name then names[name] = true end
+            end
+        end
+    end
+    local ordered = {}
+    for name in pairs(names) do ordered[#ordered + 1] = name end
+    table.sort(ordered)
+    return ordered[1]
+end
+
 local function ReasonableDrops(npcDB, ids)
     if type(ids) ~= "table" then return nil end
     local playerLevel = UnitLevel and UnitLevel("player") or 0
@@ -223,11 +272,11 @@ local function ReasonableDrops(npcDB, ids)
     return #result > 0 and result or nil
 end
 
-local function BestSourceForItem(itemID, areaID)
+local function BestSourceForItem(itemID, areaID, ignoreInventory)
     local questDB, npcDB, itemDB, objectDB = ns.QuestData.GetEntities()
     if not itemDB then return nil end
     local recipeName = ns.QuestData.Value(itemDB, "name", itemID) or ItemName(itemID)
-    if ItemCount(itemID) > 0 then
+    if not ignoreInventory and ItemCount(itemID) > 0 then
         return {
             score = 140, localSource = true, itemID = itemID,
             detail = recipeName .. " is already in your bags",
@@ -236,12 +285,13 @@ local function BestSourceForItem(itemID, areaID)
     end
 
     local best
-    local function Consider(score, localSource, detail, tooltip)
+    local function Consider(score, localSource, detail, tooltip, kind, zoneName, names)
         score = score + (localSource and 30 or 0)
         if not best or score > best.score then
             best = {
                 score = score, localSource = localSource, itemID = itemID,
                 detail = recipeName .. " • " .. detail, tooltip = tooltip or detail,
+                kind = kind, zoneName = zoneName, names = names,
             }
         end
     end
@@ -251,15 +301,18 @@ local function BestSourceForItem(itemID, areaID)
     if vendorCount > 0 then
         local localSource = AnySpawnHere(npcDB, vendors, areaID)
         Consider(120, localSource, "Sold by " .. vendorNames,
-            "Known vendor source. Stock and price can vary; Adventure Tracker does not show vendor coordinates.")
+            "Known vendor source. Stock and price can vary; Adventure Tracker does not show vendor coordinates.",
+            "vendor", SpawnZoneName(npcDB, vendors, areaID), vendorNames)
     end
 
     local drops = ReasonableDrops(npcDB, ns.QuestData.Value(itemDB, "npcDrops", itemID))
-    local dropNames, dropCount = Names(npcDB, drops, 3)
+    local namedDrops = LocalSpawnIDs(npcDB, drops, areaID)
+    local dropNames, dropCount = Names(npcDB, namedDrops, 3)
     if dropCount > 0 then
         local localSource = AnySpawnHere(npcDB, drops, areaID)
         Consider(90, localSource, "Drops from " .. dropNames,
-            "Targeted mob-drop source within a reasonable level range. Drop chance is not assumed.")
+            "Targeted mob-drop source within a reasonable level range. Drop chance is not assumed.",
+            "drop", SpawnZoneName(npcDB, namedDrops, areaID), dropNames)
     end
 
     local objects = ns.QuestData.Value(itemDB, "objectDrops", itemID)
@@ -267,7 +320,8 @@ local function BestSourceForItem(itemID, areaID)
     if objectCount > 0 then
         local localSource = AnySpawnHere(objectDB, objects, areaID)
         Consider(75, localSource, "Looted from " .. objectNames,
-            "Known object-loot source. No coordinates or route guidance are shown.")
+            "Known object-loot source. No coordinates or route guidance are shown.",
+            "object", SpawnZoneName(objectDB, objects, areaID), objectNames)
     end
 
     local questRewards = ns.QuestData.Value(itemDB, "questRewards", itemID)
@@ -283,13 +337,26 @@ local function BestSourceForItem(itemID, areaID)
         local questNames, questCount = Names(questDB, available, 2)
         if questCount > 0 then
             Consider(100, false, "Reward from " .. questNames,
-                "Known quest reward whose recorded requirements are currently satisfied.")
+                "Known quest reward whose recorded requirements are currently satisfied.",
+                "quest", nil, questNames)
         end
     end
     return best
 end
 
-local function RecipeSource(entry, areaID)
+function ns.GetItemAcquisitionFact(itemID, mapID)
+    if StartSourceIndex() ~= "ready" then return nil end
+    local areaID = ns.ResolveQuestieAreaID and ns.ResolveQuestieAreaID(mapID)
+    return BestSourceForItem(tonumber(itemID), areaID, true)
+end
+
+function ns.GetRecipeAcquisitionFact(entry, mapID)
+    if StartSourceIndex() ~= "ready" then return nil end
+    local areaID = ns.ResolveQuestieAreaID and ns.ResolveQuestieAreaID(mapID)
+    return RecipeSource(entry, areaID)
+end
+
+RecipeSource = function(entry, areaID)
     if sourceIndexState ~= "ready" then return nil end
     local itemIDs = recipeItemsBySpell[entry.spellID]
     local best
@@ -333,6 +400,9 @@ end
 
 local function CrossProfessionSynergy(profession, professions)
     if not ns.Get("showProfessionSynergy") then return nil end
+    -- ProfessionRoutes handles permanent, inventory-aware material synergies.
+    -- Keep this cache-based implementation only as a compatibility fallback.
+    if ns.GetProfessionRouteCandidate then return nil end
     local consumer = ns.GetProfessionRecipeCache
         and ns.GetProfessionRecipeCache(profession.skillLineID, profession.name)
     if not consumer or type(consumer.recipes) ~= "table" then return nil end
