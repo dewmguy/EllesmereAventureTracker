@@ -14,10 +14,28 @@ ns.EUI = EUI
 -- repeatedly rebuild the tracker.
 local pendingItemDataProviders = {}
 local pendingSpellDataProviders = {}
+local failedItemDataUntil = {}
+local failedSpellDataUntil = {}
+local DATA_FAILURE_RETRY_SECONDS = 300
+
+local function DataNow()
+    return GetTime and GetTime() or 0
+end
+
+local function FailureBackoffActive(failures, recordID)
+    local retryAt = tonumber(failures[recordID])
+    if not retryAt then return false end
+    if DataNow() >= retryAt then
+        failures[recordID] = nil
+        return false
+    end
+    return true
+end
 
 function ns.RequestItemData(itemID, providers)
     itemID = tonumber(itemID)
     if not itemID or itemID <= 0 then return false end
+    if FailureBackoffActive(failedItemDataUntil, itemID) then return false end
     local request = C_Item and C_Item.RequestLoadItemDataByID
     if type(request) ~= "function" then return false end
     local pending = pendingItemDataProviders[itemID]
@@ -35,11 +53,16 @@ function ns.RequestItemData(itemID, providers)
     return true
 end
 
-function ns.ConsumeItemDataProviders(itemID)
+function ns.ConsumeItemDataProviders(itemID, succeeded)
     itemID = tonumber(itemID)
     local pending = itemID and pendingItemDataProviders[itemID]
     if not pending then return nil end
     pendingItemDataProviders[itemID] = nil
+    if succeeded == false then
+        failedItemDataUntil[itemID] = DataNow() + DATA_FAILURE_RETRY_SECONDS
+        return nil
+    end
+    failedItemDataUntil[itemID] = nil
     local providers = {}
     for providerID in pairs(pending) do providers[#providers + 1] = providerID end
     table.sort(providers)
@@ -49,6 +72,7 @@ end
 function ns.RequestSpellData(spellID, providers)
     spellID = tonumber(spellID)
     if not spellID or spellID <= 0 then return false end
+    if FailureBackoffActive(failedSpellDataUntil, spellID) then return false end
     local request = C_Spell and C_Spell.RequestLoadSpellData
     if type(request) ~= "function" then return false end
     local pending = pendingSpellDataProviders[spellID]
@@ -66,11 +90,16 @@ function ns.RequestSpellData(spellID, providers)
     return true
 end
 
-function ns.ConsumeSpellDataProviders(spellID)
+function ns.ConsumeSpellDataProviders(spellID, succeeded)
     spellID = tonumber(spellID)
     local pending = spellID and pendingSpellDataProviders[spellID]
     if not pending then return nil end
     pendingSpellDataProviders[spellID] = nil
+    if succeeded == false then
+        failedSpellDataUntil[spellID] = DataNow() + DATA_FAILURE_RETRY_SECONDS
+        return nil
+    end
+    failedSpellDataUntil[spellID] = nil
     local providers = {}
     for providerID in pairs(pending) do providers[#providers + 1] = providerID end
     table.sort(providers)

@@ -23,6 +23,11 @@ presentation timers into repeated database queries.
 - Global item- and spell-data events are ignored unless Adventure Tracker
   requested that exact record. Requests are coalesced and record which provider
   needs the result, so unrelated cache activity cannot start provider rebuilds.
+- A failed data load does not invalidate its provider and cannot be requested
+  again for five minutes. This backoff is timestamp-based and owns no timer.
+- Broad discovery passes must use instant or generated facts. Bag food checks
+  reject non-food item classes before cached tooltip evaluation, and worldwide
+  crafted-upgrade scoring never requests missing product data.
 
 ## Development profiling
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.7 - 2026-11-27
+
+- Stopped failed asynchronous item and spell loads from rebuilding a provider
+  and immediately requesting the same unavailable record again. Failures now
+  use a five-minute, timer-free retry backoff, removing the approximately
+  20-second timeout/retry cadence.
+- Filtered bag contents through their instant item class before evaluating
+  combat food, so ordinary equipment, quest items and materials can no longer
+  generate food-related item-data requests.
+- Made worldwide crafted-upgrade scoring cache-only. The catalogue still shows
+  attainable recipe opportunities and scores products already known to the
+  client, but cannot bulk-request scores of uncached products after reload.
+
 ## 0.8.6 - 2026-11-27
 
 - Removed the post-reload QuestieDB item-database worker completely. Recipe

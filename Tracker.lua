@@ -1644,9 +1644,11 @@ local function ProvidersForTrackerEvent(event, ...)
         or event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" or event == "TRAINER_CLOSED" then
         return { "professions", "character-reminders" }
     elseif event == "ITEM_DATA_LOAD_RESULT" or event == "GET_ITEM_INFO_RECEIVED" then
-        return ns.ConsumeItemDataProviders and ns.ConsumeItemDataProviders((...)) or nil
+        local itemID, succeeded = ...
+        return ns.ConsumeItemDataProviders and ns.ConsumeItemDataProviders(itemID, succeeded) or nil
     elseif event == "SPELL_DATA_LOAD_RESULT" then
-        return ns.ConsumeSpellDataProviders and ns.ConsumeSpellDataProviders((...)) or nil
+        local spellID, succeeded = ...
+        return ns.ConsumeSpellDataProviders and ns.ConsumeSpellDataProviders(spellID, succeeded) or nil
     elseif event == "UNIT_INVENTORY_CHANGED" then
         return { "readiness", "professions", "instances" }
     elseif event == "SKILL_LINES_CHANGED" or event == "CHAT_MSG_SKILL" then

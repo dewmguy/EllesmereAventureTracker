@@ -326,6 +326,15 @@ local function MaxStatValue(text, phrases)
 end
 
 local foodCache = {}
+local function IsFoodCandidate(itemID)
+    if not GetItemInfoInstant then return true end
+    local ok, _, _, _, _, _, classID, subClassID = pcall(GetItemInfoInstant, itemID)
+    if not ok or classID == nil then return true end
+    local consumable = Enum and Enum.ItemClass and Enum.ItemClass.Consumable or 0
+    local foodAndDrink = Enum and Enum.ItemConsumableSubclass and Enum.ItemConsumableSubclass.Fooddrink or 5
+    return tonumber(classID) == tonumber(consumable) and tonumber(subClassID) == tonumber(foodAndDrink)
+end
+
 local function EvaluateCombatFood(itemID)
     local role = ns.GetRole()
     foodCache[role] = foodCache[role] or {}
@@ -409,7 +418,7 @@ local function BestBagCombatFood()
     end
     local best
     for itemID, count in pairs(counts) do
-        local food = EvaluateCombatFood(itemID)
+        local food = IsFoodCandidate(itemID) and EvaluateCombatFood(itemID) or nil
         if food then
             food.count = count
             best = BetterFood(food, best)

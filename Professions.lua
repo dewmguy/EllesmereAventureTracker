@@ -938,12 +938,12 @@ local function BestSkillUpRecipe(profession, professions, mapID)
     return best, bestFacts
 end
 
-local function ItemInfo(itemID)
+local function ItemInfo(itemID, requestMissing)
     local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
     if not getInfo then return nil end
     local ok, name, link, _, itemLevel, requiredLevel, _, _, _, equipLoc, icon, _, classID, subClassID = pcall(getInfo, itemID)
     if not ok or not name then
-        if ns.RequestItemData then ns.RequestItemData(itemID, "professions") end
+        if requestMissing ~= false and ns.RequestItemData then ns.RequestItemData(itemID, "professions") end
         return nil
     end
     return {
@@ -1024,7 +1024,10 @@ local function IsUsableEquippable(itemID, item)
 end
 
 function ns.GetCraftedItemUpgrade(itemID)
-    local item = ItemInfo(itemID)
+    -- The worldwide catalogue can contain hundreds of plausible products. It
+    -- must not turn a cold item cache into a bulk asynchronous load. Cached
+    -- products are still scored; ordinary client use will populate more.
+    local item = ItemInfo(itemID, false)
     if not item or not IsUsableEquippable(itemID, item) then return nil end
     local equippedLevel = EquippedItemLevel(item.equipLoc)
     if equippedLevel == nil then return nil end

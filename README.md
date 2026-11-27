@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.8.6 establishes the addon structure and a playable first pass:
+Version 0.8.7 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -108,6 +108,9 @@ Version 0.8.6 establishes the addon structure and a playable first pass:
   without scanning QuestieDB's entire item database after login or reload;
 - request-scoped item- and spell-data callbacks so cache activity from other
   addons cannot invalidate Adventure Tracker providers;
+- failed asynchronous data loads use a five-minute retry backoff without a
+  provider rebuild, while bag-food discovery filters non-food items before any
+  metadata lookup and worldwide crafted-upgrade scoring remains cache-only;
 - independent flight bar texture, fill, background, border, font, outline,
   text-size, text-color and icon controls;
 - contextual In Flight, In Combat, Resting, Mounted, instance, life and
