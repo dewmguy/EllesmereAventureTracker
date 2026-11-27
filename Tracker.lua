@@ -130,6 +130,7 @@ playtimeText:SetTextColor(0.67, 0.72, 0.75)
 playtimeText:SetWordWrap(true)
 
 local iconPool, sectionPool, rowPool = {}, {}, {}
+local visibleRowsByKey = {}
 local skin
 local UpdateLockFade
 local RegisterDragSurface
@@ -320,7 +321,9 @@ local function AcquireSecureActionButton(index)
         if UpdateLockFade then C_Timer.After(0, UpdateLockFade) end
     end)
     button:SetScript("PostClick", function()
-        if ns.RequestRefresh then C_Timer.After(0.1, ns.RequestRefresh) end
+        if ns.RequestRefresh then
+            C_Timer.After(0.1, function() ns.RequestRefresh("readiness", "secure action") end)
+        end
     end)
     button:Hide()
     secureActionPool[index] = button
@@ -577,6 +580,7 @@ local function AcquireRow(index)
 end
 
 local function HidePools()
+    wipe(visibleRowsByKey)
     for i = 1, #iconPool do
         SetAttention(iconPool[i], nil)
         iconPool[i]:Hide()
@@ -589,6 +593,30 @@ local function HidePools()
         SetAttention(rowPool[i], nil)
         rowPool[i]:Hide()
     end
+end
+
+-- Timers update these already-laid-out widgets without rebuilding providers,
+-- reconstructing sections, or touching QuestieDB. Only fields whose geometry
+-- remains stable are supported here; structural changes still request a render.
+function ns.UpdateVisibleRow(key, update)
+    local row = visibleRowsByKey[key]
+    if not (row and row:IsShown() and row.data and row.data.key == key) then return false end
+    if type(update) ~= "table" then return false end
+    if update.label ~= nil then
+        row.data.label = update.label
+        row.label:SetText(update.label)
+    end
+    if update.detail ~= nil then
+        row.data.detail = update.detail
+        row.detail:SetText(update.detail)
+    end
+    if update.tooltip ~= nil then row.data.tooltip = update.tooltip end
+    if update.progressValue ~= nil and row.progress:IsShown() then
+        local value = math.max(0, math.min(1, tonumber(update.progressValue) or 0))
+        row.progress:SetValue(value)
+        if type(row.data.progress) == "table" then row.data.progress.value = value end
+    end
+    return true
 end
 
 local function Clamp(value, minimum, maximum, fallback)
@@ -788,7 +816,7 @@ local function ToggleSection(sectionID)
     end
     local character = db.collapsedSectionsByCharacter[characterKey]
     character[sectionID] = not SectionCollapsed(sectionID)
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh(false, "section collapse") end
 end
 
 local function SectionAttention(rows)
@@ -1134,7 +1162,7 @@ local function EndTrackerDrag(surface)
     frame:StopMovingOrSizing()
     ApplyGrowthAnchor()
     SavePosition()
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh(false, "pane moved") end
     if QueueSecureActionSync then QueueSecureActionSync() end
     C_Timer.After(0, function() surface._trackerDragged = nil end)
 end
@@ -1230,13 +1258,13 @@ function ns.RefreshTrackerContextText()
         local minimum = math.max(19, Clamp(ns.Get("contextFontSize"), 8, 24, 11) + 8)
         local expected = math.max(minimum, math.ceil(contextText:GetStringHeight() or 0) + 5)
         if math.abs((contextButton:GetHeight() or 0) - expected) > 0.5 and ns.RequestRefresh then
-            ns.RequestRefresh()
+            ns.RequestRefresh(false, "context height")
         end
     end
     if playtimeText:IsShown() and playtimeLine then playtimeText:SetText(playtimeLine) end
 end
 
-local function Render()
+local function RenderBody()
     if HideSecureActionButtons then HideSecureActionButtons() end
     HidePools()
     SetAttention(collapseButton, nil)
@@ -1362,6 +1390,7 @@ local function Render()
                     local rowIndent = Clamp(data.indentLevel, 0, 4, 0) * 18
                     local rowContentWidth = math.max(1, contentWidth - rowIndent)
                     row.data = data
+                    if data.key then visibleRowsByKey[data.key] = row end
                     row:ClearAllPoints()
                     row:SetHeight(rowHeight)
                     row:SetPoint("TOPLEFT", content, "TOPLEFT", rowIndent, y)
@@ -1410,6 +1439,12 @@ local function Render()
     UpdateLockFade()
 end
 
+local function Render()
+    local startedAt = debugprofilestop and debugprofilestop() or nil
+    RenderBody()
+    if ns.RecordProfileMetric then ns.RecordProfileMetric("Render", startedAt, "tracker refresh") end
+end
+
 function ns.ApplySettings()
     local strata = MainPaneStrata()
     frame:SetFrameStrata(strata)
@@ -1424,7 +1459,12 @@ function ns.ApplySettings()
 end
 
 local refreshQueued = false
-function ns.RequestRefresh()
+function ns.RequestRefresh(providers, reason)
+    if providers == nil then
+        if ns.InvalidateAllProviders then ns.InvalidateAllProviders(reason or "unspecified refresh") end
+    elseif providers ~= false and ns.InvalidateProviders then
+        ns.InvalidateProviders(providers, reason or "targeted refresh")
+    end
     if refreshQueued then return end
     refreshQueued = true
     C_Timer.After(0.05, function()
@@ -1442,14 +1482,14 @@ if EUI.RegAccent then
         obj = frame,
         fn = function()
             ApplyWindowStyle()
-            if ns.RequestRefresh then ns.RequestRefresh() end
+            if ns.RequestRefresh then ns.RequestRefresh(false, "accent color") end
         end,
     })
 end
 if hooksecurefunc and type(EUI.ApplyColorsToOUF) == "function" then
     pcall(hooksecurefunc, EUI, "ApplyColorsToOUF", function()
         ApplyWindowStyle()
-        if ns.RequestRefresh then ns.RequestRefresh() end
+        if ns.RequestRefresh then ns.RequestRefresh(false, "UI color update") end
     end)
 end
 
@@ -1478,7 +1518,7 @@ local function RegisterUnlockElement()
                 point = point, relativePoint = relativePoint or point,
                 x = x or 0, y = y or 0,
             }, true)
-            if ns.RequestRefresh then ns.RequestRefresh() end
+            if ns.RequestRefresh then ns.RequestRefresh(false, "unlock position") end
             if QueueSecureActionSync then QueueSecureActionSync() end
         end,
         loadPos = function()
@@ -1497,12 +1537,12 @@ local function RegisterUnlockElement()
                 x = position.x, y = position.y,
             }, true)
             SetPosition()
-            if ns.RequestRefresh then ns.RequestRefresh() end
+            if ns.RequestRefresh then ns.RequestRefresh(false, "unlock position reset") end
             if QueueSecureActionSync then QueueSecureActionSync() end
         end,
         applyPos = function()
             SetPosition()
-            if ns.RequestRefresh then ns.RequestRefresh() end
+            if ns.RequestRefresh then ns.RequestRefresh(false, "unlock position applied") end
             if QueueSecureActionSync then QueueSecureActionSync() end
         end,
     }) }, ADDON_NAME)
@@ -1525,6 +1565,48 @@ local eventNames = {
 }
 for i = 1, #eventNames do pcall(events.RegisterEvent, events, eventNames[i]) end
 pcall(events.RegisterEvent, events, "UNIT_AURA")
+
+local function ProvidersForTrackerEvent(event)
+    if event == "DISPLAY_SIZE_CHANGED" or event == "UI_SCALE_CHANGED" or event == "ADDON_LOADED" then
+        return false
+    elseif event == "UNIT_AURA" then
+        return { "readiness", "world-buffs" }
+    elseif event == "BAG_UPDATE_DELAYED" then
+        return { "readiness", "zone-quests", "professions" }
+    elseif event == "GROUP_ROSTER_UPDATE" or event == "UNIT_CONNECTION" then
+        return { "readiness" }
+    elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+        return { "readiness", "world-buffs" }
+    elseif event == "PLAYER_UPDATE_RESTING" or event == "PLAYER_MOUNT_DISPLAY_CHANGED"
+        or event == "PLAYER_FLAGS_CHANGED" or event == "UNIT_FLAGS" or event == "PLAYER_DEAD"
+        or event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
+        return { "readiness" }
+    elseif event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE"
+        or event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" or event == "TRAINER_CLOSED" then
+        return { "professions", "character-reminders" }
+    elseif event == "ITEM_DATA_LOAD_RESULT" or event == "GET_ITEM_INFO_RECEIVED" then
+        return { "readiness", "professions", "instances" }
+    elseif event == "SPELL_DATA_LOAD_RESULT" then
+        return { "readiness", "character-reminders", "professions" }
+    elseif event == "UNIT_INVENTORY_CHANGED" then
+        return { "readiness", "professions", "instances" }
+    elseif event == "SKILL_LINES_CHANGED" or event == "CHAT_MSG_SKILL" then
+        return { "legacy", "zone-quests", "professions", "character-reminders" }
+    elseif event == "ACHIEVEMENT_EARNED" or event == "MAJOR_FACTION_RENOWN_LEVEL_CHANGED" then
+        return { "legacy" }
+    elseif event == "TRAIT_TREE_CURRENCY_INFO_UPDATED" or event == "TRAIT_CONFIG_UPDATED" then
+        return { "legacy", "readiness", "character-reminders", "professions" }
+    elseif event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" or event == "ZONE_CHANGED_NEW_AREA" then
+        return { "readiness", "world-buffs", "legacy", "zone-quests", "professions", "instances" }
+    elseif event == "PLAYER_LEVEL_UP" or event == "PLAYER_LEVEL_CHANGED"
+        or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "ACTIVE_COMBAT_CONFIG_CHANGED"
+        or event == "SPELLS_CHANGED" or event == "PLAYER_TALENT_UPDATE" then
+        return { "character-reminders", "readiness", "world-buffs", "legacy",
+            "zone-quests", "professions", "instances" }
+    end
+    return nil
+end
+
 events:SetScript("OnEvent", function(_, event, ...)
     if (event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_SPECIALIZATION_CHANGED"
         or event == "ACTIVE_COMBAT_CONFIG_CHANGED" or event == "PLAYER_TALENT_UPDATE"
@@ -1540,6 +1622,10 @@ events:SetScript("OnEvent", function(_, event, ...)
         local unit = ...
         if unit and unit ~= "player" then return end
     end
+    if event == "UNIT_INVENTORY_CHANGED" then
+        local unit = ...
+        if unit and unit ~= "player" then return end
+    end
     if (event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE") and ns.ScanProfessionRecipes then
         ns.ScanProfessionRecipes()
     end
@@ -1549,19 +1635,30 @@ events:SetScript("OnEvent", function(_, event, ...)
         if ns.ScanProfessionTrainer then ns.ScanProfessionTrainer() end
         if event == "TRAINER_SHOW" then
             C_Timer.After(0, function()
-                if ns.ScanClassTrainer and ns.ScanClassTrainer() then ns.RequestRefresh() end
-                if ns.ScanProfessionTrainer and ns.ScanProfessionTrainer() then ns.RequestRefresh() end
+                if ns.ScanClassTrainer and ns.ScanClassTrainer() then
+                    ns.RequestRefresh("character-reminders", "class trainer scan")
+                end
+                if ns.ScanProfessionTrainer and ns.ScanProfessionTrainer() then
+                    ns.RequestRefresh("professions", "profession trainer scan")
+                end
             end)
         end
     end
     if event == "PLAYER_LOGIN" then
         RegisterUnlockElement()
         ns.ApplySettings()
-        C_Timer.NewTicker(10, ns.RequestRefresh)
-    elseif event == "ADDON_LOADED" and (...) == "EllesmereUIDamageMeters" then
-        UpdateLockIcon()
+        C_Timer.NewTicker(10, function()
+            if ns.RequestRefresh then
+                ns.RequestRefresh({ "readiness", "world-buffs" }, "timed status maintenance")
+            end
+        end)
+    elseif event == "ADDON_LOADED" then
+        if (...) == "EllesmereUIDamageMeters" then
+            UpdateLockIcon()
+            ns.RequestRefresh(false, "damage meter loaded")
+        end
     else
-        ns.RequestRefresh()
+        ns.RequestRefresh(ProvidersForTrackerEvent(event), event)
     end
 end)
 

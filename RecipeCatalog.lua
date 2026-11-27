@@ -23,7 +23,9 @@ local recipeItemsBySpell
 local sourceIndexState
 local sourceIndexCoroutine
 local sourceIndexFrame
+local sourceIndexExamined = 0
 local RecipeSource
+local SOURCE_INDEX_BUDGET_MS = 0.35
 
 local function Materialize(value)
     if type(value) == "table" then return value end
@@ -141,11 +143,21 @@ local function FinishSourceIndex()
     sourceIndexState = "ready"
     sourceIndexCoroutine = nil
     if sourceIndexFrame then sourceIndexFrame:Hide() end
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("professions", "recipe source index ready") end
+end
+
+local function SourceIndexPaused()
+    if ns.Get("showProfessionAttainableRecipes") ~= true then return "disabled" end
+    if ns.IsCombatRestricted and ns.IsCombatRestricted() then return "combat" end
+    if UnitOnTaxi and UnitOnTaxi("player") then return "taxi" end
+    if GetUnitSpeed and (tonumber(GetUnitSpeed("player")) or 0) > 0 then return "movement" end
+    if ns.IsInstanceBossTimerActive and ns.IsInstanceBossTimerActive() then return "encounter" end
+    return nil
 end
 
 local function StartSourceIndex()
     if sourceIndexState then return sourceIndexState end
+    if ns.Get("showProfessionAttainableRecipes") ~= true then return "disabled" end
     local data = ns.QuestData
     local itemDB
     if data and type(data.GetEntities) == "function" then
@@ -158,25 +170,47 @@ local function StartSourceIndex()
     end
     recipeItemsBySpell = {}
     sourceIndexState = "building"
+    sourceIndexExamined = 0
     local ids = itemDB.GetAllIds()
     sourceIndexCoroutine = coroutine.create(function()
         for index = 1, #ids do
             local itemID = ids[index]
             IndexTeachesSpell(data.Value(itemDB, "teachesSpell", itemID), itemID)
-            if index % 250 == 0 then coroutine.yield() end
+            sourceIndexExamined = index
+            coroutine.yield()
         end
     end)
     if not sourceIndexFrame then
         sourceIndexFrame = CreateFrame("Frame")
         sourceIndexFrame:SetScript("OnUpdate", function()
             if not sourceIndexCoroutine then return end
-            local ok = coroutine.resume(sourceIndexCoroutine)
-            if not ok then
-                sourceIndexState, sourceIndexCoroutine = "unavailable", nil
+            local paused = SourceIndexPaused()
+            if paused == "disabled" then
+                sourceIndexState, sourceIndexCoroutine, recipeItemsBySpell = nil, nil, nil
                 sourceIndexFrame:Hide()
-                if ns.RequestRefresh then ns.RequestRefresh() end
-            elseif coroutine.status(sourceIndexCoroutine) == "dead" then
-                FinishSourceIndex()
+                return
+            elseif paused then
+                return
+            end
+
+            local startedAt = debugprofilestop and debugprofilestop() or nil
+            repeat
+                local ok = coroutine.resume(sourceIndexCoroutine)
+                if not ok then
+                    sourceIndexState, sourceIndexCoroutine = "unavailable", nil
+                    sourceIndexFrame:Hide()
+                    if ns.RequestRefresh then
+                        ns.RequestRefresh("professions", "recipe source index failed")
+                    end
+                    break
+                elseif coroutine.status(sourceIndexCoroutine) == "dead" then
+                    FinishSourceIndex()
+                    break
+                end
+            until not startedAt or (debugprofilestop() - startedAt) >= SOURCE_INDEX_BUDGET_MS
+            if ns.RecordProfileMetric then
+                ns.RecordProfileMetric("recipe-source-index-batch", startedAt,
+                    "idle background index", sourceIndexExamined)
             end
         end)
     end
@@ -565,5 +599,6 @@ events:SetScript("OnEvent", function(_, _, addonName)
     if addonName == "QuestieDB" then
         sourceIndexState, sourceIndexCoroutine, recipeItemsBySpell = nil, nil, nil
         if sourceIndexFrame then sourceIndexFrame:Hide() end
+        if ns.RequestRefresh then ns.RequestRefresh("professions", "QuestieDB loaded") end
     end
 end)

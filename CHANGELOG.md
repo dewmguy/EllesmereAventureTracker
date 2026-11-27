@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.4 - 2026-11-27
+
+- Removed the half-second global tracker renders from instance, boss and flight
+  timers. Their visible text and progress now update directly once per second
+  without rebuilding providers, sections, layout or secure actions.
+- Added provider-level dirty-state caching and event-specific invalidation, so
+  aura, group, bag, trainer and timed-status changes no longer cause unrelated
+  QuestieDB quest providers to run.
+- Cached composed zone-quest recommendations by character, area, level and
+  quest-state revision. Quest, spell, profession, specialization and reputation
+  events invalidate the cache while unrelated renders reuse it.
+- Replaced the fixed 250-item-per-frame QuestieDB recipe index with a hard
+  0.35 ms idle-frame budget. Indexing pauses during movement, combat, taxi
+  travel and boss encounters, and stops entirely when its feature is disabled.
+- Added opt-in provider, snapshot, render, quest and recipe-index profiling via
+  `/at profile` and `/at profile report`; production logging remains silent.
+
 ## 0.8.3 - 2026-11-27
 
 - Added the character level before the compact specialization and class in the

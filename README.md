@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.8.3 establishes the addon structure and a playable first pass:
+Version 0.8.4 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -89,6 +89,9 @@ Version 0.8.3 establishes the addon structure and a playable first pass:
   and coin rewards, and conservative QuestieDB filtering for level, class,
   race, profession and chain availability without exposing locations, routes
   or objectives; recommendations remain within five levels of the character;
+- event-invalidated provider and composed zone-result caches that keep
+  QuestieDB lookups out of timer, aura, group and unrelated presentation
+  refreshes;
 - red, breathing future quest-material warnings when a newly vendored item is
   still needed by a meaningful unaccepted quest in a visited zone, with direct
   merchant buyback while available and an explicit per-item dismiss button;
@@ -98,6 +101,10 @@ Version 0.8.3 establishes the addon structure and a playable first pass:
 - a compact in-tracker flight-master timer with destination, configurable time
   fields and progress, plus its own learned route history independent of the
   native and Custom Tweaks flight timers;
+- lightweight one-second instance, boss and flight display updates that change
+  only their existing visible row text/progress instead of rebuilding the pane;
+- a time-budgeted QuestieDB recipe-source index that targets 0.35 ms of an idle
+  frame and pauses while moving, fighting, flying or handling an encounter;
 - independent flight bar texture, fill, background, border, font, outline,
   text-size, text-color and icon controls;
 - contextual In Flight, In Combat, Resting, Mounted, instance, life and
@@ -208,6 +215,7 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 - `Tracker.lua` — floating tracker window
 - `Options.lua` — supported EllesmereUI plugin settings integration
 - `docs/API_RESTRICTIONS.md` — protected-action and combat-data rules
+- `docs/PERFORMANCE.md` — QuestieDB integration performance design and test plan
 
 The addon uses EllesmereUI's public plugin and skinning APIs. It does not edit
 or hook EllesmereUI vendor files.

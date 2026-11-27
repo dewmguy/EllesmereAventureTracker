@@ -104,7 +104,7 @@ local function Record(kind, items)
         row.count = (tonumber(row.count) or 0) + (tonumber(item.count) or 1)
         if not seen[key] then row.windows = (tonumber(row.windows) or 0) + 1; seen[key] = true end
     end
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("professions", "gathering observation") end
 end
 
 local function LootOpened()
@@ -132,7 +132,7 @@ end
 
 function ns.ResetObservedGathering()
     ns.DB().observedGatheringByZone = nil
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("professions", "gathering observations reset") end
 end
 
 local events = CreateFrame("Frame")

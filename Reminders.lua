@@ -92,7 +92,7 @@ local function ToggleTrainerSkills()
         end
         staticServiceCache = nil
     end
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("character-reminders", "class trainer expansion") end
 end
 
 local function CleanTrainerTooltipText(value)
@@ -566,9 +566,9 @@ for _, event in ipairs({
 }) do
     pcall(catalogEvents.RegisterEvent, catalogEvents, event)
 end
-catalogEvents:SetScript("OnEvent", function()
+catalogEvents:SetScript("OnEvent", function(_, event)
     staticServiceCache = nil
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("character-reminders", event) end
 end)
 
 -------------------------------------------------------------------------------

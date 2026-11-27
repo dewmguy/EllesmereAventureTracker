@@ -13,6 +13,7 @@ local active
 local ticker
 local taxiHooked
 local landingHooked
+local RefreshFlightTimerRow
 
 local function Now()
     return GetTime and GetTime() or 0
@@ -129,7 +130,8 @@ end
 
 local function StartTicker()
     if ticker or not (C_Timer and C_Timer.NewTicker) then return end
-    ticker = C_Timer.NewTicker(0.5, function()
+    ticker = C_Timer.NewTicker(1, function()
+        local finished = false
         if active and UnitOnTaxi and UnitOnTaxi("player") then active.sawTaxi = true end
         if active and active.start and Now() - active.start > 2
             and not (UnitOnTaxi and UnitOnTaxi("player")) then
@@ -138,8 +140,13 @@ local function StartTicker()
             RecordFlight(flight, Now() - flight.start)
             if ticker and ticker.Cancel then ticker:Cancel() end
             ticker = nil
+            finished = true
         end
-        if ns.RequestRefresh then ns.RequestRefresh() end
+        if finished then
+            if ns.RequestRefresh then ns.RequestRefresh("flight-timer", "flight completed") end
+        elseif RefreshFlightTimerRow then
+            RefreshFlightTimerRow()
+        end
     end)
 end
 
@@ -163,7 +170,7 @@ local function BeginFlight()
         learned = learned ~= nil,
     }
     StartTicker()
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("flight-timer", "flight started") end
 end
 
 local function FinishFlight(learn)
@@ -172,7 +179,7 @@ local function FinishFlight(learn)
     active = nil
     if learn then RecordFlight(flight, Now() - flight.start) end
     StopTicker()
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("flight-timer", "flight finished") end
 end
 
 local function RetargetEarlyLanding()
@@ -259,6 +266,16 @@ local function DetailText(elapsed, eta)
     return table.concat(parts, "  •  ")
 end
 
+RefreshFlightTimerRow = function()
+    if not (active and ns.UpdateVisibleRow) then return end
+    local elapsed = math.max(0, Now() - active.start)
+    local eta = active.eta
+    ns.UpdateVisibleRow("active-flight", {
+        detail = DetailText(elapsed, eta),
+        progressValue = eta and math.max(0, math.min(1, elapsed / eta)) or 0,
+    })
+end
+
 local function Build()
     if not ns.Get("showFlightTimer") or not active then return {} end
     local elapsed = math.max(0, Now() - active.start)
@@ -313,7 +330,7 @@ function ns.ResetFlightTimerRoutes()
         active.eta = base and base / (active.mult or 1) or nil
         active.learned = false
     end
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("flight-timer", "flight routes reset") end
 end
 
 function ns.IsAdventureTrackerInFlight()

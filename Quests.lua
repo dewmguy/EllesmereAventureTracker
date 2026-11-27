@@ -5,6 +5,8 @@ local _, ns = ...
 
 local QUEST_ICON = 134400
 local candidateCache = {}
+local zoneResultCache = {}
+local questStateRevision = 0
 local reverseMap, reverseOverride, questXP
 local lastRecordedAreaID
 local merchantOpen, merchantInitialized = false, false
@@ -85,7 +87,8 @@ local function ToggleExpanded(areaID)
     end
     local key = CharacterZoneKey(areaID)
     copy[key] = not (copy[key] == true)
-    ns.Set("zoneQuestExpandedByCharacter", copy)
+    ns.Set("zoneQuestExpandedByCharacter", copy, true)
+    if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "zone quest expansion") end
 end
 
 local function PlayerIsOnTaxi()
@@ -402,7 +405,7 @@ local function ProcessBuybackUpdate()
     local inserted = InsertedBuybackCount(buybackSnapshot, current)
     buybackSnapshot = current
     if inserted <= 0 or not ns.Get("warnFutureQuestItems") then
-        if ns.RequestRefresh then ns.RequestRefresh() end
+        if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "merchant buyback update") end
         return
     end
     local questDB, _, itemDB = ns.QuestData.GetEntities()
@@ -414,7 +417,7 @@ local function ProcessBuybackUpdate()
             end
         end
     end
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "future quest item sold") end
 end
 
 local function QueueBuybackUpdate()
@@ -437,7 +440,7 @@ local function BuyBackFutureItem(itemID)
     BuybackItem(index)
     C_Timer.After(0.15, function()
         QueueBuybackUpdate()
-        if ns.RequestRefresh then ns.RequestRefresh() end
+        if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "future quest item bought back") end
     end)
 end
 
@@ -445,7 +448,7 @@ local function DismissFutureItem(candidate)
     local active = CopyTable(ns.Get("futureQuestItemsByCharacter"))
     active[CharacterItemKey(candidate.itemID)] = nil
     ns.Set("futureQuestItemsByCharacter", active, true)
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "future quest item dismissed") end
 end
 
 local function FutureItemTooltip(owner, candidate, buybackAvailable)
@@ -653,6 +656,7 @@ local function QuestRow(candidate)
 end
 
 local function CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
+    local profileStart = debugprofilestop and debugprofilestop() or nil
     local candidates, totalXP, totalMoney, moneyKnown = {}, 0, 0, false
     local ids = CandidateIDs(questDB, zone.areaID)
     for index = 1, #ids do
@@ -689,6 +693,29 @@ local function CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplie
         if a.questLevel ~= b.questLevel then return a.questLevel < b.questLevel end
         return a.name < b.name
     end)
+    if ns.RecordProfileMetric then
+        ns.RecordProfileMetric("CandidatesForZone", profileStart,
+            tostring(zone.areaID), #ids)
+    end
+    return candidates, totalXP, totalMoney, moneyKnown
+end
+
+local function CachedCandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
+    local level = UnitLevel and UnitLevel("player") or 0
+    local cacheKey = table.concat({ ns.CharacterKey(), zone.areaID or 0, level,
+        questStateRevision, tostring(xpMultiplier or 1) }, ":")
+    local cached = zoneResultCache[cacheKey]
+    if cached then
+        return cached.candidates, cached.totalXP, cached.totalMoney, cached.moneyKnown
+    end
+    local candidates, totalXP, totalMoney, moneyKnown =
+        CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
+    zoneResultCache[cacheKey] = {
+        candidates = candidates,
+        totalXP = totalXP,
+        totalMoney = totalMoney,
+        moneyKnown = moneyKnown,
+    }
     return candidates, totalXP, totalMoney, moneyKnown
 end
 
@@ -729,7 +756,7 @@ local function Build()
     for index = 1, #zones do
         local zone = zones[index]
         local candidates, totalXP, totalMoney, moneyKnown =
-            CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
+            CachedCandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
         if #candidates > 0 then
             zone.candidates = candidates
             zone.totalXP = totalXP
@@ -782,7 +809,9 @@ local events = CreateFrame("Frame")
 for _, event in ipairs({
     "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "PLAYER_CONTROL_GAINED",
     "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE",
-    "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "SKILL_LINES_CHANGED", "ADDON_LOADED",
+    "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED",
+    "ACTIVE_COMBAT_CONFIG_CHANGED", "SPELLS_CHANGED", "SKILL_LINES_CHANGED",
+    "TRADE_SKILL_LIST_UPDATE", "UPDATE_FACTION", "CHAT_MSG_COMBAT_FACTION_CHANGE", "ADDON_LOADED",
     "MERCHANT_SHOW", "MERCHANT_UPDATE", "MERCHANT_CLOSED", "BAG_UPDATE_DELAYED",
 }) do
     pcall(events.RegisterEvent, events, event)
@@ -795,7 +824,7 @@ events:SetScript("OnEvent", function(_, event, ...)
             if not merchantOpen then return end
             buybackSnapshot = ReadBuybackSnapshot()
             merchantInitialized = true
-            if ns.RequestRefresh then ns.RequestRefresh() end
+            if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "merchant opened") end
         end)
     elseif event == "MERCHANT_UPDATE" then
         QueueBuybackUpdate()
@@ -804,10 +833,21 @@ events:SetScript("OnEvent", function(_, event, ...)
         buybackSnapshot = {}
     elseif event == "ADDON_LOADED" and (...) == "QuestieDB" then
         candidateCache, reverseMap, reverseOverride, questXP = {}, nil, nil, nil
+        zoneResultCache = {}
+        questStateRevision = questStateRevision + 1
     elseif event == "ZONE_CHANGED_NEW_AREA" or event == "PLAYER_ENTERING_WORLD"
         or event == "PLAYER_CONTROL_GAINED" or event == "PLAYER_LOGIN" then
         reverseMap, reverseOverride = nil, nil
         RecordCurrentZone()
     end
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "QUEST_TURNED_IN"
+        or event == "QUEST_LOG_UPDATE" or event == "PLAYER_LEVEL_UP"
+        or event == "PLAYER_LEVEL_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"
+        or event == "ACTIVE_COMBAT_CONFIG_CHANGED" or event == "SPELLS_CHANGED"
+        or event == "SKILL_LINES_CHANGED" or event == "TRADE_SKILL_LIST_UPDATE"
+        or event == "UPDATE_FACTION" or event == "CHAT_MSG_COMBAT_FACTION_CHANGE" then
+        questStateRevision = questStateRevision + 1
+        zoneResultCache = {}
+    end
+    if ns.RequestRefresh then ns.RequestRefresh("zone-quests", event) end
 end)

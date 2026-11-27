@@ -260,7 +260,7 @@ local function ToggleProfessionTrainer(skillLineID)
     local character = db.professionTrainerExpandedByCharacter[characterKey]
     local cacheKey = tostring(skillLineID)
     character[cacheKey] = not ProfessionTrainerExpanded(skillLineID)
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("professions", "profession trainer expansion") end
 end
 
 local function CleanTrainerTooltipText(value)

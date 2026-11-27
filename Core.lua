@@ -334,6 +334,39 @@ function ns.GetZoneName()
 end
 
 local providers = {}
+local providersByID = {}
+local profileMetrics = {}
+
+local function ProfileNow()
+    return debugprofilestop and debugprofilestop() or nil
+end
+
+function ns.RecordProfileMetric(id, startedAt, reason, examined)
+    if ns.Get("debugProfiling") ~= true or not startedAt then return end
+    local finishedAt = ProfileNow()
+    if not finishedAt then return end
+    local elapsed = math.max(0, finishedAt - startedAt)
+    local metric = profileMetrics[id]
+    if not metric then
+        metric = { count = 0, total = 0, maximum = 0 }
+        profileMetrics[id] = metric
+    end
+    metric.count = metric.count + 1
+    metric.total = metric.total + elapsed
+    metric.last = elapsed
+    metric.maximum = math.max(metric.maximum, elapsed)
+    metric.average = metric.total / metric.count
+    metric.reason = reason
+    metric.examined = examined
+end
+
+function ns.GetProfileMetrics()
+    return profileMetrics
+end
+
+function ns.ResetProfileMetrics()
+    wipe(profileMetrics)
+end
 
 local function IsCombatRestricted()
     if InCombatLockdown and InCombatLockdown() then return true end
@@ -348,17 +381,46 @@ ns.IsCombatRestricted = IsCombatRestricted
 
 function ns.RegisterProvider(id, order, build, options)
     if type(id) ~= "string" or type(build) ~= "function" then return false end
-    providers[#providers + 1] = {
+    local provider = {
         id = id,
         order = order or 100,
         build = build,
         combatSafe = type(options) == "table" and options.combatSafe == true,
+        dirty = true,
+        invalidationReason = "registration",
     }
+    providers[#providers + 1] = provider
+    providersByID[id] = provider
     table.sort(providers, function(a, b)
         if a.order == b.order then return a.id < b.id end
         return a.order < b.order
     end)
     return true
+end
+
+function ns.InvalidateProvider(id, reason)
+    local provider = providersByID[id]
+    if not provider then return false end
+    provider.dirty = true
+    provider.invalidationReason = reason or "unspecified"
+    return true
+end
+
+function ns.InvalidateProviders(ids, reason)
+    if type(ids) == "string" then return ns.InvalidateProvider(ids, reason) end
+    if type(ids) ~= "table" then return false end
+    local changed = false
+    for index = 1, #ids do
+        changed = ns.InvalidateProvider(ids[index], reason) or changed
+    end
+    return changed
+end
+
+function ns.InvalidateAllProviders(reason)
+    for index = 1, #providers do
+        providers[index].dirty = true
+        providers[index].invalidationReason = reason or "all"
+    end
 end
 
 local function AppendProviderResult(snapshot, result)
@@ -389,20 +451,26 @@ function ns.BuildSnapshot()
     -- can receive nil or unreadable values in combat even when the state is
     -- still active. Keep each provider's last trustworthy out-of-combat result;
     -- only providers that explicitly opt in may rebuild while combat restricted.
+    local profileStart = ProfileNow()
     local combatRestricted = IsCombatRestricted()
     local snapshot = { sections = {}, statuses = {}, actionable = false, forceVisible = false }
     for i = 1, #providers do
         local provider = providers[i]
         local result = provider.lastResult
-        if not combatRestricted or provider.combatSafe then
+        if provider.dirty and (not combatRestricted or provider.combatSafe) then
+            local providerStart = ProfileNow()
             local ok, built = xpcall(provider.build, geterrorhandler())
             if ok and type(built) == "table" then
                 result = built
                 provider.lastResult = built
+                provider.dirty = false
             end
+            ns.RecordProfileMetric("provider:" .. provider.id, providerStart,
+                provider.invalidationReason)
         end
         AppendProviderResult(snapshot, result)
     end
+    ns.RecordProfileMetric("BuildSnapshot", profileStart, "render")
     return snapshot
 end
 
@@ -427,6 +495,22 @@ SlashCmdList.EUIADVENTURETRACKER = function(message)
         if ns.ApplySettings then ns.ApplySettings() end
     elseif command == "reset" then
         ns.ResetKeys({ "position", "scale", "width" })
+    elseif command == "profile" then
+        local enabled = ns.Get("debugProfiling") == true
+        DB().debugProfiling = not enabled
+        if not enabled then ns.ResetProfileMetrics() end
+        print("Adventure Tracker profiling " .. (enabled and "disabled." or "enabled; use /at profile report to inspect metrics."))
+    elseif command == "profile report" then
+        local keys = {}
+        for key in pairs(profileMetrics) do keys[#keys + 1] = key end
+        table.sort(keys)
+        print("Adventure Tracker profiling metrics:")
+        for index = 1, #keys do
+            local key, metric = keys[index], profileMetrics[keys[index]]
+            print(string.format("%s: last %.3f ms, avg %.3f ms, max %.3f ms, %d calls%s",
+                key, metric.last or 0, metric.average or 0, metric.maximum or 0, metric.count or 0,
+                metric.examined and (", examined " .. tostring(metric.examined)) or ""))
+        end
     elseif command == "show" then
         ns.Set("enabled", true)
     elseif command == "hide" then

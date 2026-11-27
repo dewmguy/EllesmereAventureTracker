@@ -96,11 +96,32 @@ local function BossIdentity(encounterID)
     return run and encounterID and (run .. ":" .. tostring(encounterID)) or nil
 end
 
+local function RunTimerDetail()
+    if not state.runStart then return nil end
+    local elapsed = (state.runEnd or Now()) - state.runStart
+    local best = PersonalBest("instanceRunBestsByCharacter", RunIdentity())
+    return string.format("%s %s • Personal best %s", state.completed and "Finished in" or "Elapsed",
+        FormatClock(elapsed), best and FormatClock(best) or "—")
+end
+
+local function BossTimerDetail()
+    if not (state.bossStart and state.bossID) then return nil end
+    local best = PersonalBest("instanceBossBestsByCharacter", BossIdentity(state.bossID))
+    return string.format("Elapsed %s • Personal best %s", FormatClock(Now() - state.bossStart),
+        best and FormatClock(best) or "—")
+end
+
+local function RefreshTimerRows()
+    if not ns.UpdateVisibleRow then return end
+    local runDetail = RunTimerDetail()
+    if runDetail then ns.UpdateVisibleRow("instance-run-timer", { detail = runDetail }) end
+    local bossDetail = BossTimerDetail()
+    if bossDetail then ns.UpdateVisibleRow("instance-boss-timer", { detail = bossDetail }) end
+end
+
 local function StartTicker()
     if ticker or not C_Timer or not C_Timer.NewTicker then return end
-    ticker = C_Timer.NewTicker(0.5, function()
-        if ns.RequestRefresh then ns.RequestRefresh() end
-    end)
+    ticker = C_Timer.NewTicker(1, RefreshTimerRows)
 end
 
 local function StopTicker()
@@ -159,7 +180,7 @@ local function CompleteRun()
     state.runEnd = Now()
     local duration = state.runEnd - state.runStart
     RecordBest("instanceRunBestsByCharacter", RunIdentity(), duration)
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("instances", "instance completed") end
 end
 
 local function ResetInstanceState()
@@ -517,6 +538,7 @@ local function BuildQuestRows()
 
     local areaID = InstanceAreaID()
     if not areaID then return {} end
+    local profileStart = debugprofilestop and debugprofilestop() or nil
     local cacheKey = tostring(state.instanceID) .. ":" .. tostring(areaID)
     local candidates = questCandidates[cacheKey]
     if not candidates then
@@ -570,6 +592,10 @@ local function BuildQuestRows()
             state = "info",
             icon = QUEST_ICON,
         }
+    end
+    if ns.RecordProfileMetric then
+        ns.RecordProfileMetric("BuildQuestRows", profileStart,
+            tostring(areaID), #candidates)
     end
     return rows
 end
@@ -717,25 +743,20 @@ local function Build()
     local sections = {}
     local timerRows = {}
     if ns.Get("showInstanceRunTimer") and state.runStart then
-        local elapsed = (state.runEnd or Now()) - state.runStart
-        local best = PersonalBest("instanceRunBestsByCharacter", RunIdentity())
         timerRows[#timerRows + 1] = {
             key = "instance-run-timer",
             label = state.completed and (state.instanceName .. " complete") or state.instanceName,
-            detail = string.format("%s %s • Personal best %s", state.completed and "Finished in" or "Elapsed",
-                FormatClock(elapsed), best and FormatClock(best) or "—"),
+            detail = RunTimerDetail(),
             tooltip = "The personal best is recorded per character and difficulty when the final boss or dungeon-completion event is detected.",
             state = state.completed and "ready" or "info",
             icon = TIMER_ICON,
         }
     end
     if ns.Get("showInstanceBossTimer") and state.bossStart and state.bossID then
-        local elapsed = Now() - state.bossStart
-        local best = PersonalBest("instanceBossBestsByCharacter", BossIdentity(state.bossID))
         timerRows[#timerRows + 1] = {
             key = "instance-boss-timer",
             label = state.bossName or "Boss encounter",
-            detail = string.format("Elapsed %s • Personal best %s", FormatClock(elapsed), best and FormatClock(best) or "—"),
+            detail = BossTimerDetail(),
             tooltip = "Successful boss kills record a per-character personal best for this difficulty.",
             state = "warning",
             icon = BOSS_ICON,
@@ -783,6 +804,7 @@ local eventNames = {
     "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA",
     "ENCOUNTER_START", "ENCOUNTER_END", "LFG_COMPLETION_REWARD",
     "PLAYER_EQUIPMENT_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED",
+    "SPELLS_CHANGED", "SKILL_LINES_CHANGED", "TRADE_SKILL_LIST_UPDATE", "UPDATE_FACTION",
     "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE",
     "ITEM_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED", "ADDON_LOADED",
 }
@@ -813,10 +835,17 @@ events:SetScript("OnEvent", function(_, event, ...)
         CompleteRun()
     elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" or event == "PLAYER_LOGIN" then
         UpdateInstance()
+    elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
+        questRowsCache = nil
+        lootRevision = lootRevision + 1
+        lootRowsCache = nil
     elseif event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "QUEST_TURNED_IN"
         or event == "QUEST_LOG_UPDATE" or event == "PLAYER_LEVEL_UP" or event == "PLAYER_LEVEL_CHANGED" then
         questRowsCache = nil
-    elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED"
+    elseif event == "SPELLS_CHANGED" or event == "SKILL_LINES_CHANGED"
+        or event == "TRADE_SKILL_LIST_UPDATE" or event == "UPDATE_FACTION" then
+        questRowsCache = nil
+    elseif event == "PLAYER_EQUIPMENT_CHANGED"
         or event == "ITEM_DATA_LOAD_RESULT" or event == "GET_ITEM_INFO_RECEIVED" then
         lootRevision = lootRevision + 1
         lootRowsCache = nil
@@ -825,5 +854,5 @@ events:SetScript("OnEvent", function(_, event, ...)
         questCandidates = {}
         questRowsCache = nil
     end
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("instances", event) end
 end)

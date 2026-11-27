@@ -349,7 +349,7 @@ local events = CreateFrame("Frame")
 for _, event in ipairs({ "PLAYER_LOGIN", "ACHIEVEMENT_EARNED", "CRITERIA_UPDATE", "RECEIVED_ACHIEVEMENT_LIST" }) do
     pcall(events.RegisterEvent, events, event)
 end
-events:SetScript("OnEvent", function()
+events:SetScript("OnEvent", function(_, event)
     challengeCatalog = nil
-    if ns.RequestRefresh then ns.RequestRefresh() end
+    if ns.RequestRefresh then ns.RequestRefresh("legacy", event) end
 end)
