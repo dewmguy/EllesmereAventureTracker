@@ -8,9 +8,12 @@ local sessionStartedAt = GetTime and GetTime() or 0
 local sessionMoneyReceived, sessionMoneySpent = 0, 0
 local lastMoney
 
-local GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:1:0|t"
-local SILVER_ICON = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:1:0|t"
-local COPPER_ICON = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:1:0|t"
+-- Explicit dimensions are required here: the status text is both word-wrapped
+-- and hyperlinked, and Forever can collapse the silver/copper textures when an
+-- inline texture asks that combination of FontStrings for automatic 0x0 size.
+local GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:1:0|t"
+local SILVER_ICON = "|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:1:0|t"
+local COPPER_ICON = "|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:1:0|t"
 local STATUS_LINK_PREFIX = "euiadventure:"
 
 local function IsSecret(value)
@@ -159,7 +162,7 @@ local function StatusContext()
     -- those two quiet, persistent context items read together when in a city.
     if ns.Get("showPlaytime") and ns.Get("showSessionPlaytime") then
         local now = GetTime and GetTime() or sessionStartedAt
-        statuses[#statuses + 1] = LinkedStatus("session", "Session " .. FormatSession(now - sessionStartedAt))
+        statuses[#statuses + 1] = LinkedStatus("session", FormatSession(now - sessionStartedAt))
     end
     if ns.Get("showGoldStatus") then
         local money = CurrentMoney()

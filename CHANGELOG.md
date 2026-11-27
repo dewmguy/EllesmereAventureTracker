@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.9 - 2026-11-26
+
+- Removed the `Session` prefix from the compact session timer while retaining
+  the verbose playtime explanation in its hover tooltip.
+- Gave the gold, silver and copper inline textures explicit dimensions so all
+  three denomination icons render inside the wrapped, hyperlinked status row.
+
 ## 0.3.8 - 2026-11-26
 
 - Added an optional Pane Height Limit with Automatic, Viewport Percent and UI
