@@ -161,7 +161,29 @@ local function CandidateIDs(questDB, areaID)
     return candidates
 end
 
-local function AdjustedQuestXP(questID)
+local function AuraApplications(spellID)
+    if ns.IsCombatRestricted and ns.IsCombatRestricted() then return nil end
+    if not (C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID) then return nil end
+    local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellID)
+    if not ok or IsSecret(aura) or type(aura) ~= "table" then return nil end
+    local applications = aura.applications
+    if IsSecret(applications) then return 0 end
+    return math.max(0, tonumber(applications) or 0)
+end
+
+local function QuestXPMultiplier()
+    local multiplier = 1
+    if AuraApplications(377749) ~= nil then multiplier = multiplier + 0.5 end -- Joyous Journeys
+    if AuraApplications(46668) ~= nil then multiplier = multiplier + 0.1 end -- Darkmoon Faire
+    if AuraApplications(95987) ~= nil or AuraApplications(24705) ~= nil then
+        multiplier = multiplier + 0.1 -- Hallow's End faction buffs
+    end
+    local wellRested = AuraApplications(429959)
+    if wellRested then multiplier = multiplier + wellRested * 0.01 end
+    return multiplier
+end
+
+local function AdjustedQuestXP(questID, xpMultiplier)
     local database = ResolveQuestXP()
     local row = database and database[questID]
     local questLevel = row and tonumber(row[1])
@@ -185,7 +207,7 @@ local function AdjustedQuestXP(questID)
     else
         amount = 50 * math.floor((amount + 25) / 50)
     end
-    return math.floor(amount)
+    return math.floor(amount * (tonumber(xpMultiplier) or 1))
 end
 
 local function QuestMoney(questID)
@@ -250,7 +272,7 @@ local function QuestRow(candidate)
     }
 end
 
-local function CandidatesForZone(data, questDB, npcDB, itemDB, zone)
+local function CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
     local candidates, totalXP, totalMoney, moneyKnown = {}, 0, 0, false
     local ids = CandidateIDs(questDB, zone.areaID)
     for index = 1, #ids do
@@ -263,7 +285,7 @@ local function CandidatesForZone(data, questDB, npcDB, itemDB, zone)
             local source, icon = data.Starter(questDB, npcDB, itemDB, questID)
             if source then
                 local score, questLevel = QuestScore(questDB, questID, source)
-                local xp, money = AdjustedQuestXP(questID), QuestMoney(questID)
+                local xp, money = AdjustedQuestXP(questID, xpMultiplier), QuestMoney(questID)
                 totalXP = totalXP + xp
                 if money ~= nil then
                     moneyKnown = true
@@ -321,10 +343,12 @@ local function Build()
     local _, currentMapID = ns.GetZoneName()
     local currentAreaID = CurrentAreaID(currentMapID)
     local zones = VisitedZones()
+    local xpMultiplier = QuestXPMultiplier()
     local populated = {}
     for index = 1, #zones do
         local zone = zones[index]
-        local candidates, totalXP, totalMoney, moneyKnown = CandidatesForZone(data, questDB, npcDB, itemDB, zone)
+        local candidates, totalXP, totalMoney, moneyKnown =
+            CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
         if #candidates > 0 then
             zone.candidates = candidates
             zone.totalXP = totalXP
