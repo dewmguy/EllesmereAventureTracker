@@ -89,16 +89,36 @@ local function TotalPlayed()
     end
 end
 
+local SHORT_SPEC_NAMES = {
+    ["BEAST MASTERY"] = "BM",
+    ["MARKSMANSHIP"] = "MM",
+    ["FERAL COMBAT"] = "Feral",
+    ["PROTECTION"] = "Prot",
+    ["RETRIBUTION"] = "Ret",
+    ["DISCIPLINE"] = "Disc",
+    ["ASSASSINATION"] = "Assass",
+    ["SUBTLETY"] = "Sub",
+    ["ELEMENTAL"] = "Ele",
+    ["ENHANCEMENT"] = "Enh",
+    ["RESTORATION"] = "Resto",
+    ["AFFLICTION"] = "Aff",
+    ["DEMONOLOGY"] = "Demo",
+    ["DESTRUCTION"] = "Destro",
+}
+
+local function ShortSpecName(name)
+    return SHORT_SPEC_NAMES[tostring(name):upper()] or name
+end
+
 local function CharacterContext()
     if not ns.Get("showContext") then return nil end
     local zone = ns.GetZoneName()
     local role = ns.ROLE_LABELS[ns.GetRole()] or ns.GetRole()
     local className = UnitClass and UnitClass("player") or "Character"
     local specName = ns.GetCurrentSpecializationName and ns.GetCurrentSpecializationName()
-    local parts = { zone, className }
-    if specName and specName ~= className then parts[#parts + 1] = specName end
-    parts[#parts + 1] = role
-    return table.concat(parts, "  •  ")
+    local buildName = specName and specName ~= className
+        and (ShortSpecName(specName) .. " " .. className) or className
+    return table.concat({ zone, buildName, role }, "  •  ")
 end
 
 local goldLedger

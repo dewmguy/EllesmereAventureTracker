@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.20 - 2026-11-27
+
+- Combined specialization and class into one compact context segment, such as
+  `Prot Paladin` or `Ret Paladin`.
+- Added familiar short names for longer talent trees, including BM, MM, Prot,
+  Ret, Disc, Sub, Ele, Enh, Resto, Aff, Demo and Destro.
+
 ## 0.3.19 - 2026-11-27
 
 - Fixed the missing specialization in the context row by resolving Forever's

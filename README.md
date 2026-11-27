@@ -8,15 +8,15 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.19 establishes the addon structure and a playable first pass:
+Version 0.3.20 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
   from its background, content, section headers, status icons or recommendation
   rows, plus an EllesmereUI Unlock Mode mover for precise anchoring and width;
 - a left-, center- or right-aligned context and status line showing zone,
-  class, the dominant Forever talent tree as specialization, and the manually
-  selected activity role as separate segments;
+  the dominant Forever talent tree and class as a compact `Prot Paladin`-style
+  segment, and the manually selected activity role;
 - custom, player-class or EllesmereUI-accent coloring for the title and collapse
   glyph, which aligns with the zone/class context line when the title bar is
   hidden without reserving an empty title row;
