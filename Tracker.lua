@@ -348,7 +348,7 @@ end
 
 local function ChromeHeight()
     local height = TitleBarHeight()
-    return height > 0 and height + 10 or 32
+    return height > 0 and height + 10 or 12
 end
 
 local function MaximumPanelHeight()
@@ -481,7 +481,7 @@ local function ApplyWindowStyle()
     headerSeparator:SetShown(mode ~= "hidden" and separatorSize > 0)
 
     scrollFrame:ClearAllPoints()
-    local topInset = headerHeight > 0 and headerHeight + 6 or 28
+    local topInset = headerHeight > 0 and headerHeight + 6 or 8
     scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -topInset)
     scrollFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -topInset)
     if mode == "hidden" then

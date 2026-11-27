@@ -8,14 +8,14 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.16 establishes the addon structure and a playable first pass:
+Version 0.1.17 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
   mover, precise anchoring and width adjustment;
 - a context line showing zone, specialization, class and selected activity role;
 - custom, player-class or EllesmereUI-accent coloring for the title and collapse
   glyph, which aligns with the zone/class context line when the title bar is
-  hidden;
+  hidden without reserving an empty title row;
 - Quest Tracker-style per-character collapse controls on every visible section,
   with important breathing alerts carried onto collapsed section headers and
   the overall collapse control;

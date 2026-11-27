@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.17 - 2026-11-26
+
+- Removed the empty vertical row that remained above the context line when the
+  title bar was hidden.
+- Kept the overall collapse control aligned with the context line in the newly
+  compact hidden-title layout.
+
 ## 0.1.16 - 2026-11-26
 
 - Aligned the overall collapse control with the zone, specialization, class and
