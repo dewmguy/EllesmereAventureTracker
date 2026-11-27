@@ -149,6 +149,17 @@ end
 
 local providers = {}
 
+local function IsCombatRestricted()
+    if InCombatLockdown and InCombatLockdown() then return true end
+    if UnitAffectingCombat then
+        local ok, fighting = pcall(UnitAffectingCombat, "player")
+        local secret = ok and _G.issecretvalue and _G.issecretvalue(fighting)
+        if ok and not secret and fighting then return true end
+    end
+    return false
+end
+ns.IsCombatRestricted = IsCombatRestricted
+
 function ns.RegisterProvider(id, order, build)
     if type(id) ~= "string" or type(build) ~= "function" then return false end
     providers[#providers + 1] = { id = id, order = order or 100, build = build }
@@ -159,7 +170,16 @@ function ns.RegisterProvider(id, order, build)
     return true
 end
 
+local lastStableSnapshot
 function ns.BuildSnapshot()
+    -- Forever uses Midnight's secret-value rules. Aura and equipment providers
+    -- can receive nil or unreadable values in combat even when the state is
+    -- still active. Keep the last trustworthy out-of-combat snapshot instead
+    -- of turning those temporary misses into red "missing" results.
+    if IsCombatRestricted() then
+        return lastStableSnapshot or { sections = {}, statuses = {}, actionable = false }
+    end
+
     local snapshot = { sections = {}, statuses = {}, actionable = false }
     for i = 1, #providers do
         local provider = providers[i]
@@ -185,6 +205,7 @@ function ns.BuildSnapshot()
             end
         end
     end
+    lastStableSnapshot = snapshot
     return snapshot
 end
 

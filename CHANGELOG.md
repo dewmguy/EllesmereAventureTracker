@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 - 2026-11-26
+
+- Fixed active buffs and other readiness checks briefly turning red when combat
+  restrictions made their live values unreadable.
+- The tracker now retains its last verified out-of-combat snapshot throughout
+  combat and performs a live refresh after combat ends.
+
 ## 0.1.2 - 2026-11-26
 
 - Defined the zone gathering experience: herbs and ore ranked by known node

@@ -8,13 +8,15 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.2 establishes the addon structure and a playable first pass:
+Version 0.1.3 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible EllesmereUI-skinned window;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
   states;
 - live Camp Benefits, Well-Rested, food, class-buff and weapon-enhancement
   checks;
+- combat-safe state retention so restricted aura reads do not become false
+  missing-buff warnings;
 - Camp Benefits equivalence for Incense Candle/Intellect and First Aid
   Kit/Fortitude;
 - an explicit per-character activity role because Forever does not reliably
