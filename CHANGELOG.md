@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.19 - 2026-11-26
+
+- Combined the former Window and Appearance tabs into one Tracker settings page.
+- Added adjustable pane padding on every side of the tracker contents.
+- Added independent normal and hover background colors and alpha for section
+  titles and recommendation entries.
+- Changed Main Pane Opacity to affect only the pane backdrop instead of fading
+  the title, text, section backgrounds and entry backgrounds with the parent.
+- Added a tracker font picker and outline control plus independent size and color
+  controls for the context line, section titles, entry labels, entry details and
+  readiness-icon badges. Larger text now expands its containing rows.
+
 ## 0.1.18 - 2026-11-26
 
 - Made the unlocked tracker draggable from its background, context and scroll

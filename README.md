@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.18 establishes the addon structure and a playable first pass:
+Version 0.1.19 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -22,8 +22,10 @@ Version 0.1.18 establishes the addon structure and a playable first pass:
   the overall collapse control;
 - mouse-wheel scrolling when the tracker contents exceed its screen-relative
   maximum height;
-- customizable background, border and title-bar presentation, a Quest
-  Tracker-style minimize glyph and a Damage Meter-style lock control;
+- one combined Tracker settings page with customizable pane padding, independent
+  pane/section/entry backgrounds, font face, outline, text sizes and text colors,
+  plus border and title-bar presentation;
+- a Quest Tracker-style minimize glyph and a Damage Meter-style lock control;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
   states;
 - live Camp Benefits, Well-Rested, food, class-buff and weapon-enhancement
@@ -94,7 +96,7 @@ EllesmereUI settings panel. The sidebar section is named `Adventure Tracker`.
 /at hide            Hide the tracker
 /at lock            Lock its position
 /at unlock          Unlock its position
-/at reset           Reset position, size, scale and opacity
+/at reset           Reset position, width and scale
 /at options         Open its EllesmereUI settings
 ```
 

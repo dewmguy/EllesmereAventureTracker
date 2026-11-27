@@ -16,7 +16,12 @@ local DEFAULTS = {
     width = 340,
     scale = 1.0,
     opacity = 0.96,
+    panePadding = 8,
     backgroundColor = { r = 0.025, g = 0.032, b = 0.04, a = 0.94 },
+    sectionBackgroundColor = { r = 1, g = 1, b = 1, a = 0 },
+    sectionHoverBackgroundColor = { r = 1, g = 1, b = 1, a = 0.05 },
+    entryBackgroundColor = { r = 1, g = 1, b = 1, a = 0.025 },
+    entryHoverBackgroundColor = { r = 1, g = 1, b = 1, a = 0.07 },
     borderTexture = "solid",
     borderSize = 1,
     borderColor = { r = 0.20, g = 0.24, b = 0.27, a = 1 },
@@ -25,7 +30,19 @@ local DEFAULTS = {
     titleBarColor = { r = 0.04, g = 0.055, b = 0.065, a = 0.98 },
     titleTextColorMode = "custom",
     titleTextColor = { r = 1, g = 0.82, b = 0, a = 1 },
+    textFont = "__global",
+    textOutline = "NONE",
     titleFontSize = 13,
+    contextFontSize = 11,
+    contextTextColor = { r = 0.67, g = 0.72, b = 0.75, a = 1 },
+    sectionFontSize = 11,
+    sectionTextColor = { r = 0.18, g = 0.82, b = 0.66, a = 1 },
+    entryLabelFontSize = 12,
+    entryLabelTextColor = { r = 1, g = 1, b = 1, a = 1 },
+    entryDetailFontSize = 10,
+    entryDetailTextColor = { r = 0.62, g = 0.66, b = 0.69, a = 1 },
+    badgeFontSize = 10,
+    badgeTextColor = { r = 1, g = 1, b = 1, a = 1 },
     titleAlignment = "LEFT",
     showTitleText = true,
     titleSeparatorSize = 0,
@@ -254,7 +271,7 @@ SlashCmdList.EUIADVENTURETRACKER = function(message)
         ns.Set("locked", false)
         if ns.ApplySettings then ns.ApplySettings() end
     elseif command == "reset" then
-        ns.ResetKeys({ "position", "scale", "width", "opacity" })
+        ns.ResetKeys({ "position", "scale", "width" })
     elseif command == "show" then
         ns.Set("enabled", true)
     elseif command == "hide" then

@@ -93,6 +93,19 @@ local skin
 local UpdateLockFade
 local RegisterDragSurface
 
+local function ColorValue(key)
+    local value = ns.Get(key)
+    local fallback = ns.DEFAULTS[key] or {}
+    if type(value) ~= "table" then value = fallback end
+    return value.r or fallback.r or 1, value.g or fallback.g or 1,
+        value.b or fallback.b or 1, value.a == nil and (fallback.a or 1) or value.a
+end
+
+local function SetSurfaceBackground(surface, key)
+    local r, g, b, a = ColorValue(key)
+    surface:SetBackdropColor(r, g, b, a)
+end
+
 local function StateColor(state)
     local color = COLORS[state] or COLORS.info
     return color[1], color[2], color[3]
@@ -196,7 +209,7 @@ local function AcquireSection(index)
     button.text:SetJustifyH("LEFT")
     button.text:SetTextColor(0.18, 0.82, 0.66)
     button:SetScript("OnEnter", function(self)
-        self:SetBackdropColor(1, 1, 1, 0.05)
+        SetSurfaceBackground(self, "sectionHoverBackgroundColor")
         if self.sectionID then
             ShowTooltip(self, {
                 label = self.sectionCollapsed and "Expand " .. (self.sectionTitle or "section")
@@ -206,7 +219,7 @@ local function AcquireSection(index)
         end
     end)
     button:SetScript("OnLeave", function(self)
-        self:SetBackdropColor(1, 1, 1, 0)
+        SetSurfaceBackground(self, "sectionBackgroundColor")
         GameTooltip_Hide()
     end)
     button:SetScript("OnClick", function(self)
@@ -245,11 +258,11 @@ local function AcquireRow(index)
     row.detail:SetTextColor(0.62, 0.66, 0.69)
     row:SetScript("OnEnter", function(self)
         if UpdateLockFade then UpdateLockFade(true) end
-        self:SetBackdropColor(1, 1, 1, 0.07)
+        SetSurfaceBackground(self, "entryHoverBackgroundColor")
         if self.data then ShowTooltip(self, self.data) end
     end)
     row:SetScript("OnLeave", function(self)
-        self:SetBackdropColor(1, 1, 1, 0.025)
+        SetSurfaceBackground(self, "entryBackgroundColor")
         GameTooltip_Hide()
         if UpdateLockFade then C_Timer.After(0, UpdateLockFade) end
     end)
@@ -285,6 +298,60 @@ end
 local function Clamp(value, minimum, maximum, fallback)
     value = tonumber(value) or fallback
     return math.max(minimum, math.min(maximum, value))
+end
+
+local function PanePadding()
+    return Clamp(ns.Get("panePadding"), 0, 24, 8)
+end
+
+local function TextFontPath()
+    local choice = ns.Get("textFont")
+    if choice == nil or choice == "" or choice == "__global" then
+        return (EUI.GetFontPath and EUI.GetFontPath()) or STANDARD_TEXT_FONT
+    end
+    if EUI.ResolveFontName then
+        local ok, path = pcall(EUI.ResolveFontName, choice)
+        if ok and path then return path end
+    end
+    return (EUI.GetFontPath and EUI.GetFontPath()) or STANDARD_TEXT_FONT
+end
+
+local function TextFontFlags()
+    local outline = ns.Get("textOutline")
+    if outline == "OUTLINE" or outline == "THICKOUTLINE" then return outline end
+    return ""
+end
+
+local function StyleFontString(fontString, sizeKey, fallbackSize, colorKey)
+    if not fontString then return end
+    local size = Clamp(ns.Get(sizeKey), 8, 24, fallbackSize)
+    local path, flags = TextFontPath(), TextFontFlags()
+    if EUI.SetFontFamily then
+        pcall(EUI.SetFontFamily, fontString, path, size, flags, flags == "")
+    else
+        pcall(fontString.SetFont, fontString, path, size, flags)
+    end
+    if colorKey then fontString:SetTextColor(ColorValue(colorKey)) end
+end
+
+local function ApplyTextAppearance()
+    StyleFontString(title, "titleFontSize", 13)
+    StyleFontString(collapseButton.text, "titleFontSize", 13)
+    StyleFontString(contextText, "contextFontSize", 11, "contextTextColor")
+    for i = 1, #iconPool do
+        StyleFontString(iconPool[i].badge, "badgeFontSize", 10, "badgeTextColor")
+    end
+    for i = 1, #sectionPool do
+        local section = sectionPool[i]
+        StyleFontString(section.text, "sectionFontSize", 11, "sectionTextColor")
+        SetSurfaceBackground(section, section:IsMouseOver() and "sectionHoverBackgroundColor" or "sectionBackgroundColor")
+    end
+    for i = 1, #rowPool do
+        local row = rowPool[i]
+        StyleFontString(row.label, "entryLabelFontSize", 12, "entryLabelTextColor")
+        StyleFontString(row.detail, "entryDetailFontSize", 10, "entryDetailTextColor")
+        SetSurfaceBackground(row, row:IsMouseOver() and "entryHoverBackgroundColor" or "entryBackgroundColor")
+    end
 end
 
 local function SectionCollapsed(sectionID)
@@ -337,14 +404,6 @@ scrollFrame:SetScript("OnMouseWheel", function(self, delta)
     SetScroll(self:GetVerticalScroll() - delta * 40)
 end)
 
-local function ColorValue(key)
-    local value = ns.Get(key)
-    local fallback = ns.DEFAULTS[key] or {}
-    if type(value) ~= "table" then value = fallback end
-    return value.r or fallback.r or 1, value.g or fallback.g or 1,
-        value.b or fallback.b or 1, value.a == nil and (fallback.a or 1) or value.a
-end
-
 local function TitleBarMode()
     local mode = ns.Get("titleBarMode")
     if mode ~= "filled" and mode ~= "transparent" and mode ~= "hidden" then return "filled" end
@@ -353,12 +412,12 @@ end
 
 local function TitleBarHeight()
     if TitleBarMode() == "hidden" then return 0 end
-    return Clamp(ns.Get("titleBarHeight"), 20, 40, 28)
+    return math.max(Clamp(ns.Get("titleBarHeight"), 20, 40, 28),
+        Clamp(ns.Get("titleFontSize"), 8, 24, 13) + 8)
 end
 
 local function ChromeHeight()
-    local height = TitleBarHeight()
-    return height > 0 and height + 10 or 12
+    return TitleBarHeight() + PanePadding() * 2
 end
 
 local function MaximumPanelHeight()
@@ -369,7 +428,7 @@ end
 
 local function CollapsedHeight()
     local height = TitleBarHeight()
-    return height > 0 and height + 2 or 28
+    return height > 0 and height + 2 or math.max(28, PanePadding() * 2 + 12)
 end
 
 local function TitleControlColor()
@@ -425,7 +484,9 @@ end
 
 local function ApplyWindowStyle()
     local r, g, b, a = ColorValue("backgroundColor")
-    frame:SetBackdropColor(r, g, b, a)
+    local backgroundOpacity = Clamp(ns.Get("opacity"), 0, 1, 0.96)
+    frame:SetAlpha(1)
+    frame:SetBackdropColor(r, g, b, a * backgroundOpacity)
 
     local borderR, borderG, borderB, borderA = ColorValue("borderColor")
     local borderSize = Clamp(ns.Get("borderSize"), 0, 4, 1)
@@ -456,11 +517,7 @@ local function ApplyWindowStyle()
     end
 
     local tr, tg, tb, ta = TitleControlColor()
-    local titleSize = Clamp(ns.Get("titleFontSize"), 9, 20, 13)
-    local titleFont, _, titleFlags = title:GetFont()
-    local collapseFont, _, collapseFlags = collapseButton.text:GetFont()
-    if titleFont then pcall(title.SetFont, title, titleFont, titleSize, titleFlags) end
-    if collapseFont then pcall(collapseButton.text.SetFont, collapseButton.text, collapseFont, titleSize, collapseFlags) end
+    ApplyTextAppearance()
     title:SetTextColor(tr, tg, tb, ta)
     collapseButton.text:SetTextColor(tr, tg, tb, ta)
     title:SetShown(mode ~= "hidden" and ns.Get("showTitleText") == true)
@@ -491,11 +548,12 @@ local function ApplyWindowStyle()
     headerSeparator:SetShown(mode ~= "hidden" and separatorSize > 0)
 
     scrollFrame:ClearAllPoints()
-    local topInset = headerHeight > 0 and headerHeight + 6 or 8
-    scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -topInset)
-    scrollFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -topInset)
+    local padding = PanePadding()
+    local topInset = headerHeight + padding
+    scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, -topInset)
+    scrollFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -padding, -topInset)
     if mode == "hidden" then
-        collapseButton:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", 0, 4)
+        collapseButton:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", 0, math.min(4, padding))
     end
     content:ClearAllPoints()
     content:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT")
@@ -611,8 +669,10 @@ local function Render()
     frame:Show()
 
     local width = math.max(280, math.min(480, tonumber(ns.Get("width")) or 340))
+    local padding = PanePadding()
+    local contentWidth = math.max(1, width - padding * 2)
     frame:SetWidth(width)
-    content:SetWidth(math.max(1, width - 16))
+    content:SetWidth(contentWidth)
     local collapsed = ns.Get("collapsed") == true
     collapseButton.text:SetText(collapsed and "+" or "−")
     SetAttention(collapseButton, collapsed and SnapshotAttention(snapshot) or nil, 1)
@@ -639,7 +699,7 @@ local function Render()
         local build = specName and (specName .. " " .. className) or className
         contextText:SetText(zone .. "  •  " .. build .. "  •  " .. role)
         contextText:Show()
-        y = y - 19
+        y = y - math.max(19, Clamp(ns.Get("contextFontSize"), 8, 24, 11) + 8)
     else
         contextText:Hide()
     end
@@ -648,7 +708,7 @@ local function Render()
     if iconCount > 0 then
         local size, spacing = 31, 6
         local total = iconCount * size + (iconCount - 1) * spacing
-        local startX = math.max(0, (width - 16 - total) / 2)
+        local startX = math.max(0, (contentWidth - total) / 2)
         for i = 1, iconCount do
             local data = snapshot.statuses[i]
             local button = AcquireIcon(i)
@@ -679,29 +739,41 @@ local function Render()
             heading.sectionCollapsed = sectionCollapsed
             heading.ToggleSection = ToggleSection
             heading:ClearAllPoints()
+            local sectionHeight = math.max(16, Clamp(ns.Get("sectionFontSize"), 8, 24, 11) + 5)
+            heading:SetHeight(sectionHeight)
             heading:SetPoint("TOPLEFT", content, "TOPLEFT", 2, y)
             heading:SetPoint("TOPRIGHT", content, "TOPRIGHT", -2, y)
             heading.text:SetText(string.format("%s %s", sectionCollapsed and "+" or "−", string.upper(sectionTitle)))
             SetAttention(heading, sectionCollapsed and SectionAttention(rows) or nil, 1)
             heading:Show()
-            y = y - 18
+            y = y - sectionHeight - 2
             if not sectionCollapsed then
                 for j = 1, #rows do
                     rowIndex = rowIndex + 1
                     local data = rows[j]
                     local row = AcquireRow(rowIndex)
+                    local labelSize = Clamp(ns.Get("entryLabelFontSize"), 8, 24, 12)
+                    local detailSize = Clamp(ns.Get("entryDetailFontSize"), 8, 24, 10)
+                    local rowHeight = math.max(37, labelSize + detailSize + 12)
                     row.data = data
                     row:ClearAllPoints()
+                    row:SetHeight(rowHeight)
                     row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
                     row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y)
                     row.icon:SetTexture(data.icon or 134400)
+                    row.label:ClearAllPoints()
+                    row.label:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 7, -2)
+                    row.label:SetSize(math.max(1, contentWidth - 45), labelSize + 3)
+                    row.detail:ClearAllPoints()
+                    row.detail:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -2)
+                    row.detail:SetSize(math.max(1, contentWidth - 45), detailSize + 3)
                     row.label:SetText(data.label or "")
                     row.detail:SetText(data.detail or "")
                     row.stripe:SetColorTexture(StateColor(data.state))
                     SetAttention(row, data.attention, 2)
                     row:EnableMouse(true)
                     row:Show()
-                    y = y - 40
+                    y = y - rowHeight - 3
                 end
             end
             y = y - 4
@@ -710,6 +782,7 @@ local function Render()
 
     local contentHeight = math.max(12, math.abs(y))
     content:SetHeight(contentHeight)
+    ApplyTextAppearance()
     local viewportHeight = math.min(contentHeight, math.max(12, MaximumPanelHeight() - ChromeHeight()))
     scrollFrame:SetHeight(viewportHeight)
     frame:SetHeight(ChromeHeight() + viewportHeight)
@@ -719,7 +792,7 @@ end
 
 function ns.ApplySettings()
     frame:SetScale(math.max(0.65, math.min(1.5, tonumber(ns.Get("scale")) or 1)))
-    frame:SetAlpha(math.max(0.25, math.min(1, tonumber(ns.Get("opacity")) or 1)))
+    frame:SetAlpha(1)
     ApplyWindowStyle()
     SetPosition()
     Render()

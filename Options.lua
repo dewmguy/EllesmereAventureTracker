@@ -80,8 +80,11 @@ end
 
 local TRACKER_KEYS = {
     "enabled", "locked", "width", "scale", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
-    "backgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
-    "titleTextColorMode", "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
+    "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor", "entryBackgroundColor", "entryHoverBackgroundColor",
+    "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
+    "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "contextTextColor",
+    "sectionFontSize", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColor", "entryDetailFontSize", "entryDetailTextColor",
+    "badgeFontSize", "badgeTextColor", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
 }
 local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter", "roleCriticalAlerts", "roleAlertMinDuration", "trackPartyClassBuffs" }
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
@@ -94,94 +97,132 @@ local function BuildTracker(pageName, parent, yOffset)
     if EUI.ClearContentHeader then EUI:ClearContentHeader() end
     parent._showRowDivider = true
 
-    if pageName == "Window" then
-        _, h = W:SectionHeader(parent, "WINDOW", y); y = y - h
-        _, h = W:DualRow(parent, y,
-            Toggle("enabled", "Enable Adventure Tracker", "Shows the floating Adventure Tracker window."),
-            Toggle("locked", "Lock Window", "Prevents dragging the tracker by its title bar."))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, size, scale and opacity.",
-              onClick = function() ns.ResetKeys({ "position", "width", "scale", "opacity" }) end },
-            nil)
-        y = y - h
+    local borderValues, borderOrder = { solid = "Solid" }, { "solid" }
+    if EUI.GetBorderTextureDropdown then borderValues, borderOrder = EUI.GetBorderTextureDropdown() end
+    local fontValues, fontOrder = { __global = "EUI Global Font" }, { "__global" }
+    if EUI.BuildFontDropdownData then fontValues, fontOrder = EUI.BuildFontDropdownData() end
 
-        _, h = W:SectionHeader(parent, "SIZE", y); y = y - h
-        _, h = W:DualRow(parent, y,
-            Slider("width", "Window Width", 280, 480, 5, "Width of the Adventure Tracker window."),
-            Slider("scale", "Window Scale", 0.65, 1.50, 0.05, "Overall scale of the Adventure Tracker window."))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            Slider("opacity", "Window Opacity", 0.25, 1.00, 0.05, "Opacity of the whole tracker, multiplied with individual background colors."),
-            Toggle("showContext", "Show Zone, Class, Spec and Role", "Shows the current zone, class, specialization and selected activity role above the readiness icons."))
-        y = y - h
+    _, h = W:SectionHeader(parent, "WINDOW", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("enabled", "Enable Adventure Tracker", "Shows the floating Adventure Tracker window."),
+        Toggle("locked", "Lock Window", "Prevents dragging the tracker from its pane surfaces."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, width and scale.",
+          onClick = function() ns.ResetKeys({ "position", "width", "scale" }) end },
+        { type = "button", text = "Reset Appearance", tooltip = "Restores spacing, backgrounds, border, title bar and text defaults.",
+          onClick = function()
+              ns.ResetKeys({ "opacity", "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor",
+                  "entryBackgroundColor", "entryHoverBackgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode",
+                  "titleBarHeight", "titleBarColor", "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize",
+                  "contextFontSize", "contextTextColor", "sectionFontSize", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColor",
+                  "entryDetailFontSize", "entryDetailTextColor", "badgeFontSize", "badgeTextColor", "titleAlignment", "showTitleText",
+                  "titleSeparatorSize", "titleSeparatorColor" })
+          end })
+    y = y - h
 
-        _, h = W:SectionHeader(parent, "VISIBILITY", y); y = y - h
-        _, h = W:DualRow(parent, y,
-            Toggle("hideInCombat", "Hide in Combat", "Hides the tracker while you are in combat."),
-            Toggle("hideInInstances", "Hide in Instances", "Hides the tracker inside dungeons, raids and PvP instances."))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            Toggle("hideWhenReady", "Hide When Nothing Needs Attention", "Hides the entire window when no visible row is missing or nearing expiration."),
-            Label("Drag the title bar while unlocked, or use Unlock Mode for exact placement and anchoring."))
-        y = y - h
-    else
-        local borderValues, borderOrder = { solid = "Solid" }, { "solid" }
-        if EUI.GetBorderTextureDropdown then borderValues, borderOrder = EUI.GetBorderTextureDropdown() end
+    _, h = W:SectionHeader(parent, "SIZE AND SPACING", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("width", "Window Width", 280, 480, 5, "Width of the Adventure Tracker window."),
+        Slider("scale", "Window Scale", 0.65, 1.50, 0.05, "Overall scale of the Adventure Tracker window."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("panePadding", "Pane Padding", 0, 24, 1, "Space between the pane edges and tracker contents on all sides."),
+        Toggle("showContext", "Show Zone, Class, Spec and Role", "Shows the current zone, class, specialization and selected activity role above the readiness icons."))
+    y = y - h
 
-        _, h = W:SectionHeader(parent, "BACKGROUND", y); y = y - h
-        _, h = W:DualRow(parent, y,
-            ColorPicker("backgroundColor", "Window Background", "Background color and opacity behind the tracker contents.", true),
-            { type = "button", text = "Reset Window Style", tooltip = "Restores all background, border and title bar appearance defaults.",
-              onClick = function()
-                  ns.ResetKeys({ "backgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight",
-                      "titleBarColor", "titleTextColorMode", "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText",
-                      "titleSeparatorSize", "titleSeparatorColor" })
-              end })
-        y = y - h
+    _, h = W:SectionHeader(parent, "VISIBILITY", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("hideInCombat", "Hide in Combat", "Hides the tracker while you are in combat."),
+        Toggle("hideInInstances", "Hide in Instances", "Hides the tracker inside dungeons, raids and PvP instances."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("hideWhenReady", "Hide When Nothing Needs Attention", "Hides the entire window when no visible row is missing or nearing expiration."),
+        Label("While unlocked, drag almost any pane surface or use Unlock Mode for exact anchoring."))
+    y = y - h
 
-        _, h = W:SectionHeader(parent, "BORDER", y); y = y - h
-        _, h = W:DualRow(parent, y,
-            Dropdown("borderTexture", "Border Style", borderValues, borderOrder, "Solid and installed EllesmereUI or SharedMedia border styles."),
-            Slider("borderSize", "Border Size", 0, 4, 1, "Set to zero to hide the window border."))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            ColorPicker("borderColor", "Border Color", "Border color and opacity.", true, function() return (tonumber(ns.Get("borderSize")) or 0) <= 0 end),
-            nil)
-        y = y - h
+    _, h = W:SectionHeader(parent, "BACKGROUNDS", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("backgroundColor", "Main Pane Background", "Color and alpha behind the tracker contents.", true),
+        Slider("opacity", "Main Pane Opacity", 0.00, 1.00, 0.05, "Additional opacity for only the main pane background; text, title and entry backgrounds are unaffected."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("sectionBackgroundColor", "Section Background", "Normal color and alpha behind section titles.", true),
+        ColorPicker("sectionHoverBackgroundColor", "Section Hover Background", "Color and alpha behind a section title while hovered.", true))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("entryBackgroundColor", "Entry Background", "Normal color and alpha behind recommendation entries.", true),
+        ColorPicker("entryHoverBackgroundColor", "Entry Hover Background", "Color and alpha behind a recommendation while hovered.", true))
+    y = y - h
 
-        local titleHidden = function() return ns.Get("titleBarMode") == "hidden" end
-        local titleNotFilled = function() return ns.Get("titleBarMode") ~= "filled" end
-        local titleTextHidden = function() return titleHidden() or not ns.Get("showTitleText") end
-        local customTitleColorDisabled = function() return ns.Get("titleTextColorMode") ~= "custom" end
-        _, h = W:SectionHeader(parent, "TITLE BAR", y); y = y - h
-        _, h = W:DualRow(parent, y,
-            Dropdown("titleBarMode", "Title Bar", { filled = "Filled", transparent = "Transparent", hidden = "Hidden" },
-                { "filled", "transparent", "hidden" }, "Hidden removes the title and drag surface; the collapse control moves into the tracker pane.", nil, true),
-            Slider("titleBarHeight", "Title Bar Height", 20, 40, 1, "Height of the title bar and its drag surface.", titleHidden))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            ColorPicker("titleBarColor", "Title Bar Color", "Filled title bar color and opacity.", true, titleNotFilled),
-            StyleToggle("showTitleText", "Show Title Text", "Shows Adventure Tracker in the title bar.", titleHidden, true))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            Dropdown("titleTextColorMode", "Title and Minimize Color",
-                { custom = "Custom", class = "Class Color", accent = "Accent Color" },
-                { "custom", "class", "accent" }, "Colors the title and Quest Tracker-style collapse glyph.", nil, true),
-            ColorPicker("titleTextColor", "Custom Title Color", "Custom color shared by the title and collapse glyph.", true,
-                customTitleColorDisabled))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            Slider("titleFontSize", "Title Font Size", 9, 20, 1, "Font size shared by the title and collapse glyph."),
-            Dropdown("titleAlignment", "Title Alignment", { LEFT = "Left", CENTER = "Center", RIGHT = "Right" },
-                { "LEFT", "CENTER", "RIGHT" }, "Horizontal title alignment.", titleTextHidden))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            Slider("titleSeparatorSize", "Bottom Separator", 0, 4, 1, "Optional divider beneath the title bar.", titleHidden),
-            ColorPicker("titleSeparatorColor", "Separator Color", "Title-bar divider color and opacity.", true,
-                function() return titleHidden() or (tonumber(ns.Get("titleSeparatorSize")) or 0) <= 0 end))
-        y = y - h
-    end
+    _, h = W:SectionHeader(parent, "BORDER", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Dropdown("borderTexture", "Border Style", borderValues, borderOrder, "Solid and installed EllesmereUI or SharedMedia border styles."),
+        Slider("borderSize", "Border Size", 0, 4, 1, "Set to zero to hide the window border."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("borderColor", "Border Color", "Border color and opacity.", true, function() return (tonumber(ns.Get("borderSize")) or 0) <= 0 end),
+        nil)
+    y = y - h
+
+    local titleHidden = function() return ns.Get("titleBarMode") == "hidden" end
+    local titleNotFilled = function() return ns.Get("titleBarMode") ~= "filled" end
+    local titleTextHidden = function() return titleHidden() or not ns.Get("showTitleText") end
+    local customTitleColorDisabled = function() return ns.Get("titleTextColorMode") ~= "custom" end
+    _, h = W:SectionHeader(parent, "TITLE BAR", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Dropdown("titleBarMode", "Title Bar", { filled = "Filled", transparent = "Transparent", hidden = "Hidden" },
+            { "filled", "transparent", "hidden" }, "Hidden removes the title bar; the collapse control remains in the tracker pane.", nil, true),
+        Slider("titleBarHeight", "Title Bar Height", 20, 40, 1, "Height of the title bar.", titleHidden))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("titleBarColor", "Title Bar Color", "Filled title bar color and opacity.", true, titleNotFilled),
+        StyleToggle("showTitleText", "Show Title Text", "Shows Adventure Tracker in the title bar.", titleHidden, true))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Dropdown("titleTextColorMode", "Title and Minimize Color",
+            { custom = "Custom", class = "Class Color", accent = "Accent Color" },
+            { "custom", "class", "accent" }, "Colors the title and Quest Tracker-style collapse glyph.", nil, true),
+        ColorPicker("titleTextColor", "Custom Title Color", "Custom color shared by the title and collapse glyph.", true,
+            customTitleColorDisabled))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("titleFontSize", "Title Font Size", 8, 24, 1, "Font size shared by the title and collapse glyph."),
+        Dropdown("titleAlignment", "Title Alignment", { LEFT = "Left", CENTER = "Center", RIGHT = "Right" },
+            { "LEFT", "CENTER", "RIGHT" }, "Horizontal title alignment.", titleTextHidden))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("titleSeparatorSize", "Bottom Separator", 0, 4, 1, "Optional divider beneath the title bar.", titleHidden),
+        ColorPicker("titleSeparatorColor", "Separator Color", "Title-bar divider color and opacity.", true,
+            function() return titleHidden() or (tonumber(ns.Get("titleSeparatorSize")) or 0) <= 0 end))
+    y = y - h
+
+    _, h = W:SectionHeader(parent, "TEXT", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Dropdown("textFont", "Tracker Font", fontValues, fontOrder, "Font face shared by every text element in the tracker."),
+        Dropdown("textOutline", "Font Outline", { NONE = "None", OUTLINE = "Outline", THICKOUTLINE = "Thick Outline" },
+            { "NONE", "OUTLINE", "THICKOUTLINE" }, "Outline shared by every tracker font."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("contextFontSize", "Context Font Size", 8, 24, 1, "Size of the zone, class, specialization and role line."),
+        ColorPicker("contextTextColor", "Context Text Color", "Color and alpha of the context line.", true))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("sectionFontSize", "Section Font Size", 8, 24, 1, "Size of collapsible section titles."),
+        ColorPicker("sectionTextColor", "Section Text Color", "Color and alpha of section titles.", true))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("entryLabelFontSize", "Entry Label Font Size", 8, 24, 1, "Size of recommendation entry labels."),
+        ColorPicker("entryLabelTextColor", "Entry Label Color", "Color and alpha of recommendation labels.", true))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("entryDetailFontSize", "Entry Detail Font Size", 8, 24, 1, "Size of recommendation detail text."),
+        ColorPicker("entryDetailTextColor", "Entry Detail Color", "Color and alpha of recommendation details.", true))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("badgeFontSize", "Icon Badge Font Size", 8, 24, 1, "Size of small text badges on readiness icons."),
+        ColorPicker("badgeTextColor", "Icon Badge Text Color", "Color and alpha of readiness icon badge text.", true))
+    y = y - h
     return math.abs(y)
 end
 
@@ -401,8 +442,8 @@ local function Register()
         modules = {
             {
                 key = "tracker", title = "Tracker",
-                description = "Window layout, placement and visibility.",
-                pages = { "Window", "Appearance" }, buildPage = BuildTracker,
+                description = "Window layout, visibility and appearance.",
+                pages = { "Settings" }, buildPage = BuildTracker,
                 onReset = function() ns.ResetKeys(TRACKER_KEYS) end,
             },
             {
