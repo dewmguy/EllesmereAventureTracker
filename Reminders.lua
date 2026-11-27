@@ -78,7 +78,15 @@ local function ToggleTrainerSkills()
         db.classTrainerExpandedByCharacter = {}
     end
     local key = ns.CharacterKey()
-    db.classTrainerExpandedByCharacter[key] = not TrainerSkillsExpanded()
+    local expanding = not TrainerSkillsExpanded()
+    db.classTrainerExpandedByCharacter[key] = expanding
+    if expanding then
+        local cache = TrainerCache()
+        if cache then
+            cache.newServiceKeys = nil
+            cache.newServiceCount = 0
+        end
+    end
     if ns.RequestRefresh then ns.RequestRefresh() end
 end
 
@@ -170,6 +178,10 @@ local function ShowLiveTrainerTooltip(owner, service)
     return true
 end
 
+local function TrainerServiceKey(service)
+    return (service.name or "") .. "\031" .. (service.subText or "")
+end
+
 function ns.ScanClassTrainer()
     if not ns.Get("showClassTrainerSkills") or ns.IsCombatRestricted() then return false end
     if type(IsTradeskillTrainer) ~= "function" or type(GetNumTrainerServices) ~= "function" then return false end
@@ -194,6 +206,30 @@ function ns.ScanClassTrainer()
         end
     end
 
+    local currentLevel = tonumber(UnitLevel("player")) or 0
+    local previous = TrainerCache()
+    -- TRAINER_SHOW can fire before its service list is populated. Preserve the
+    -- prior-level comparison until the deferred scan or TRAINER_UPDATE has data.
+    if count == 0 and previous then return false end
+    local previousServices, previousKeys = previous and previous.services, {}
+    if type(previousServices) == "table" then
+        for index = 1, #previousServices do previousKeys[TrainerServiceKey(previousServices[index])] = true end
+    end
+    local retainedNew = type(previous) == "table" and type(previous.newServiceKeys) == "table"
+        and previous.newServiceKeys or {}
+    local newServiceKeys = {}
+    if not TrainerSkillsExpanded() then
+        for index = 1, #services do
+            local key = TrainerServiceKey(services[index])
+            if retainedNew[key]
+                or (previous and currentLevel > (tonumber(previous.level) or currentLevel) and not previousKeys[key]) then
+                newServiceKeys[key] = true
+            end
+        end
+    end
+    local newServiceCount = 0
+    for _ in pairs(newServiceKeys) do newServiceCount = newServiceCount + 1 end
+
     local trainerName = UnitName and UnitName("npc")
     if IsSecret(trainerName) or type(trainerName) ~= "string" or trainerName == "" then trainerName = "Class trainer" end
     local className, classToken = UnitClass("player")
@@ -202,10 +238,12 @@ function ns.ScanClassTrainer()
     db.classTrainerByCharacter[ns.CharacterKey()] = {
         className = className,
         classToken = classToken,
-        level = tonumber(UnitLevel("player")) or 0,
+        level = currentLevel,
         trainerName = trainerName,
         services = services,
         total = total,
+        newServiceKeys = newServiceKeys,
+        newServiceCount = newServiceCount,
     }
     return true
 end
@@ -252,11 +290,13 @@ local function Build()
                 }
             else
                 local expanded = TrainerSkillsExpanded()
+                local newServiceCount = math.max(0, tonumber(cache.newServiceCount) or 0)
                 rows[#rows + 1] = {
                     key = "class-training-total",
                     label = string.format("%s %d class-trainer skill%s available",
                         expanded and "−" or "+", #services, #services == 1 and "" or "s"),
-                    detail = string.format("Total training cost: %s%s", FormatMoney(total),
+                    detail = string.format("Total training cost: %s%s%s", FormatMoney(total),
+                        newServiceCount > 0 and string.format(" • %d newly available", newServiceCount) or "",
                         stale and " • rescan after leveling" or ""),
                     tooltip = string.format("Last scanned from %s at level %d. Learn every listed skill for %s. %s%s",
                         cache.trainerName or "a class trainer", tonumber(cache.level) or 0, FormatMoney(total),
@@ -266,6 +306,7 @@ local function Build()
                         or "Click to expand class-trainer skills.",
                     onClick = ToggleTrainerSkills,
                     state = "warning",
+                    attention = not expanded and newServiceCount > 0 and "warning" or nil,
                     icon = 136243,
                 }
                 if expanded then

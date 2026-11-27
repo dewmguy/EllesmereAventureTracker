@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.14 - 2026-11-26
+
+- Added a yellow breathing border when a collapsed class-trainer list gains
+  newly available skills after leveling. Opening the list acknowledges and
+  permanently clears that alert for those skills.
+- Added red breathing borders for missing long-lived class preparation while a
+  non-Solo role is selected, including summarized party-member coverage for
+  appropriate party buffs.
+- Added a configurable minimum expected duration for role alerts, defaulting to
+  five minutes so short-cycle effects such as seals do not nag the player.
+- Added a party-buff coverage toggle and live party aura refreshes.
+
 ## 0.1.13 - 2026-11-26
 
 - Removed the redundant Unlock Mode button from the tracker Window settings.

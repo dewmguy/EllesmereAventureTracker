@@ -83,7 +83,7 @@ local TRACKER_KEYS = {
     "backgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
     "titleTextColorMode", "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
 }
-local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter" }
+local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter", "roleCriticalAlerts", "roleAlertMinDuration", "trackPartyClassBuffs" }
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals" }
@@ -233,6 +233,21 @@ local function BuildReadiness(pageName, parent, yOffset)
         _, h = W:DualRow(parent, y,
             Toggle("trackClassBuffs", "Class and Personal Buffs", "Tracks known always-on class preparation such as blessings, auras, armor, shields and shouts."),
             Toggle("trackWeaponEnhancements", "Weapon Enhancements", "Tracks poisons and weapon imbues for classes that use them."))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "ROLE-CRITICAL ALERTS", y); y = y - h
+        local roleAlertsDisabled = function() return not ns.Get("roleCriticalAlerts") end
+        _, h = W:DualRow(parent, y,
+            Toggle("roleCriticalAlerts", "Missing Role Buff Glow",
+                "Adds a breathing red border when a tracked long-lived class ability is missing while this character has a group role selected."),
+            Slider("roleAlertMinDuration", "Minimum Expected Duration", 0, 60, 1,
+                "Only abilities normally lasting at least this many minutes receive the red breathing alert. Set zero to include short-duration abilities.",
+                roleAlertsDisabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("trackPartyClassBuffs", "Check Party Members",
+                "When a non-Solo role is selected, checks living connected party members for party-wide class buffs and summarizes who is missing them."),
+            Label("The five-minute default excludes short-cycle effects such as seals while retaining preparation buffs such as Righteous Fury."))
         y = y - h
 
         _, h = W:SectionHeader(parent, "BUFF EQUIVALENCE", y); y = y - h

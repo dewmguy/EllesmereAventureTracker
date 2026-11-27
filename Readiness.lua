@@ -12,38 +12,38 @@ local FOOD_BUFFS = { 19705, 18192, 18194, 22730, 25661, 18125, 18141 }
 
 local CLASS_REQUIREMENTS = {
     WARRIOR = {
-        { key = "battle-shout", label = "Battle Shout", spells = { 6673, 5242, 6192, 11549, 11550, 11551, 25289 } },
+        { key = "battle-shout", label = "Battle Shout", scope = "party", expectedMinutes = 2, spells = { 6673, 5242, 6192, 11549, 11550, 11551, 25289 } },
     },
     DRUID = {
-        { key = "mark", label = "Mark of the Wild", spells = { 1126, 5232, 6756, 5234, 8907, 9884, 9885 } },
-        { key = "thorns", label = "Thorns", spells = { 467, 782, 1075, 8914, 9756, 9910 } },
+        { key = "mark", label = "Mark of the Wild", scope = "party", expectedMinutes = 30, spells = { 1126, 5232, 6756, 5234, 8907, 9884, 9885 } },
+        { key = "thorns", label = "Thorns", expectedMinutes = 10, spells = { 467, 782, 1075, 8914, 9756, 9910 } },
     },
     HUNTER = {
-        { key = "aspect", label = "Hunter Aspect", spells = { 13159, 5118, 13163, 13161, 1299445, 1299446, 1299447, 20043, 20190, 13165, 14318, 14319, 14320, 14321, 14322, 25296 } },
+        { key = "aspect", label = "Hunter Aspect", expectedMinutes = 1440, spells = { 13159, 5118, 13163, 13161, 1299445, 1299446, 1299447, 20043, 20190, 13165, 14318, 14319, 14320, 14321, 14322, 25296 } },
     },
     MAGE = {
-        { key = "intellect", label = "Intellect", cover = "intellect", spells = { 1459, 1460, 1461, 10156, 10157 } },
-        { key = "mage-armor", label = "Mage Armor", spells = { 168, 7300, 7301, 7302, 7320, 10219, 10220, 6117, 22782, 22783 } },
+        { key = "intellect", label = "Intellect", scope = "party", expectedMinutes = 30, cover = "intellect", spells = { 1459, 1460, 1461, 10156, 10157 } },
+        { key = "mage-armor", label = "Mage Armor", expectedMinutes = 30, spells = { 168, 7300, 7301, 7302, 7320, 10219, 10220, 6117, 22782, 22783 } },
     },
     PALADIN = {
-        { key = "blessing", label = "Blessing", spells = { 19742, 19850, 19852, 19853, 19854, 25290, 20217, 19740, 19834, 19835, 19836, 19837, 19838, 25291, 25894, 25918, 25898, 25782, 25916 } },
-        { key = "aura", label = "Paladin Aura", spells = { 19891, 19899, 19900, 19888, 19897, 19898, 19876, 19895, 19896, 19746, 7294, 10298, 10299, 10300, 10301, 465, 10290, 643, 10291, 1032, 10292, 10293 } },
-        { key = "righteous-fury", label = "Righteous Fury", roles = { TANK = true }, spells = { 25780 } },
+        { key = "blessing", label = "Blessing", scope = "party", expectedMinutes = 5, spells = { 19742, 19850, 19852, 19853, 19854, 25290, 20217, 19740, 19834, 19835, 19836, 19837, 19838, 25291, 25894, 25918, 25898, 25782, 25916 } },
+        { key = "aura", label = "Paladin Aura", scope = "party", expectedMinutes = 1440, spells = { 19891, 19899, 19900, 19888, 19897, 19898, 19876, 19895, 19896, 19746, 7294, 10298, 10299, 10300, 10301, 465, 10290, 643, 10291, 1032, 10292, 10293 } },
+        { key = "righteous-fury", label = "Righteous Fury", roles = { TANK = true }, expectedMinutes = 30, spells = { 25780 } },
     },
     PRIEST = {
-        { key = "fortitude", label = "Fortitude", cover = "fortitude", spells = { 1243, 1244, 1245, 2791, 10937, 10938, 25389 } },
-        { key = "inner-fire", label = "Inner Fire", spells = { 588, 7128, 602, 1006, 10951, 10952 } },
-        { key = "shadowform", label = "Shadowform", roles = { CASTER = true }, spells = { 15473 } },
+        { key = "fortitude", label = "Fortitude", scope = "party", expectedMinutes = 30, cover = "fortitude", spells = { 1243, 1244, 1245, 2791, 10937, 10938, 25389 } },
+        { key = "inner-fire", label = "Inner Fire", expectedMinutes = 10, spells = { 588, 7128, 602, 1006, 10951, 10952 } },
+        { key = "shadowform", label = "Shadowform", roles = { CASTER = true }, expectedMinutes = 1440, spells = { 15473 } },
     },
     ROGUE = {
-        { key = "weapon", label = "Weapon Poison", kind = "weapon" },
+        { key = "weapon", label = "Weapon Poison", kind = "weapon", expectedMinutes = 30 },
     },
     SHAMAN = {
-        { key = "shield", label = "Lightning Shield", spells = { 324, 325, 905, 945, 8134, 10431, 10432, 408510 } },
-        { key = "weapon", label = "Weapon Imbue", kind = "weapon" },
+        { key = "shield", label = "Lightning Shield", expectedMinutes = 10, spells = { 324, 325, 905, 945, 8134, 10431, 10432, 408510 } },
+        { key = "weapon", label = "Weapon Imbue", kind = "weapon", expectedMinutes = 30 },
     },
     WARLOCK = {
-        { key = "armor", label = "Demon Armor", spells = { 687, 696, 706, 1086, 11733, 11734, 11735 } },
+        { key = "armor", label = "Demon Armor", expectedMinutes = 30, spells = { 687, 696, 706, 1086, 11733, 11734, 11735 } },
     },
 }
 
@@ -96,14 +96,72 @@ local function FirstKnown(spells)
     end
 end
 
-local function FindAura(spells)
-    local readable = true
-    for i = 1, #spells do
-        local aura, ok = GetAura(spells[i])
-        if not ok then readable = false end
-        if aura then return aura, spells[i], readable end
+local function FindAura(spells, unit)
+    unit = unit or "player"
+    if unit == "player" then
+        local readable = true
+        for i = 1, #spells do
+            local aura, ok = GetAura(spells[i])
+            if not ok then readable = false end
+            if aura then return aura, spells[i], readable end
+        end
+        return nil, nil, readable
     end
-    return nil, nil, readable
+
+    if not (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then return nil, nil, false end
+    local spellIDs, spellNames = {}, {}
+    for i = 1, #spells do
+        spellIDs[spells[i]] = true
+        local name = SpellName(spells[i])
+        if type(name) == "string" and not IsSecret(name) then spellNames[name] = true end
+    end
+    for index = 1, 255 do
+        local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, index, "HELPFUL")
+        if not ok or IsSecret(aura) then return nil, nil, false end
+        if not aura then break end
+        local spellID = aura.spellId or aura.spellID
+        local name = aura.name
+        if IsSecret(spellID) or IsSecret(name) then return nil, nil, false end
+        if spellIDs[spellID] or spellNames[name] then
+            return aura, spellID, true
+        end
+    end
+    return nil, nil, true
+end
+
+local function UnitLabel(unit)
+    if unit == "player" or (UnitIsUnit and UnitIsUnit(unit, "player")) then return "you" end
+    local name = UnitName and UnitName(unit)
+    if IsSecret(name) or type(name) ~= "string" or name == "" then return unit end
+    return name
+end
+
+local function AddBuffUnit(units, unit)
+    if UnitExists and not UnitExists(unit) then return end
+    if UnitIsConnected and UnitIsConnected(unit) == false then return end
+    if UnitIsDeadOrGhost and UnitIsDeadOrGhost(unit) then return end
+    if UnitIsUnit and UnitIsUnit(unit, "player") then return end
+    units[#units + 1] = { unit = unit, label = UnitLabel(unit) }
+end
+
+local function BuffUnits(requirement, role)
+    local units = { { unit = "player", label = "you" } }
+    if requirement.scope ~= "party" or role == "SOLO" or not ns.Get("trackPartyClassBuffs") then return units end
+    if IsInRaid and IsInRaid() then return units end
+    local count = GetNumSubgroupMembers and GetNumSubgroupMembers() or 0
+    for index = 1, count do AddBuffUnit(units, "party" .. index) end
+    return units
+end
+
+local function UnitList(labels)
+    if #labels <= 3 then return table.concat(labels, ", ") end
+    return string.format("%s, %s, %s and %d more", labels[1], labels[2], labels[3], #labels - 3)
+end
+
+local function RoleAlertApplies(requirement, role)
+    if role == "SOLO" or not ns.Get("roleCriticalAlerts") then return false end
+    local minimum = math.max(0, tonumber(ns.Get("roleAlertMinDuration")) or 5)
+    return (tonumber(requirement.expectedMinutes) or -1) >= minimum
 end
 
 local function GetItemCount(itemID)
@@ -565,10 +623,7 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                 label = req.label,
                 icon = req.kind == "weapon" and 134850 or SpellTexture(knownSpell or req.spells[1]),
             }
-            if req.cover and coverage[req.cover] then
-                status.state = "ready"
-                status.detail = "Covered by Camp Benefits (" .. coverage[req.cover] .. ")."
-            elseif req.kind == "weapon" then
+            if req.kind == "weapon" then
                 local active, remaining = WeaponState()
                 if active == nil then
                     status.state, status.detail = "unknown", "Weapon enhancement state cannot be read."
@@ -579,16 +634,51 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                     status.state, status.detail = "missing", "Apply a suitable " .. req.label:lower() .. "."
                 end
             else
-                local aura, _, readable = FindAura(req.spells)
+                local units = BuffUnits(req, role)
+                local missing, expiring = {}, {}
+                local shortest, readable, campCovered = nil, true, false
+                for unitIndex = 1, #units do
+                    local target = units[unitIndex]
+                    local covered = target.unit == "player" and req.cover and coverage[req.cover]
+                    if covered then
+                        campCovered = true
+                    else
+                        local aura, _, auraReadable = FindAura(req.spells, target.unit)
+                        if not auraReadable then
+                            readable = false
+                        elseif not aura then
+                            missing[#missing + 1] = target.label
+                        else
+                            local remaining = AuraRemaining(aura)
+                            if remaining then shortest = math.min(shortest or remaining, remaining) end
+                            if remaining and remaining <= warnSeconds then expiring[#expiring + 1] = target.label end
+                        end
+                    end
+                end
+
                 if not readable then
                     status.state, status.detail = "unknown", req.label .. " cannot be read right now."
-                elseif aura then
-                    local remaining
-                    status.state, remaining = TimedState(aura, warnSeconds)
-                    status.detail = DurationDetail(req.label .. " active", remaining)
+                elseif #missing > 0 then
+                    status.state = "missing"
+                    status.detail = #units > 1
+                        and string.format("Apply %s to %s.", req.label, UnitList(missing))
+                        or "Apply " .. req.label .. "."
+                elseif #expiring > 0 then
+                    status.state = "warning"
+                    status.detail = DurationDetail(req.label .. " expiring on " .. UnitList(expiring), shortest)
+                elseif #units > 1 then
+                    status.state = "ready"
+                    status.detail = string.format("%s active on all %d group members.", req.label, #units)
+                elseif campCovered then
+                    status.state = "ready"
+                    status.detail = "Covered by Camp Benefits (" .. coverage[req.cover] .. ")."
                 else
-                    status.state, status.detail = "missing", "Apply " .. req.label .. "."
+                    status.state = "ready"
+                    status.detail = DurationDetail(req.label .. " active", shortest)
                 end
+            end
+            if status.state == "missing" and RoleAlertApplies(req, role) then
+                status.attention = "critical"
             end
             statuses[#statuses + 1] = status
             if status.state ~= "ready" or ns.Get("showCompletedReadiness") then rows[#rows + 1] = status end

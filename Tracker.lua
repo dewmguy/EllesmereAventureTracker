@@ -92,6 +92,47 @@ local function StateColor(state)
     return color[1], color[2], color[3]
 end
 
+local ATTENTION_COLORS = {
+    warning = { 1.00, 0.82, 0.12 },
+    critical = { 1.00, 0.16, 0.12 },
+}
+
+local function SetAttention(widget, attention, edgeSize)
+    local color = ATTENTION_COLORS[attention]
+    local glow = widget._attentionBorder
+    if not color then
+        if glow then
+            glow.animation:Stop()
+            glow:Hide()
+        end
+        return
+    end
+    if not glow then
+        glow = CreateFrame("Frame", nil, widget, "BackdropTemplate")
+        glow:SetPoint("TOPLEFT", -2, 2)
+        glow:SetPoint("BOTTOMRIGHT", 2, -2)
+        glow:SetFrameLevel(widget:GetFrameLevel() + 10)
+        glow:EnableMouse(false)
+        glow.animation = glow:CreateAnimationGroup()
+        glow.animation:SetLooping("BOUNCE")
+        local fade = glow.animation:CreateAnimation("Alpha")
+        fade:SetFromAlpha(0.25)
+        fade:SetToAlpha(1)
+        fade:SetDuration(0.9)
+        fade:SetSmoothing("IN_OUT")
+        widget._attentionBorder = glow
+    end
+    edgeSize = edgeSize or 2
+    if glow._edgeSize ~= edgeSize then
+        glow:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = edgeSize })
+        glow._edgeSize = edgeSize
+    end
+    glow:SetBackdropBorderColor(color[1], color[2], color[3], 1)
+    glow:SetAlpha(0.25)
+    glow:Show()
+    if not glow.animation:IsPlaying() then glow.animation:Play() end
+end
+
 local function ShowTooltip(owner, data)
     if type(data.tooltipFunc) == "function" then
         local ok, handled = pcall(data.tooltipFunc, owner)
@@ -188,9 +229,15 @@ local function AcquireRow(index)
 end
 
 local function HidePools()
-    for i = 1, #iconPool do iconPool[i]:Hide() end
+    for i = 1, #iconPool do
+        SetAttention(iconPool[i], nil)
+        iconPool[i]:Hide()
+    end
     for i = 1, #sectionPool do sectionPool[i]:Hide() end
-    for i = 1, #rowPool do rowPool[i]:Hide() end
+    for i = 1, #rowPool do
+        SetAttention(rowPool[i], nil)
+        rowPool[i]:Hide()
+    end
 end
 
 local function Clamp(value, minimum, maximum, fallback)
@@ -486,6 +533,7 @@ local function Render()
             button.icon:SetTexture(data.icon or 134400)
             button.badge:SetText(data.badge or "")
             button:SetBackdropBorderColor(StateColor(data.state))
+            SetAttention(button, data.attention, 2)
             button:Show()
         end
         y = y - 40
@@ -516,6 +564,7 @@ local function Render()
                 row.label:SetText(data.label or "")
                 row.detail:SetText(data.detail or "")
                 row.stripe:SetColorTexture(StateColor(data.state))
+                SetAttention(row, data.attention, 2)
                 row:EnableMouse(true)
                 row:Show()
                 y = y - 40
@@ -621,17 +670,17 @@ local eventNames = {
     "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA",
     "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED",
     "SPELLS_CHANGED", "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
-    "CHAT_MSG_SKILL", "UNIT_INVENTORY_CHANGED", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
+    "CHAT_MSG_SKILL", "UNIT_INVENTORY_CHANGED", "UNIT_CONNECTION", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
     "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "ITEM_DATA_LOAD_RESULT", "SPELL_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED",
     "TRAINER_SHOW", "TRAINER_UPDATE", "TRAINER_CLOSED",
     "TRAIT_TREE_CURRENCY_INFO_UPDATED", "TRAIT_CONFIG_UPDATED", "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "ACHIEVEMENT_EARNED",
 }
 for i = 1, #eventNames do pcall(events.RegisterEvent, events, eventNames[i]) end
-pcall(events.RegisterUnitEvent, events, "UNIT_AURA", "player")
+pcall(events.RegisterEvent, events, "UNIT_AURA")
 events:SetScript("OnEvent", function(_, event, ...)
     if event == "UNIT_AURA" then
         local unit = ...
-        if unit and unit ~= "player" then return end
+        if unit and unit ~= "player" and not tostring(unit):match("^party%d+$") then return end
     end
     if (event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE") and ns.ScanProfessionRecipes then
         ns.ScanProfessionRecipes()

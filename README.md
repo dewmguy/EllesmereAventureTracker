@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.13 establishes the addon structure and a playable first pass:
+Version 0.1.14 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
   mover, precise anchoring and width adjustment;
@@ -40,6 +40,10 @@ Version 0.1.13 establishes the addon structure and a playable first pass:
   skill, its price and the total cost to learn them all, with a clickable
   summary that expands or collapses the individual list and trainer details on
   skill hover;
+- a one-time yellow breathing alert when a collapsed class-training list gains
+  newly available skills, cleared as soon as the list is opened;
+- configurable red breathing alerts for missing long-lived role preparation,
+  including party coverage for appropriate class buffs;
 - profession Legacy checkpoints kept in the Legacy section;
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;
