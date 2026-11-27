@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.4 establishes the addon structure and a playable first pass:
+Version 0.3.5 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -26,8 +26,8 @@ Version 0.3.4 establishes the addon structure and a playable first pass:
   downward pane growth; context/status lines and readiness icons remain fixed
   while recommendation sections scroll underneath;
 - one combined Tracker settings page with customizable pane padding, independent
-  pane/section/entry backgrounds, font face, outline, text sizes and text colors,
-  plus border and title-bar presentation;
+  pane/section/entry backgrounds, font face, outline and text sizes, plus Class,
+  Accent and Custom color modes for every tracker text category;
 - a Quest Tracker-style minimize glyph and a Damage Meter-style lock control;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
   states;
@@ -51,8 +51,9 @@ Version 0.3.4 establishes the addon structure and a playable first pass:
   Player Spells microbutton and breathes yellow until every point is spent;
 - a per-character class-trainer scan that lists every currently available
   skill, its price and the total cost to learn them all, with a clickable
-  summary that expands or collapses the individual list and trainer details on
-  skill hover;
+  summary that expands or collapses the individual list, the full native
+  trainer tooltip while the trainer is open, and a cached skill description
+  afterward;
 - a one-time yellow breathing alert when a collapsed class-training list gains
   newly available skills, cleared as soon as the list is opened;
 - configurable red breathing alerts for missing long-lived role preparation,
@@ -80,7 +81,11 @@ Version 0.3.4 establishes the addon structure and a playable first pass:
   text-size, text-color and icon controls;
 - contextual In Flight, In Combat, Resting, Mounted, instance, life and
   presence statuses beside the zone/class context;
-- a live session duration and character `/played` line below the main context;
+- a live session duration in the main status row without a leading zero-hour
+  field, with verbose current-session and character `/played` details on hover;
+- carried gold with denomination icons and a hover summary of session changes,
+  the available lifetime statistic, known other-character balances and the
+  Warband bank through EllesmereUI's shared ledger;
 - profession Legacy checkpoints kept in the Legacy section;
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;
@@ -159,3 +164,4 @@ Third-party data sources and retained notices are recorded in
 
 Protected actions, combat-sensitive reads and their supported implementation
 patterns are recorded in [`docs/API_RESTRICTIONS.md`](docs/API_RESTRICTIONS.md).
+

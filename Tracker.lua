@@ -90,12 +90,23 @@ content:SetPoint("TOPLEFT")
 content:SetSize(1, 1)
 scrollFrame:SetScrollChild(content)
 
-local contextText = fixedFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+local contextButton = CreateFrame("Button", nil, fixedFrame)
+contextButton:SetPoint("TOPLEFT", 2, 0)
+contextButton:SetPoint("TOPRIGHT", -2, 0)
+contextButton:SetHeight(1)
+if contextButton.SetHyperlinksEnabled then contextButton:SetHyperlinksEnabled(true) end
+
+local contextText = contextButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 contextText:SetPoint("TOPLEFT", 2, 0)
 contextText:SetPoint("TOPRIGHT", -2, 0)
 contextText:SetJustifyH("LEFT")
 contextText:SetTextColor(0.67, 0.72, 0.75)
 contextText:SetWordWrap(true)
+if contextButton.SetFontString then contextButton:SetFontString(contextText) end
+contextButton:SetScript("OnHyperlinkEnter", function(self, link)
+    if ns.ShowStatusLinkTooltip then ns.ShowStatusLinkTooltip(self, link) end
+end)
+contextButton:SetScript("OnHyperlinkLeave", function() GameTooltip_Hide() end)
 
 local playtimeText = fixedFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 playtimeText:SetJustifyH("LEFT")
@@ -116,6 +127,26 @@ local function ColorValue(key)
     if type(value) ~= "table" then value = fallback end
     return value.r or fallback.r or 1, value.g or fallback.g or 1,
         value.b or fallback.b or 1, value.a == nil and (fallback.a or 1) or value.a
+end
+
+local TEXT_COLOR_MODES = {
+    contextTextColor = "contextTextColorMode",
+    sectionTextColor = "sectionTextColorMode",
+    entryLabelTextColor = "entryLabelTextColorMode",
+    entryDetailTextColor = "entryDetailTextColorMode",
+    badgeTextColor = "badgeTextColorMode",
+}
+
+local function ThemeColor(modeKey, customKey)
+    local mode = modeKey and ns.Get(modeKey) or "custom"
+    if mode == "class" and EUI.GetPlayerClassColor then
+        local ok, r, g, b = pcall(EUI.GetPlayerClassColor)
+        if ok and r and g and b then return r, g, b, 1 end
+    elseif mode == "accent" and EUI.GetAccentColor then
+        local ok, r, g, b = pcall(EUI.GetAccentColor)
+        if ok and r and g and b then return r, g, b, 1 end
+    end
+    return ColorValue(customKey)
 end
 
 local function SetSurfaceBackground(surface, key)
@@ -512,7 +543,7 @@ local function TextFontFlags(outline)
     return ""
 end
 
-local function StyleFontString(fontString, sizeKey, fallbackSize, colorKey)
+local function StyleFontString(fontString, sizeKey, fallbackSize, colorKey, modeKey)
     if not fontString then return end
     local size = Clamp(ns.Get(sizeKey), 8, 24, fallbackSize)
     local path, flags = TextFontPath(), TextFontFlags()
@@ -521,26 +552,26 @@ local function StyleFontString(fontString, sizeKey, fallbackSize, colorKey)
     else
         pcall(fontString.SetFont, fontString, path, size, flags)
     end
-    if colorKey then fontString:SetTextColor(ColorValue(colorKey)) end
+    if colorKey then fontString:SetTextColor(ThemeColor(modeKey or TEXT_COLOR_MODES[colorKey], colorKey)) end
 end
 
 local function ApplyTextAppearance()
     StyleFontString(title, "titleFontSize", 13)
     StyleFontString(collapseButton.text, "titleFontSize", 13)
-    StyleFontString(contextText, "contextFontSize", 11, "contextTextColor")
-    StyleFontString(playtimeText, "contextFontSize", 11, "contextTextColor")
+    StyleFontString(contextText, "contextFontSize", 11, "contextTextColor", "contextTextColorMode")
+    StyleFontString(playtimeText, "contextFontSize", 11, "contextTextColor", "contextTextColorMode")
     for i = 1, #iconPool do
-        StyleFontString(iconPool[i].badge, "badgeFontSize", 10, "badgeTextColor")
+        StyleFontString(iconPool[i].badge, "badgeFontSize", 10, "badgeTextColor", "badgeTextColorMode")
     end
     for i = 1, #sectionPool do
         local section = sectionPool[i]
-        StyleFontString(section.text, "sectionFontSize", 11, "sectionTextColor")
+        StyleFontString(section.text, "sectionFontSize", 11, "sectionTextColor", "sectionTextColorMode")
         SetSurfaceBackground(section, section:IsMouseOver() and "sectionHoverBackgroundColor" or "sectionBackgroundColor")
     end
     for i = 1, #rowPool do
         local row = rowPool[i]
-        StyleFontString(row.label, "entryLabelFontSize", 12, "entryLabelTextColor")
-        StyleFontString(row.detail, "entryDetailFontSize", 10, "entryDetailTextColor")
+        StyleFontString(row.label, "entryLabelFontSize", 12, "entryLabelTextColor", "entryLabelTextColorMode")
+        StyleFontString(row.detail, "entryDetailFontSize", 10, "entryDetailTextColor", "entryDetailTextColorMode")
         SetSurfaceBackground(row, row:IsMouseOver() and "entryHoverBackgroundColor" or "entryBackgroundColor")
     end
 end
@@ -550,7 +581,7 @@ local function DataColor(color, fallbackKey)
         return color.r or color[1] or 1, color.g or color[2] or 1,
             color.b or color[3] or 1, color.a == nil and (color[4] or 1) or color.a
     end
-    return ColorValue(fallbackKey)
+    return ThemeColor(TEXT_COLOR_MODES[fallbackKey], fallbackKey)
 end
 
 local function ApplyDataTypography(row, data)
@@ -738,15 +769,7 @@ local function CollapsedHeight()
 end
 
 local function TitleControlColor()
-    local mode = ns.Get("titleTextColorMode")
-    if mode == "class" and EUI.GetPlayerClassColor then
-        local ok, r, g, b = pcall(EUI.GetPlayerClassColor)
-        if ok and r and g and b then return r, g, b, 1 end
-    elseif mode == "accent" and EUI.GetAccentColor then
-        local ok, r, g, b = pcall(EUI.GetAccentColor)
-        if ok and r and g and b then return r, g, b, 1 end
-    end
-    return ColorValue("titleTextColor")
+    return ThemeColor("titleTextColorMode", "titleTextColor")
 end
 
 local function DamageMeterModule()
@@ -866,9 +889,12 @@ local function ApplyWindowStyle()
     end
     content:ClearAllPoints()
     content:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT")
+    contextButton:ClearAllPoints()
+    contextButton:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, 0)
+    contextButton:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
     contextText:ClearAllPoints()
-    contextText:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, 0)
-    contextText:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
+    contextText:SetPoint("TOPLEFT", contextButton, "TOPLEFT", 0, 0)
+    contextText:SetPoint("TOPRIGHT", contextButton, "TOPRIGHT", 0, 0)
     playtimeText:ClearAllPoints()
     playtimeText:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, 0)
     playtimeText:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", mode == "hidden" and -28 or -2, 0)
@@ -964,6 +990,7 @@ end
 RegisterDragSurface(frame)
 RegisterDragSurface(header)
 RegisterDragSurface(fixedFrame)
+RegisterDragSurface(contextButton)
 RegisterDragSurface(scrollFrame)
 RegisterDragSurface(content)
 
@@ -1025,7 +1052,7 @@ end
 function ns.RefreshTrackerContextText()
     if not (frame:IsShown() and fixedFrame:IsShown()) then return end
     local contextLine, playtimeLine = CurrentContextLines()
-    if contextText:IsShown() and contextLine then contextText:SetText(contextLine) end
+    if contextButton:IsShown() and contextLine then contextButton:SetText(contextLine) end
     if playtimeText:IsShown() and playtimeLine then playtimeText:SetText(playtimeLine) end
 end
 
@@ -1061,13 +1088,17 @@ local function Render()
     local contextLineHeight = math.max(19, Clamp(ns.Get("contextFontSize"), 8, 24, 11) + 8)
     local contextRight = TitleBarMode() == "hidden" and -28 or -2
     if contextLine then
-        contextText:ClearAllPoints()
-        contextText:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, fixedY)
-        contextText:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", contextRight, fixedY)
-        contextText:SetText(contextLine)
+        contextButton:ClearAllPoints()
+        contextButton:SetPoint("TOPLEFT", fixedFrame, "TOPLEFT", 2, fixedY)
+        contextButton:SetPoint("TOPRIGHT", fixedFrame, "TOPRIGHT", contextRight, fixedY)
+        contextButton:SetText(contextLine)
         contextText:Show()
-        fixedY = fixedY - math.max(contextLineHeight, math.ceil(contextText:GetStringHeight() or 0) + 5)
+        local height = math.max(contextLineHeight, math.ceil(contextText:GetStringHeight() or 0) + 5)
+        contextButton:SetHeight(height)
+        contextButton:Show()
+        fixedY = fixedY - height
     else
+        contextButton:Hide()
         contextText:Hide()
     end
     if playtimeLine then
@@ -1203,13 +1234,15 @@ if EUI.RegAccent then
         type = "callback",
         obj = frame,
         fn = function()
-            if ns.Get("titleTextColorMode") == "accent" then ApplyWindowStyle() end
+            ApplyWindowStyle()
+            if ns.RequestRefresh then ns.RequestRefresh() end
         end,
     })
 end
 if hooksecurefunc and type(EUI.ApplyColorsToOUF) == "function" then
     pcall(hooksecurefunc, EUI, "ApplyColorsToOUF", function()
-        if ns.Get("titleTextColorMode") == "class" then ApplyWindowStyle() end
+        ApplyWindowStyle()
+        if ns.RequestRefresh then ns.RequestRefresh() end
     end)
 end
 
@@ -1336,3 +1369,4 @@ if EUI.RegisterSkin then
         ApplyWindowStyle()
     end)
 end
+

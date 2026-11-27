@@ -78,13 +78,27 @@ local function ColorPicker(key, text, tooltip, hasAlpha, disabled)
     }
 end
 
+local COLOR_MODE_VALUES = { custom = "Custom", class = "Class Color", accent = "Accent Color" }
+local COLOR_MODE_ORDER = { "custom", "class", "accent" }
+
+local function TextColorMode(key, text, tooltip, disabled)
+    return Dropdown(key, text, COLOR_MODE_VALUES, COLOR_MODE_ORDER, tooltip, disabled, true)
+end
+
+local function CustomColorDisabled(modeKey, additionalDisabled)
+    return function()
+        return ns.Get(modeKey) ~= "custom" or (additionalDisabled and additionalDisabled())
+    end
+end
+
 local TRACKER_KEYS = {
     "enabled", "locked", "width", "scale", "maximizePaneHeight", "paneGrowthDirection", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
     "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor", "entryBackgroundColor", "entryHoverBackgroundColor",
     "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
-    "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "contextTextColor",
-    "sectionFontSize", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColor", "entryDetailFontSize", "entryDetailTextColor",
-    "badgeFontSize", "badgeTextColor", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
+    "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "contextTextColorMode", "contextTextColor",
+    "sectionFontSize", "sectionTextColorMode", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor",
+    "entryDetailFontSize", "entryDetailTextColorMode", "entryDetailTextColor", "badgeFontSize", "badgeTextColorMode", "badgeTextColor",
+    "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
 }
 local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter", "lastClassBuffSpellsByCharacter", "roleCriticalAlerts", "roleAlertMinDuration", "trackPartyClassBuffs" }
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
@@ -97,11 +111,11 @@ local FLIGHT_KEYS = {
     "flightTimerLearnTimes", "flightTimerShowIcon", "flightTimerBarHeight", "flightTimerBarTexture", "flightTimerFillColorMode",
     "flightTimerFillColor", "flightTimerBackgroundColor", "flightTimerBorderTexture", "flightTimerBorderSize", "flightTimerBorderColor",
     "flightTimerFont", "flightTimerFontOutline", "flightTimerDestinationFontSize", "flightTimerTimeFontSize",
-    "flightTimerDestinationColor", "flightTimerTimeColor",
+    "flightTimerDestinationColorMode", "flightTimerDestinationColor", "flightTimerTimeColorMode", "flightTimerTimeColor",
 }
 local STATUS_KEYS = {
     "showStatuses", "showFlightStatus", "showCombatStatus", "showRestingStatus", "showMountedStatus", "showInstanceStatus",
-    "showPresenceStatus", "showLifeStatus", "showPlaytime", "showSessionPlaytime", "showTotalPlaytime",
+    "showPresenceStatus", "showLifeStatus", "showPlaytime", "showSessionPlaytime", "showTotalPlaytime", "showGoldStatus",
 }
 
 local function BuildTracker(pageName, parent, yOffset)
@@ -127,8 +141,9 @@ local function BuildTracker(pageName, parent, yOffset)
               ns.ResetKeys({ "opacity", "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor",
                   "entryBackgroundColor", "entryHoverBackgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode",
                   "titleBarHeight", "titleBarColor", "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize",
-                  "contextFontSize", "contextTextColor", "sectionFontSize", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColor",
-                  "entryDetailFontSize", "entryDetailTextColor", "badgeFontSize", "badgeTextColor", "titleAlignment", "showTitleText",
+                  "contextFontSize", "contextTextColorMode", "contextTextColor", "sectionFontSize", "sectionTextColorMode", "sectionTextColor",
+                  "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor", "entryDetailFontSize", "entryDetailTextColorMode",
+                  "entryDetailTextColor", "badgeFontSize", "badgeTextColorMode", "badgeTextColor", "titleAlignment", "showTitleText",
                   "titleSeparatorSize", "titleSeparatorColor" })
           end })
     y = y - h
@@ -221,23 +236,48 @@ local function BuildTracker(pageName, parent, yOffset)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("contextFontSize", "Context Font Size", 8, 24, 1, "Size of the zone, class, specialization and role line."),
-        ColorPicker("contextTextColor", "Context Text Color", "Color and alpha of the context line.", true))
+        TextColorMode("contextTextColorMode", "Context Text Color", "Use the player class, EllesmereUI accent, or a custom context/status color."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("contextTextColor", "Custom Context Color", "Custom color and alpha of the context and status line.", true,
+            CustomColorDisabled("contextTextColorMode")),
+        nil)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("sectionFontSize", "Section Font Size", 8, 24, 1, "Size of collapsible section titles."),
-        ColorPicker("sectionTextColor", "Section Text Color", "Color and alpha of section titles.", true))
+        TextColorMode("sectionTextColorMode", "Section Text Color", "Use the player class, EllesmereUI accent, or a custom section-title color."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("sectionTextColor", "Custom Section Color", "Custom color and alpha of section titles.", true,
+            CustomColorDisabled("sectionTextColorMode")),
+        nil)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("entryLabelFontSize", "Entry Label Font Size", 8, 24, 1, "Size of recommendation entry labels."),
-        ColorPicker("entryLabelTextColor", "Entry Label Color", "Color and alpha of recommendation labels.", true))
+        TextColorMode("entryLabelTextColorMode", "Entry Label Color", "Use the player class, EllesmereUI accent, or a custom recommendation-label color."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("entryLabelTextColor", "Custom Entry Label Color", "Custom color and alpha of recommendation labels.", true,
+            CustomColorDisabled("entryLabelTextColorMode")),
+        nil)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("entryDetailFontSize", "Entry Detail Font Size", 8, 24, 1, "Size of recommendation detail text."),
-        ColorPicker("entryDetailTextColor", "Entry Detail Color", "Color and alpha of recommendation details.", true))
+        TextColorMode("entryDetailTextColorMode", "Entry Detail Color", "Use the player class, EllesmereUI accent, or a custom recommendation-detail color."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("entryDetailTextColor", "Custom Entry Detail Color", "Custom color and alpha of recommendation details.", true,
+            CustomColorDisabled("entryDetailTextColorMode")),
+        nil)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("badgeFontSize", "Icon Badge Font Size", 8, 24, 1, "Size of small text badges on readiness icons."),
-        ColorPicker("badgeTextColor", "Icon Badge Text Color", "Color and alpha of readiness icon badge text.", true))
+        TextColorMode("badgeTextColorMode", "Icon Badge Text Color", "Use the player class, EllesmereUI accent, or a custom readiness-badge color."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        ColorPicker("badgeTextColor", "Custom Icon Badge Color", "Custom color and alpha of readiness icon badge text.", true,
+            CustomColorDisabled("badgeTextColorMode")),
+        nil)
     y = y - h
     return math.abs(y)
 end
@@ -562,11 +602,21 @@ local function BuildTravelStatus(pageName, parent, yOffset)
         y = y - h
         _, h = W:DualRow(parent, y,
             Slider("flightTimerDestinationFontSize", "Destination Font Size", 8, 24, 1, "Size of the flight destination label.", disabled),
-            ColorPicker("flightTimerDestinationColor", "Destination Color", "Color and alpha of the flight destination label.", true, disabled))
+            TextColorMode("flightTimerDestinationColorMode", "Destination Color", "Use the player class, EllesmereUI accent, or a custom flight-destination color.", disabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("flightTimerDestinationColor", "Custom Destination Color", "Custom color and alpha of the flight destination label.", true,
+                CustomColorDisabled("flightTimerDestinationColorMode", disabled)),
+            nil)
         y = y - h
         _, h = W:DualRow(parent, y,
             Slider("flightTimerTimeFontSize", "Time Font Size", 8, 24, 1, "Size of elapsed, remaining and total time.", disabled),
-            ColorPicker("flightTimerTimeColor", "Time Color", "Color and alpha of the flight time detail.", true, disabled))
+            TextColorMode("flightTimerTimeColorMode", "Time Detail Color", "Use the player class, EllesmereUI accent, or a custom flight-time detail color.", disabled))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            ColorPicker("flightTimerTimeColor", "Custom Time Detail Color", "Custom color and alpha of the flight time detail.", true,
+                CustomColorDisabled("flightTimerTimeColorMode", disabled)),
+            nil)
         y = y - h
     else
         _, h = W:SectionHeader(parent, "ACTIVITY STATUSES", y); y = y - h
@@ -593,16 +643,26 @@ local function BuildTravelStatus(pageName, parent, yOffset)
 
         _, h = W:SectionHeader(parent, "PLAYTIME", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Toggle("showPlaytime", "Show Playtime Line", "Shows a second compact line below the main context and status line."),
-            Label("The session clock starts when this UI session loads; /played is the character's live total."))
+            Toggle("showPlaytime", "Enable Playtime Status", "Enables the session clock in the main status row and its hover details."),
+            Label("The session clock appears immediately after Resting when that status is active."))
         y = y - h
         _, h = W:DualRow(parent, y,
-            Toggle("showSessionPlaytime", "Current Session", "Shows a live hours:minutes:seconds duration for the current UI session."),
-            Toggle("showTotalPlaytime", "Total /played", "Shows the character's total played time, refreshed through the shared EllesmereUI request."))
+            Toggle("showSessionPlaytime", "Show Session Timer", "Shows a live minutes:seconds clock, adding hours only after the first hour."),
+            Toggle("showTotalPlaytime", "Include Total /played", "Adds the character's server-reported total played time to the session timer tooltip."))
         y = y - h
         _, h = W:DualRow(parent, y,
-            Label("Status and playtime text use the Tracker Context font size and color settings."),
+            Label("Hover the session timer for a verbose current-session and total-played explanation."),
             nil)
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "CURRENCY", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showGoldStatus", "Show Character Gold", "Shows carried money in the status row with gold, silver and copper icons."),
+            Label("Hover it for session changes, the character's lifetime statistic when available, and balances recorded for other characters."))
+        y = y - h
+        _, h = W:DualRow(parent, y,
+            Label("Other-character balances come from EllesmereUI's shared ledger and refresh after those characters are played."),
+            Label("Status, playtime and currency text use the Tracker Context font size and color mode."))
         y = y - h
     end
     return math.abs(y)
@@ -639,7 +699,7 @@ local function Register()
             },
             {
                 key = "travel-status", title = "Travel & Status",
-                description = "Tracker flight timer, activity statuses and playtime.",
+                description = "Tracker flight timer, activity statuses, playtime and character gold.",
                 pages = { "Flight Timer", "Statuses & Playtime" }, buildPage = BuildTravelStatus,
                 onReset = function()
                     ns.ResetKeys(FLIGHT_KEYS)
@@ -676,3 +736,4 @@ if not Register() then
         if addonName == "EllesmereUI" and Register() then self:UnregisterAllEvents() end
     end)
 end
+

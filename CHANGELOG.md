@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.5 - 2026-11-26
+
+- Fixed class-trainer skill hovers so the scanned ability description is
+  prioritized and retained after leaving the trainer, while Blizzard's full
+  native trainer tooltip remains available when that trainer is open.
+- Moved the session clock into the main status row immediately after Resting,
+  removed the leading zero-hour field and moved the verbose character
+  `/played` total into the clock's hover tooltip.
+- Added carried gold with denomination icons to the status row. Its tooltip
+  includes session money changes, the character's lifetime-gold statistic when
+  the client exposes it, and known character and Warband balances from
+  EllesmereUI's shared gold ledger.
+- Added Class, Accent and Custom color modes to context/status text, section
+  titles, entry labels, entry details, readiness badges, and both flight-timer
+  text fields. The existing title and minimize color modes remain unchanged.
+
 ## 0.3.4 - 2026-11-26
 
 - Fixed learned Cooking recipes leaking into Blacksmithing and First Aid
@@ -300,3 +316,4 @@
   boundary.
 - Added profession Legacy checkpoints, skill-cap reminders and gathering
   context.
+

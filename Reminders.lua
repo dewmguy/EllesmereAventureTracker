@@ -95,14 +95,38 @@ local function CleanTrainerTooltipText(value)
     return value:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "")
 end
 
-local function TrainerTooltipText(index, serviceName)
+local function TrainerTooltipText(index, serviceName, serviceCost)
     local parts, seen = {}, {}
+    local costTexts = {}
+    local function RememberCostText(value)
+        local text = CleanTrainerTooltipText(value)
+        if text ~= "" then costTexts[text] = true end
+    end
+    if (tonumber(serviceCost) or 0) > 0 then
+        if type(GetCoinTextureString) == "function" then
+            local ok, value = pcall(GetCoinTextureString, serviceCost)
+            if ok then RememberCostText(value) end
+        end
+        if type(GetMoneyString) == "function" then
+            local ok, value = pcall(GetMoneyString, serviceCost)
+            if ok then RememberCostText(value) end
+            ok, value = pcall(GetMoneyString, serviceCost, true)
+            if ok then RememberCostText(value) end
+        end
+    end
     local function Add(value)
         local text = CleanTrainerTooltipText(value)
-        if text ~= "" and text ~= serviceName and not seen[text] then
+        if text ~= "" and text ~= serviceName and not costTexts[text] and not seen[text] then
             parts[#parts + 1] = text
             seen[text] = true
         end
+    end
+
+    -- This is the actual trainer-provided ability description. Cache it first
+    -- so leaving the trainer does not reduce the hover to the price line.
+    if type(GetTrainerServiceDescription) == "function" then
+        local ok, description = pcall(GetTrainerServiceDescription, index)
+        if ok then Add(description) end
     end
     if C_TooltipInfo and C_TooltipInfo.GetTrainerService then
         local ok, tooltip = pcall(C_TooltipInfo.GetTrainerService, index)
@@ -114,11 +138,6 @@ local function TrainerTooltipText(index, serviceName)
                 end
             end
         end
-    end
-    if #parts == 0 and type(GetTrainerServiceDescription) == "function" then
-        local ok, description = pcall(GetTrainerServiceDescription, index)
-        description = ok and CleanTrainerTooltipText(description) or ""
-        if description ~= "" then parts[1] = description end
     end
     return #parts > 0 and table.concat(parts, "\n") or nil
 end
@@ -155,7 +174,7 @@ local function AvailableTrainerService(index)
         icon = icon or 136243,
         cost = cost,
         trainerIndex = index,
-        tooltipText = TrainerTooltipText(index, name),
+        tooltipText = TrainerTooltipText(index, name, cost),
     }
 end
 
@@ -419,3 +438,4 @@ suppressor:SetScript("OnEvent", function()
         ns.ApplyTalentAlertSuppression()
     end)
 end)
+

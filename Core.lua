@@ -36,14 +36,19 @@ local DEFAULTS = {
     textOutline = "NONE",
     titleFontSize = 13,
     contextFontSize = 11,
+    contextTextColorMode = "custom",
     contextTextColor = { r = 0.67, g = 0.72, b = 0.75, a = 1 },
     sectionFontSize = 11,
+    sectionTextColorMode = "custom",
     sectionTextColor = { r = 0.18, g = 0.82, b = 0.66, a = 1 },
     entryLabelFontSize = 12,
+    entryLabelTextColorMode = "custom",
     entryLabelTextColor = { r = 1, g = 1, b = 1, a = 1 },
     entryDetailFontSize = 10,
+    entryDetailTextColorMode = "custom",
     entryDetailTextColor = { r = 0.62, g = 0.66, b = 0.69, a = 1 },
     badgeFontSize = 10,
+    badgeTextColorMode = "custom",
     badgeTextColor = { r = 1, g = 1, b = 1, a = 1 },
     titleAlignment = "LEFT",
     showTitleText = true,
@@ -121,7 +126,9 @@ local DEFAULTS = {
     flightTimerFontOutline = "NONE",
     flightTimerDestinationFontSize = 12,
     flightTimerTimeFontSize = 10,
+    flightTimerDestinationColorMode = "custom",
     flightTimerDestinationColor = { r = 1, g = 1, b = 1, a = 1 },
+    flightTimerTimeColorMode = "custom",
     flightTimerTimeColor = { r = 0.75, g = 0.82, b = 0.86, a = 1 },
     flightTimerRoutes = {},
 
@@ -136,6 +143,7 @@ local DEFAULTS = {
     showPlaytime = true,
     showSessionPlaytime = true,
     showTotalPlaytime = true,
+    showGoldStatus = true,
 }
 ns.DEFAULTS = DEFAULTS
 
@@ -339,3 +347,4 @@ SlashCmdList.EUIADVENTURETRACKER = function(message)
         ns.Set("enabled", not ns.Get("enabled"))
     end
 end
+

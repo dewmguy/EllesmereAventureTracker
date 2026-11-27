@@ -218,6 +218,18 @@ local function ColorValue(key)
         color.b or fallback.b or 1, color.a == nil and (fallback.a or 1) or color.a
 end
 
+local function ThemeColor(modeKey, customKey)
+    local mode = ns.Get(modeKey)
+    if mode == "class" and EUI.GetPlayerClassColor then
+        local ok, r, g, b = pcall(EUI.GetPlayerClassColor)
+        if ok and r and g and b then return r, g, b, 1 end
+    elseif mode == "accent" and EUI.GetAccentColor then
+        local ok, r, g, b = pcall(EUI.GetAccentColor)
+        if ok and r and g and b then return r, g, b, 1 end
+    end
+    return ColorValue(customKey)
+end
+
 local function FillColor()
     local mode = ns.Get("flightTimerFillColorMode")
     if mode == "class" then
@@ -255,8 +267,8 @@ local function Build()
     local fr, fg, fb, fa = FillColor()
     local br, bg, bb, ba = ColorValue("flightTimerBackgroundColor")
     local rr, rg, rb, ra = ColorValue("flightTimerBorderColor")
-    local lr, lg, lb, la = ColorValue("flightTimerDestinationColor")
-    local dr, dg, db, da = ColorValue("flightTimerTimeColor")
+    local lr, lg, lb, la = ThemeColor("flightTimerDestinationColorMode", "flightTimerDestinationColor")
+    local dr, dg, db, da = ThemeColor("flightTimerTimeColorMode", "flightTimerTimeColor")
     local destination = active.info and active.info.destination
     local label = ns.Get("flightTimerShowDestination") and destination or nil
     label = label and ("Flying to " .. label) or "Flight in progress"
@@ -327,3 +339,4 @@ events:SetScript("OnEvent", function(_, event, ...)
 end)
 
 HookFlightAPI()
+
