@@ -85,7 +85,7 @@ local TRACKER_KEYS = {
     "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
 }
 local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter" }
-local REMINDER_KEYS = { "showTalentReminder", "hideBlizzardTalentReminder" }
+local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals" }
 local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showCompletedProfessions", "showProfessionZoneHints" }
@@ -256,6 +256,13 @@ local function BuildReadiness(pageName, parent, yOffset)
         _, h = W:DualRow(parent, y,
             Label("The reminder opens the Talents window when clicked."),
             Label("Blizzard's reminder is hidden because the EllesmereUI microbar may not be visible."))
+        y = y - h
+
+        _, h = W:SectionHeader(parent, "CLASS TRAINING", y); y = y - h
+        _, h = W:DualRow(parent, y,
+            Toggle("showClassTrainerSkills", "Available Class-Trainer Skills",
+                "Lists every skill currently available at the last class trainer visited and totals their training cost."),
+            Label("Visit a class trainer once to scan. The list refreshes as skills are learned."))
         y = y - h
     end
     return math.abs(y)

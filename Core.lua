@@ -35,6 +35,7 @@ local DEFAULTS = {
     hideWhenReady = false,
     showContext = true,
     showTalentReminder = true,
+    showClassTrainerSkills = true,
     hideBlizzardTalentReminder = true,
 
     showReadiness = true,

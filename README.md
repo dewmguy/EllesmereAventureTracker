@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.6 establishes the addon structure and a playable first pass:
+Version 0.1.7 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window with an EllesmereUI Unlock Mode
   mover, precise anchoring and width adjustment;
@@ -31,6 +31,8 @@ Version 0.1.6 establishes the addon structure and a playable first pass:
 - unspent Legacy point reminders and a current-zone provider boundary;
 - an unspent talent reminder that can replace Blizzard's callout to the hidden
   Player Spells microbutton;
+- a per-character class-trainer scan that lists every currently available
+  skill, its price and the total cost to learn them all;
 - profession Legacy checkpoints kept in the Legacy section;
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;
@@ -81,7 +83,8 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 ## Project layout
 
 - `Core.lua` — saved settings, provider registry and slash commands
-- `Reminders.lua` — talent reminders and scoped Blizzard-callout suppression
+- `Reminders.lua` — talent and class-training reminders plus scoped
+  Blizzard-callout suppression
 - `Readiness.lua` — preparation and buff-family interpretation
 - `WorldBuffs.lua` — world-buff presence, timers and acquisition sources
 - `Legacy.lua` — Legacy points and current-zone provider

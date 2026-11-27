@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.7 - 2026-11-26
+
+- Added a Character summary of every skill currently available from the last
+  class trainer visited, with individual prices and the total cost to learn all.
+- Class-training data is kept per character, refreshes as skills are learned
+  and asks for a new trainer scan after the character levels.
+- Profession trainers and unavailable future skills are excluded from the
+  Character training list and cost total.
+
 ## 0.1.6 - 2026-11-26
 
 - Moved crafting-skill Legacy checkpoints into the Legacy section and rewrote

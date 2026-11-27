@@ -569,6 +569,7 @@ local eventNames = {
     "SPELLS_CHANGED", "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
     "CHAT_MSG_SKILL", "UNIT_INVENTORY_CHANGED", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
     "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "ITEM_DATA_LOAD_RESULT", "SPELL_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED",
+    "TRAINER_SHOW", "TRAINER_UPDATE", "TRAINER_CLOSED",
     "TRAIT_TREE_CURRENCY_INFO_UPDATED", "TRAIT_CONFIG_UPDATED", "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "ACHIEVEMENT_EARNED",
 }
 for i = 1, #eventNames do pcall(events.RegisterEvent, events, eventNames[i]) end
@@ -580,6 +581,14 @@ events:SetScript("OnEvent", function(_, event, ...)
     end
     if (event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE") and ns.ScanProfessionRecipes then
         ns.ScanProfessionRecipes()
+    end
+    if (event == "TRAINER_SHOW" or event == "TRAINER_UPDATE") and ns.ScanClassTrainer then
+        ns.ScanClassTrainer()
+        if event == "TRAINER_SHOW" then
+            C_Timer.After(0, function()
+                if ns.ScanClassTrainer and ns.ScanClassTrainer() then ns.RequestRefresh() end
+            end)
+        end
     end
     if event == "PLAYER_LOGIN" then
         RegisterUnlockElement()

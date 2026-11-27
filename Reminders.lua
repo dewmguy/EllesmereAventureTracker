@@ -48,23 +48,171 @@ local function TalentIcon()
     return file or 136243
 end
 
+local function FormatMoney(amount)
+    amount = math.max(0, math.floor(tonumber(amount) or 0))
+    if amount == 0 then return "Free" end
+    local gold = math.floor(amount / 10000)
+    local silver = math.floor((amount % 10000) / 100)
+    local copper = amount % 100
+    local parts = {}
+    if gold > 0 then parts[#parts + 1] = string.format("%dg", gold) end
+    if silver > 0 or gold > 0 then parts[#parts + 1] = string.format("%ds", silver) end
+    if copper > 0 or (#parts == 0) then parts[#parts + 1] = string.format("%dc", copper) end
+    return table.concat(parts, " ")
+end
+
+local function TrainerCache()
+    local all = ns.DB().classTrainerByCharacter
+    if type(all) ~= "table" then return nil end
+    return all[ns.CharacterKey()]
+end
+
+local function AvailableTrainerService(index)
+    if type(GetTrainerServiceInfo) ~= "function" then return nil end
+    local ok, name, second, third = pcall(GetTrainerServiceInfo, index)
+    if not ok or IsSecret(name) or type(name) ~= "string" or name == "" then return nil end
+
+    -- Mainline returns name, serviceType, texture; Classic returns
+    -- name, subText, serviceType and exposes the texture separately.
+    local serviceType, subText, icon
+    if second == "available" or second == "unavailable" or second == "used" or second == "header" then
+        serviceType, icon = second, third
+    else
+        subText, serviceType = second, third
+        if type(GetTrainerServiceIcon) == "function" then
+            local iconOK, value = pcall(GetTrainerServiceIcon, index)
+            if iconOK and not IsSecret(value) then icon = value end
+        end
+    end
+    if serviceType ~= "available" then return nil end
+
+    local cost = 0
+    if type(GetTrainerServiceCost) == "function" then
+        local costOK, value = pcall(GetTrainerServiceCost, index)
+        if costOK and not IsSecret(value) then cost = math.max(0, tonumber(value) or 0) end
+    end
+    if IsSecret(subText) or type(subText) ~= "string" then subText = nil end
+    if IsSecret(icon) or (type(icon) ~= "number" and type(icon) ~= "string") then icon = nil end
+    return { name = name, subText = subText, icon = icon or 136243, cost = cost }
+end
+
+function ns.ScanClassTrainer()
+    if not ns.Get("showClassTrainerSkills") or ns.IsCombatRestricted() then return false end
+    if type(IsTradeskillTrainer) ~= "function" or type(GetNumTrainerServices) ~= "function" then return false end
+
+    local tradeOK, isTrade = pcall(IsTradeskillTrainer)
+    if not tradeOK or IsSecret(isTrade) or isTrade then return false end
+    if type(GetTrainerServiceTypeFilter) == "function" then
+        local filterOK, showingAvailable = pcall(GetTrainerServiceTypeFilter, "available")
+        if filterOK and not IsSecret(showingAvailable) and showingAvailable == false then return false end
+    end
+
+    local countOK, count = pcall(GetNumTrainerServices)
+    if not countOK or IsSecret(count) then return false end
+    count = math.max(0, math.floor(tonumber(count) or 0))
+
+    local services, total = {}, 0
+    for index = 1, count do
+        local service = AvailableTrainerService(index)
+        if service then
+            services[#services + 1] = service
+            total = total + service.cost
+        end
+    end
+
+    local trainerName = UnitName and UnitName("npc")
+    if IsSecret(trainerName) or type(trainerName) ~= "string" or trainerName == "" then trainerName = "Class trainer" end
+    local className, classToken = UnitClass("player")
+    local db = ns.DB()
+    if type(db.classTrainerByCharacter) ~= "table" then db.classTrainerByCharacter = {} end
+    db.classTrainerByCharacter[ns.CharacterKey()] = {
+        className = className,
+        classToken = classToken,
+        level = tonumber(UnitLevel("player")) or 0,
+        trainerName = trainerName,
+        services = services,
+        total = total,
+    }
+    return true
+end
+
 local function Build()
-    if not ns.Get("showTalentReminder") then return {} end
-    local hasPoints, count = UnspentTalents()
-    if not hasPoints then return {} end
-    return {
-        id = "character-reminders",
-        title = "Character",
-        rows = {
-            {
+    local rows = {}
+    if ns.Get("showTalentReminder") then
+        local hasPoints, count = UnspentTalents()
+        if hasPoints then
+            rows[#rows + 1] = {
                 key = "unspent-talents",
                 label = string.format("%d unspent talent point%s", count, count == 1 and "" or "s"),
                 detail = "Open Talents to spend them.",
                 state = "warning",
                 icon = TalentIcon(),
                 onClick = OpenTalents,
-            },
-        },
+            }
+        end
+    end
+
+    if ns.Get("showClassTrainerSkills") then
+        local cache = TrainerCache()
+        if not cache then
+            rows[#rows + 1] = {
+                key = "class-training-scan",
+                label = "Class training not scanned",
+                detail = "Visit a class trainer once to load available skills and their total cost.",
+                state = "info",
+                icon = 136243,
+            }
+        else
+            local services = type(cache.services) == "table" and cache.services or {}
+            local total = tonumber(cache.total) or 0
+            local currentLevel = tonumber(UnitLevel("player")) or 0
+            local stale = currentLevel ~= (tonumber(cache.level) or 0)
+            if #services == 0 then
+                rows[#rows + 1] = {
+                    key = "class-training-total",
+                    label = "No class training available",
+                    detail = stale and "Visit a class trainer to refresh after leveling."
+                        or string.format("Checked with %s.", cache.trainerName or "your class trainer"),
+                    state = stale and "info" or "ready",
+                    icon = 136243,
+                }
+            else
+                rows[#rows + 1] = {
+                    key = "class-training-total",
+                    label = string.format("%d class-trainer skill%s available", #services, #services == 1 and "" or "s"),
+                    detail = string.format("Total training cost: %s%s", FormatMoney(total),
+                        stale and " • rescan after leveling" or ""),
+                    tooltip = string.format("Last scanned from %s at level %d. Learn every listed skill for %s.%s",
+                        cache.trainerName or "a class trainer", tonumber(cache.level) or 0, FormatMoney(total),
+                        stale and " Visit a class trainer to include newly available skills." or ""),
+                    state = "warning",
+                    icon = 136243,
+                }
+                for index = 1, #services do
+                    local service = services[index]
+                    local label = service.name or "Unknown skill"
+                    if service.subText and service.subText ~= "" then
+                        label = string.format("%s (%s)", label, service.subText)
+                    end
+                    rows[#rows + 1] = {
+                        key = "class-training-" .. index,
+                        label = label,
+                        detail = "Cost: " .. FormatMoney(service.cost),
+                        tooltip = string.format("Available from %s. Training cost: %s.",
+                            cache.trainerName or "your class trainer", FormatMoney(service.cost)),
+                        state = "warning",
+                        icon = service.icon or 136243,
+                    }
+                end
+            end
+        end
+    end
+
+    if #rows == 0 then return {} end
+    return {
+        id = "character-reminders",
+        title = "Character",
+        rows = rows,
     }
 end
 
