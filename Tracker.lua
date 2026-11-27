@@ -849,11 +849,6 @@ local function MaximumPanelHeight()
     return math.max(48, math.min(normalLimit, available))
 end
 
-local function CollapsedHeight()
-    local height = TitleBarHeight()
-    return height > 0 and height + 2 or math.max(28, PanePadding() * 2 + 12)
-end
-
 local function TitleControlColor()
     return ThemeColor("titleTextColorMode", "titleTextColor")
 end
@@ -1080,7 +1075,7 @@ end)
 collapseButton:SetScript("OnEnter", function(self)
     self:SetAlpha(1)
     UpdateLockFade()
-    ShowTooltip(self, { label = ns.Get("collapsed") and "Expand" or "Collapse", detail = "Show or hide the tracker contents." })
+    ShowTooltip(self, { label = ns.Get("collapsed") and "Expand" or "Collapse", detail = "Show or hide the recommendation sections." })
 end)
 collapseButton:SetScript("OnLeave", function(self)
     self:SetAlpha(0.85)
@@ -1175,13 +1170,8 @@ local function Render()
     local collapsed = ns.Get("collapsed") == true
     collapseButton.text:SetText(collapsed and "+" or "−")
     SetAttention(collapseButton, collapsed and SnapshotAttention(snapshot) or nil, 1)
-    fixedFrame:SetShown(not collapsed)
+    fixedFrame:Show()
     scrollFrame:SetShown(not collapsed)
-    if collapsed then
-        frame:SetHeight(CollapsedHeight())
-        UpdateLockFade()
-        return
-    end
 
     local fixedY = 0
     local contextLine, playtimeLine
@@ -1235,6 +1225,16 @@ local function Render()
 
     local fixedHeight = math.max(1, math.abs(fixedY))
     fixedFrame:SetHeight(fixedHeight)
+    if collapsed then
+        ApplyTextAppearance()
+        frame:SetHeight(ChromeHeight() + fixedHeight)
+        if HasUnlockAnchor() and EUI.ReapplyOwnAnchor then
+            EUI.ReapplyOwnAnchor(UNLOCK_KEY)
+        end
+        if QueueSecureActionSync then QueueSecureActionSync() end
+        UpdateLockFade()
+        return
+    end
     local y = 0
     local sectionIndex, rowIndex = 0, 0
     for i = 1, #snapshot.sections do

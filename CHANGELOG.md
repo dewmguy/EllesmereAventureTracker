@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.16 - 2026-11-26
+
+- Simplified the Well-Rested icon badge from `X/3` to the current stack count.
+- Kept the title bar when enabled, the status row and the readiness buff row
+  visible when the main pane is collapsed, while hiding its recommendation
+  sections and entries.
+
 ## 0.3.15 - 2026-11-26
 
 - Replaced the five Tracker Text color-mode dropdowns and separate custom-color

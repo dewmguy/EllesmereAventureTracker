@@ -586,7 +586,7 @@ local function BuildSleeping(statuses, rows, warnSeconds)
     else
         local stacks = aura and aura.applications or 0
         if IsSecret(stacks) or type(stacks) ~= "number" then stacks = 0 end
-        status.badge = string.format("%d/3", math.min(3, stacks))
+        status.badge = tostring(math.min(3, stacks))
         if stacks >= 3 then
             local remaining
             status.state, remaining = TimedState(aura, warnSeconds)
