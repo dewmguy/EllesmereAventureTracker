@@ -1,0 +1,19 @@
+## Interface: 16001
+## Title: |cff0cd29fEllesmereUI|r Adventure Tracker
+## Category: |cff0cd29fEllesmere|rUI
+## Group: EllesmereUI
+## Notes: A contextual pre-adventure checklist for WoW Forever.
+## Author: Jeremy Tilden
+## Version: 0.1.0
+## Dependencies: EllesmereUI
+## OptionalDeps: EllesmereUIAuraBuffReminders, EllesmereUIQuestTracker, EllesmereUIForeverEssentials
+## SavedVariables: EllesmereUIAdventureTrackerDB
+## IconTexture: Interface\AddOns\EllesmereUI\media\eg-logo.tga
+
+Core.lua
+Readiness.lua
+WorldBuffs.lua
+Legacy.lua
+Professions.lua
+Tracker.lua
+Options.lua
