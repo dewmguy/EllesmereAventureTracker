@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.13 - 2026-11-26
+
+- Added reusable nested-row indentation to the tracker renderer.
+- Inset expanded class-trainer skills and profession-trainer recipes by 18
+  pixels, including their stripe, icon, background and click surface, so they
+  read clearly as children of the collapsible summary entry.
+
 ## 0.3.12 - 2026-11-26
 
 - Kept the compact status-row text stable while its session or gold hyperlink

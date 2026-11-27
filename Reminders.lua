@@ -345,6 +345,7 @@ local function Build()
                             tooltipFunc = function(owner) return ShowLiveTrainerTooltip(owner, service) end,
                             state = "warning",
                             icon = service.icon or 136243,
+                            indentLevel = 1,
                         }
                     end
                 end

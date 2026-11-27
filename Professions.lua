@@ -1019,6 +1019,7 @@ local function AddTrainerRecipeRows(rows, profession)
             tooltipFunc = function(owner) return ShowLiveTrainerTooltip(owner, service) end,
             state = "warning",
             icon = service.icon or profession.icon,
+            indentLevel = 1,
         }
     end
 end

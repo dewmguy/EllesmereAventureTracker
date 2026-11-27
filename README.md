@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.3.12 establishes the addon structure and a playable first pass:
+Version 0.3.13 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -20,7 +20,8 @@ Version 0.3.12 establishes the addon structure and a playable first pass:
 - Quest Tracker-style per-character collapse controls on every visible section,
   with important breathing alerts carried onto collapsed section headers and
   the overall collapse control, plus a soft synchronized background tint on
-  alerted section headers and recommendation entries;
+  alerted section headers and recommendation entries; child entries inside
+  expandable skill and recipe lists are inset as a visually distinct sub-list;
 - mouse-wheel scrolling when the tracker contents exceed its screen-relative
   maximum height, with optional full-viewport sizing and explicit upward or
   downward pane growth; a vertical EllesmereUI anchor remains authoritative and
