@@ -133,11 +133,8 @@ local function FirstKnown(spells)
 end
 
 local function CurrentSpecKey()
-    if not (GetSpecialization and GetSpecializationInfo) then return nil end
-    local specialization = GetSpecialization()
-    if not specialization then return nil end
-    local ok, _, name = pcall(GetSpecializationInfo, specialization)
-    if not ok or IsSecret(name) or type(name) ~= "string" then return nil end
+    local name = ns.GetCurrentSpecializationName and ns.GetCurrentSpecializationName()
+    if IsSecret(name) or type(name) ~= "string" then return nil end
     return name:upper()
 end
 

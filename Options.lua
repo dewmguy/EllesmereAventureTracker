@@ -231,7 +231,7 @@ local function BuildTracker(pageName, parent, yOffset)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("panePadding", "Pane Padding", 0, 24, 1, "Space between the pane edges and tracker contents on all sides."),
-        Toggle("showContext", "Show Zone, Class, Spec and Role", "Shows the current zone, class, specialization and selected activity role above the readiness icons."))
+        Toggle("showContext", "Show Zone, Class, Spec and Role", "Shows the current zone, class, dominant Forever talent tree and selected activity role above the readiness icons."))
     y = y - h
     _, h = W:DualRow(parent, y,
         Toggle("maximizePaneHeight", "Allow Full Viewport Height", "Allows an unanchored pane to use all safe screen space in the selected growth direction instead of the normal 75% screen-height limit. A dynamic EllesmereUI anchor always uses the safe space between its fixed edge and the viewport."),
@@ -437,7 +437,7 @@ local function BuildReadiness(pageName, parent, yOffset)
               values = roleValues, order = roleOrder,
               getValue = ns.GetRole,
               setValue = ns.SetRole },
-            Label("Used to decide which role-specific self buffs are important."))
+            Label("This manual activity role controls role-specific recommendations and does not change automatically when joining a group."))
         y = y - h
 
         _, h = W:SectionHeader(parent, "CLASS PREPARATION", y); y = y - h

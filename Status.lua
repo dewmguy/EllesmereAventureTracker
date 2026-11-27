@@ -94,16 +94,11 @@ local function CharacterContext()
     local zone = ns.GetZoneName()
     local role = ns.ROLE_LABELS[ns.GetRole()] or ns.GetRole()
     local className = UnitClass and UnitClass("player") or "Character"
-    local specName
-    if GetSpecialization and GetSpecializationInfo then
-        local specialization = GetSpecialization()
-        if specialization then
-            local ok, _, name = pcall(GetSpecializationInfo, specialization)
-            if ok and not IsSecret(name) and type(name) == "string" and name ~= "" then specName = name end
-        end
-    end
-    local build = specName and (specName .. " " .. className) or className
-    return table.concat({ zone, build, role }, "  •  ")
+    local specName = ns.GetCurrentSpecializationName and ns.GetCurrentSpecializationName()
+    local parts = { zone, className }
+    if specName and specName ~= className then parts[#parts + 1] = specName end
+    parts[#parts + 1] = role
+    return table.concat(parts, "  •  ")
 end
 
 local goldLedger

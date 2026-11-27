@@ -1486,7 +1486,7 @@ local events = CreateFrame("Frame")
 local eventNames = {
     "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA",
     "DISPLAY_SIZE_CHANGED", "UI_SCALE_CHANGED",
-    "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED",
+    "BAG_UPDATE_DELAYED", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_COMBAT_CONFIG_CHANGED",
     "SPELLS_CHANGED", "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
     "CHAT_MSG_SKILL", "UNIT_INVENTORY_CHANGED", "UNIT_CONNECTION", "GROUP_ROSTER_UPDATE", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
     "PLAYER_UPDATE_RESTING", "PLAYER_MOUNT_DISPLAY_CHANGED", "PLAYER_FLAGS_CHANGED", "UNIT_FLAGS", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST",
@@ -1497,6 +1497,12 @@ local eventNames = {
 for i = 1, #eventNames do pcall(events.RegisterEvent, events, eventNames[i]) end
 pcall(events.RegisterEvent, events, "UNIT_AURA")
 events:SetScript("OnEvent", function(_, event, ...)
+    if (event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_SPECIALIZATION_CHANGED"
+        or event == "ACTIVE_COMBAT_CONFIG_CHANGED" or event == "PLAYER_TALENT_UPDATE"
+        or event == "TRAIT_TREE_CURRENCY_INFO_UPDATED" or event == "TRAIT_CONFIG_UPDATED")
+        and ns.InvalidateCurrentSpecializationName then
+        ns.InvalidateCurrentSpecializationName()
+    end
     if event == "UNIT_AURA" then
         local unit = ...
         if unit and unit ~= "player" and not tostring(unit):match("^party%d+$") then return end

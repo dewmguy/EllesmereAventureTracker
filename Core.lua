@@ -235,6 +235,64 @@ function ns.SetRole(value)
     ns.Set("roleByCharacter", roles)
 end
 
+local function ReadableSpecName(value)
+    if type(value) ~= "string" or value == "" then return nil end
+    if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+    return value
+end
+
+local cachedSpecName, specNameResolved
+
+function ns.InvalidateCurrentSpecializationName()
+    cachedSpecName, specNameResolved = nil, false
+end
+
+-- Forever exposes one starter specialization per class, so that identifier is
+-- not a useful character build. EllesmereUI already resolves the active dual-
+-- spec build's dominant vanilla talent group; use its localized group name as
+-- the player's practical specialization (Protection, Holy, Arms, etc.).
+function ns.GetCurrentSpecializationName()
+    if specNameResolved then return cachedSpecName end
+    specNameResolved = true
+    if EUI.IS_FOREVER == true then
+        if type(EUI.ForeverSpecGroupTalents) ~= "function" then return nil end
+        local group = 1
+        local getActiveGroup = C_SpecializationInfo and C_SpecializationInfo.GetActiveSpecGroup
+        if type(getActiveGroup) == "function" then
+            local ok, value = pcall(getActiveGroup)
+            if ok and type(value) == "number" and value > 0 then group = value end
+        end
+        local ok, build = pcall(EUI.ForeverSpecGroupTalents, group)
+        if not ok or type(build) ~= "table" or type(build.trees) ~= "table" then return nil end
+        local lead = tonumber(build.lead)
+        local tree = lead and build.trees[lead]
+        cachedSpecName = ReadableSpecName(type(tree) == "table" and tree.name or nil)
+        return cachedSpecName
+    end
+
+    local api = C_SpecializationInfo
+    if api and type(api.GetSpecialization) == "function" and type(api.GetSpecializationInfo) == "function" then
+        local ok, specialization = pcall(api.GetSpecialization)
+        if ok and type(specialization) == "number" and specialization > 0 then
+            local infoOK, _, name = pcall(api.GetSpecializationInfo, specialization)
+            if infoOK then
+                cachedSpecName = ReadableSpecName(name)
+                return cachedSpecName
+            end
+        end
+    end
+    if type(GetSpecialization) == "function" and type(GetSpecializationInfo) == "function" then
+        local ok, specialization = pcall(GetSpecialization)
+        if ok and type(specialization) == "number" and specialization > 0 then
+            local infoOK, _, name = pcall(GetSpecializationInfo, specialization)
+            if infoOK then
+                cachedSpecName = ReadableSpecName(name)
+                return cachedSpecName
+            end
+        end
+    end
+end
+
 ns.ROLE_LABELS = {
     SOLO = "Solo",
     TANK = "Tank",

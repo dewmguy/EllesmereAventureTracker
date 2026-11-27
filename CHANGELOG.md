@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.19 - 2026-11-27
+
+- Fixed the missing specialization in the context row by resolving Forever's
+  dominant active talent tree instead of relying on the retail specialization
+  globals that do not describe a Forever build.
+- Separated the context into explicit Zone, Class, Spec and selected Role
+  segments and reused the same spec resolver for preferred class-buff choices.
+- Clarified that `Solo` is the character's manually selected activity role and
+  does not automatically change on joining a group.
+
 ## 0.3.18 - 2026-11-27
 
 - Added a Tracker Text dropdown that aligns the complete fixed status row to
