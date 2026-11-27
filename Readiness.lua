@@ -10,6 +10,14 @@ local WELL_FED = 19705
 local NUTRITIOUS_FOOD = 1248377
 local FOOD_BUFFS = { 19705, 18192, 18194, 22730, 25661, 18125, 18141 }
 
+local PALADIN_WISDOM = { 19742, 19850, 19852, 19853, 19854, 25290 }
+local PALADIN_KINGS = { 20217 }
+local PALADIN_MIGHT = { 19740, 19834, 19835, 19836, 19837, 19838, 25291 }
+local PALADIN_SANCTUARY = { 20911, 20912, 20913, 20914 }
+local PALADIN_CONCENTRATION = { 19746 }
+local PALADIN_RETRIBUTION = { 7294, 10298, 10299, 10300, 10301 }
+local PALADIN_DEVOTION = { 465, 10290, 643, 10291, 1032, 10292, 10293 }
+
 local CLASS_REQUIREMENTS = {
     WARRIOR = {
         { key = "battle-shout", label = "Battle Shout", scope = "party", expectedMinutes = 2, spells = { 6673, 5242, 6192, 11549, 11550, 11551, 25289 } },
@@ -26,8 +34,36 @@ local CLASS_REQUIREMENTS = {
         { key = "mage-armor", label = "Mage Armor", expectedMinutes = 30, spells = { 168, 7300, 7301, 7302, 7320, 10219, 10220, 6117, 22782, 22783 } },
     },
     PALADIN = {
-        { key = "blessing", label = "Blessing", scope = "party", expectedMinutes = 5, spells = { 19742, 19850, 19852, 19853, 19854, 25290, 20217, 19740, 19834, 19835, 19836, 19837, 19838, 25291, 25894, 25918, 25898, 25782, 25916 } },
-        { key = "aura", label = "Paladin Aura", scope = "party", expectedMinutes = 1440, spells = { 19891, 19899, 19900, 19888, 19897, 19898, 19876, 19895, 19896, 19746, 7294, 10298, 10299, 10300, 10301, 465, 10290, 643, 10291, 1032, 10292, 10293 } },
+        { key = "blessing", label = "Blessing", scope = "party", expectedMinutes = 5,
+            spells = { 19742, 19850, 19852, 19853, 19854, 25290, 20217, 19740, 19834, 19835, 19836, 19837, 19838, 25291, 20911, 20912, 20913, 20914, 25894, 25918, 25898, 25782, 25916, 25899 },
+            preferredByRole = {
+                TANK = { PALADIN_SANCTUARY, PALADIN_KINGS, PALADIN_MIGHT },
+                HEALER = { PALADIN_WISDOM, PALADIN_KINGS },
+                CASTER = { PALADIN_WISDOM, PALADIN_KINGS },
+                PHYSICAL = { PALADIN_MIGHT, PALADIN_KINGS },
+                SOLO = { PALADIN_MIGHT, PALADIN_KINGS, PALADIN_WISDOM },
+            },
+            preferredBySpec = {
+                HOLY = { PALADIN_WISDOM, PALADIN_KINGS },
+                PROTECTION = { PALADIN_SANCTUARY, PALADIN_KINGS, PALADIN_MIGHT },
+                RETRIBUTION = { PALADIN_MIGHT, PALADIN_KINGS },
+            },
+        },
+        { key = "aura", label = "Paladin Aura", scope = "party", expectedMinutes = 1440,
+            spells = { 19891, 19899, 19900, 19888, 19897, 19898, 19876, 19895, 19896, 19746, 7294, 10298, 10299, 10300, 10301, 465, 10290, 643, 10291, 1032, 10292, 10293 },
+            preferredByRole = {
+                TANK = { PALADIN_DEVOTION },
+                HEALER = { PALADIN_CONCENTRATION, PALADIN_DEVOTION },
+                CASTER = { PALADIN_CONCENTRATION, PALADIN_DEVOTION },
+                PHYSICAL = { PALADIN_RETRIBUTION, PALADIN_DEVOTION },
+                SOLO = { PALADIN_DEVOTION, PALADIN_RETRIBUTION },
+            },
+            preferredBySpec = {
+                HOLY = { PALADIN_CONCENTRATION, PALADIN_DEVOTION },
+                PROTECTION = { PALADIN_DEVOTION },
+                RETRIBUTION = { PALADIN_RETRIBUTION, PALADIN_DEVOTION },
+            },
+        },
         { key = "righteous-fury", label = "Righteous Fury", roles = { TANK = true }, expectedMinutes = 30, spells = { 25780 } },
     },
     PRIEST = {
@@ -94,6 +130,59 @@ local function FirstKnown(spells)
     for i = #spells, 1, -1 do
         if IsKnown(spells[i]) then return spells[i] end
     end
+end
+
+local function CurrentSpecKey()
+    if not (GetSpecialization and GetSpecializationInfo) then return nil end
+    local specialization = GetSpecialization()
+    if not specialization then return nil end
+    local ok, _, name = pcall(GetSpecializationInfo, specialization)
+    if not ok or IsSecret(name) or type(name) ~= "string" then return nil end
+    return name:upper()
+end
+
+local function FirstPreferred(groups)
+    if type(groups) ~= "table" then return nil end
+    for index = 1, #groups do
+        local known = FirstKnown(groups[index])
+        if known then return known end
+    end
+end
+
+local function RecentSpell(requirement, role)
+    local root = ns.DB().lastClassBuffSpellsByCharacter
+    local character = type(root) == "table" and root[ns.CharacterKey()]
+    local recentByRole = type(character) == "table" and character[requirement.key]
+    local spellID = type(recentByRole) == "table" and recentByRole[role]
+    return type(spellID) == "number" and IsKnown(spellID) and spellID or nil
+end
+
+local function RememberSpell(requirement, role, spellID)
+    if type(spellID) ~= "number" or not IsKnown(spellID) then return end
+    local db = ns.DB()
+    if type(db.lastClassBuffSpellsByCharacter) ~= "table" then db.lastClassBuffSpellsByCharacter = {} end
+    local characterKey = ns.CharacterKey()
+    if type(db.lastClassBuffSpellsByCharacter[characterKey]) ~= "table" then
+        db.lastClassBuffSpellsByCharacter[characterKey] = {}
+    end
+    local character = db.lastClassBuffSpellsByCharacter[characterKey]
+    if type(character[requirement.key]) ~= "table" then character[requirement.key] = {} end
+    character[requirement.key][role] = spellID
+end
+
+local function SelectRequirementSpell(requirement, role, activeSpellID)
+    if activeSpellID and IsKnown(activeSpellID) then
+        RememberSpell(requirement, role, activeSpellID)
+        return activeSpellID
+    end
+    local recent = RecentSpell(requirement, role)
+    if recent then return recent end
+    local groups
+    if role == "SOLO" and requirement.preferredBySpec then
+        groups = requirement.preferredBySpec[CurrentSpecKey()]
+    end
+    groups = groups or (requirement.preferredByRole and requirement.preferredByRole[role])
+    return FirstPreferred(groups) or FirstKnown(requirement.spells or {})
 end
 
 local function FindAura(spells, unit)
@@ -631,6 +720,7 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                 label = req.label,
                 icon = req.kind == "weapon" and 134850 or SpellTexture(knownSpell or req.spells[1]),
             }
+            local activeSpellID
             if req.kind == "weapon" then
                 local active, remaining = WeaponState()
                 if active == nil then
@@ -652,12 +742,13 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                     if covered then
                         campCovered = true
                     else
-                        local aura, _, auraReadable = FindAura(req.spells, target.unit)
+                        local aura, auraSpellID, auraReadable = FindAura(req.spells, target.unit)
                         if not auraReadable then
                             readable = false
                         elseif not aura then
                             missing[#missing + 1] = target.label
                         else
+                            if target.unit == "player" and auraSpellID then activeSpellID = auraSpellID end
                             local remaining = AuraRemaining(aura)
                             if remaining then shortest = math.min(shortest or remaining, remaining) end
                             if remaining and remaining <= warnSeconds then expiring[#expiring + 1] = target.label end
@@ -685,6 +776,18 @@ local function BuildClass(statuses, rows, warnSeconds, coverage)
                 else
                     status.state = "ready"
                     status.detail = DurationDetail(req.label .. " active", shortest)
+                end
+            end
+            if req.kind ~= "weapon" then
+                local selectedSpellID = SelectRequirementSpell(req, role, activeSpellID)
+                if selectedSpellID then
+                    local selectedName = SpellName(selectedSpellID) or req.label
+                    status.icon = SpellTexture(selectedSpellID) or status.icon
+                    status.spellID = selectedSpellID
+                    status.castSpellID = selectedSpellID
+                    status.castSpellName = selectedName
+                    status.castUnit = "player"
+                    status.secureClickHint = "Click to cast " .. selectedName .. " on yourself while out of combat."
                 end
             end
             if status.state == "missing" and RoleAlertApplies(req, role) then

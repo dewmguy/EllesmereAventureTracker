@@ -66,6 +66,7 @@ local DEFAULTS = {
     readinessWarnMinutes = 10,
     showCompletedReadiness = false,
     roleByCharacter = {},
+    lastClassBuffSpellsByCharacter = {},
     roleCriticalAlerts = true,
     roleAlertMinDuration = 5,
     trackPartyClassBuffs = true,

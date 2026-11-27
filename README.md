@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.1.21 establishes the addon structure and a playable first pass:
+Version 0.1.22 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that can be repositioned from
   its background, content, section headers, status icons or recommendation rows,
@@ -55,6 +55,10 @@ Version 0.1.21 establishes the addon structure and a playable first pass:
   newly available skills, cleared as soon as the list is opened;
 - configurable red breathing alerts for missing long-lived role preparation,
   including party coverage for appropriate class buffs;
+- class-buff icons that follow the currently active spell, remember the last
+  active choice per character and role, and fall back to a suitable known spell;
+- real spell tooltips and secure out-of-combat self-casting when a class-buff
+  readiness icon is clicked;
 - profession Legacy checkpoints kept in the Legacy section;
 - one section per profession, with current skill, the next trainable rank and a
   verified trainer or acquisition destination;

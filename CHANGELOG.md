@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.22 - 2026-11-26
+
+- Made class-buff readiness icons use the exact spell currently active on the
+  player, then the most recently observed choice for that character and role.
+- Added Paladin blessing and aura fallbacks tailored to the selected activity
+  role, with Holy, Protection and Retribution preferences for Solo mode.
+- Added real spell tooltips to class-buff recommendations.
+- Added secure out-of-combat self-casting from class-buff icons. The invisible
+  secure click surfaces follow tracker movement and scrolling and hide in combat.
+
 ## 0.1.21 - 2026-11-26
 
 - Removed duration-only expiring-soon entries from the Missing Buffs section.

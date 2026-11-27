@@ -86,7 +86,7 @@ local TRACKER_KEYS = {
     "sectionFontSize", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColor", "entryDetailFontSize", "entryDetailTextColor",
     "badgeFontSize", "badgeTextColor", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
 }
-local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter", "roleCriticalAlerts", "roleAlertMinDuration", "trackPartyClassBuffs" }
+local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter", "lastClassBuffSpellsByCharacter", "roleCriticalAlerts", "roleAlertMinDuration", "trackPartyClassBuffs" }
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals" }
