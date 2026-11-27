@@ -333,7 +333,7 @@ local function EvaluateCombatFood(itemID)
 
     local ok, name, _, _, itemLevel, requiredLevel, _, _, _, _, icon = pcall(C_Item.GetItemInfo, itemID)
     if not ok or not name or IsSecret(name) then
-        if C_Item and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(itemID) end
+        if ns.RequestItemData then ns.RequestItemData(itemID, "readiness") end
         return nil
     end
     requiredLevel = tonumber(requiredLevel) or 0
@@ -342,8 +342,8 @@ local function EvaluateCombatFood(itemID)
     local text = ItemTooltipText(itemID)
     if not text then return nil end
     local familyName = SpellName(NUTRITIOUS_FOOD)
-    if not familyName and C_Spell and C_Spell.RequestLoadSpellData then
-        C_Spell.RequestLoadSpellData(NUTRITIOUS_FOOD)
+    if not familyName and ns.RequestSpellData then
+        ns.RequestSpellData(NUTRITIOUS_FOOD, "readiness")
     end
     local foodSpell
     if C_Item and C_Item.GetItemSpell then

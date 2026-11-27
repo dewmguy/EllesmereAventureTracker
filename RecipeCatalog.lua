@@ -21,11 +21,7 @@ local RECIPE_ICON = 134939
 local catalogByProfession
 local recipeItemsBySpell
 local sourceIndexState
-local sourceIndexCoroutine
-local sourceIndexFrame
-local sourceIndexExamined = 0
 local RecipeSource
-local SOURCE_INDEX_BUDGET_MS = 0.35
 
 local function Materialize(value)
     if type(value) == "table" then return value end
@@ -68,13 +64,12 @@ local function ItemIcon(itemID)
 end
 
 local function ItemRequiredLevel(itemID)
+    local generated = ns.RecipeSourceIndexData and ns.RecipeSourceIndexData.requiredLevels
+    if generated and generated[itemID] then return tonumber(generated[itemID]) end
     local api = C_Item and C_Item.GetItemInfo or GetItemInfo
     if type(api) ~= "function" then return nil end
     local result = { pcall(api, itemID) }
     if not result[1] then return nil end
-    if not result[2] and C_Item and C_Item.RequestLoadItemDataByID then
-        pcall(C_Item.RequestLoadItemDataByID, itemID)
-    end
     return tonumber(result[6])
 end
 
@@ -117,47 +112,14 @@ function ns.GetRecipeCatalogForProfession(skillLineID)
     return ParseCatalog()[PROFESSION_INDEX[tonumber(skillLineID)]] or {}
 end
 
-local function AddRecipeItem(spellID, itemID)
-    spellID, itemID = tonumber(spellID), tonumber(itemID)
-    if not spellID or spellID <= 0 or not itemID or itemID <= 0 then return end
-    local list = recipeItemsBySpell[spellID]
-    if not list then list = {}; recipeItemsBySpell[spellID] = list end
-    list[#list + 1] = itemID
-end
-
-local function IndexTeachesSpell(value, itemID)
-    if type(value) == "number" then
-        AddRecipeItem(value, itemID)
-    elseif type(value) == "table" then
-        for _, child in pairs(value) do
-            if type(child) == "number" then
-                AddRecipeItem(child, itemID)
-            elseif type(child) == "table" then
-                for _, spellID in pairs(child) do AddRecipeItem(spellID, itemID) end
-            end
-        end
-    end
-end
-
-local function FinishSourceIndex()
-    sourceIndexState = "ready"
-    sourceIndexCoroutine = nil
-    if sourceIndexFrame then sourceIndexFrame:Hide() end
-    if ns.RequestRefresh then ns.RequestRefresh("professions", "recipe source index ready") end
-end
-
-local function SourceIndexPaused()
-    if ns.Get("showProfessionAttainableRecipes") ~= true then return "disabled" end
-    if ns.IsCombatRestricted and ns.IsCombatRestricted() then return "combat" end
-    if UnitOnTaxi and UnitOnTaxi("player") then return "taxi" end
-    if GetUnitSpeed and (tonumber(GetUnitSpeed("player")) or 0) > 0 then return "movement" end
-    if ns.IsInstanceBossTimerActive and ns.IsInstanceBossTimerActive() then return "encounter" end
-    return nil
-end
-
 local function StartSourceIndex()
     if sourceIndexState then return sourceIndexState end
     if ns.Get("showProfessionAttainableRecipes") ~= true then return "disabled" end
+    local generated = ns.RecipeSourceIndexData and ns.RecipeSourceIndexData.recipeItems
+    if type(generated) ~= "table" then
+        sourceIndexState = "unavailable"
+        return sourceIndexState
+    end
     local data = ns.QuestData
     local itemDB
     if data and type(data.GetEntities) == "function" then
@@ -168,53 +130,8 @@ local function StartSourceIndex()
         sourceIndexState = "unavailable"
         return sourceIndexState
     end
-    recipeItemsBySpell = {}
-    sourceIndexState = "building"
-    sourceIndexExamined = 0
-    local ids = itemDB.GetAllIds()
-    sourceIndexCoroutine = coroutine.create(function()
-        for index = 1, #ids do
-            local itemID = ids[index]
-            IndexTeachesSpell(data.Value(itemDB, "teachesSpell", itemID), itemID)
-            sourceIndexExamined = index
-            coroutine.yield()
-        end
-    end)
-    if not sourceIndexFrame then
-        sourceIndexFrame = CreateFrame("Frame")
-        sourceIndexFrame:SetScript("OnUpdate", function()
-            if not sourceIndexCoroutine then return end
-            local paused = SourceIndexPaused()
-            if paused == "disabled" then
-                sourceIndexState, sourceIndexCoroutine, recipeItemsBySpell = nil, nil, nil
-                sourceIndexFrame:Hide()
-                return
-            elseif paused then
-                return
-            end
-
-            local startedAt = debugprofilestop and debugprofilestop() or nil
-            repeat
-                local ok = coroutine.resume(sourceIndexCoroutine)
-                if not ok then
-                    sourceIndexState, sourceIndexCoroutine = "unavailable", nil
-                    sourceIndexFrame:Hide()
-                    if ns.RequestRefresh then
-                        ns.RequestRefresh("professions", "recipe source index failed")
-                    end
-                    break
-                elseif coroutine.status(sourceIndexCoroutine) == "dead" then
-                    FinishSourceIndex()
-                    break
-                end
-            until not startedAt or (debugprofilestop() - startedAt) >= SOURCE_INDEX_BUDGET_MS
-            if ns.RecordProfileMetric then
-                ns.RecordProfileMetric("recipe-source-index-batch", startedAt,
-                    "idle background index", sourceIndexExamined)
-            end
-        end)
-    end
-    sourceIndexFrame:Show()
+    recipeItemsBySpell = generated
+    sourceIndexState = "ready"
     return sourceIndexState
 end
 
@@ -393,6 +310,7 @@ end
 RecipeSource = function(entry, areaID)
     if sourceIndexState ~= "ready" then return nil end
     local itemIDs = recipeItemsBySpell[entry.spellID]
+    if type(itemIDs) == "number" then itemIDs = { itemIDs } end
     local best
     for index = 1, #(itemIDs or {}) do
         local source = BestSourceForItem(itemIDs[index], areaID)
@@ -558,16 +476,6 @@ function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
     local learned = LearnedSpells(profession)
     if not learned then return end
     local state = StartSourceIndex()
-    if state == "building" then
-        rows[#rows + 1] = {
-            key = "catalog-index-" .. tostring(profession.skillLineID),
-            label = "Indexing recipe sources",
-            detail = "QuestieDB is being indexed in small background batches.",
-            state = "info",
-            icon = profession.icon,
-        }
-        return
-    end
     if state ~= "ready" then return end
 
     local candidates = CatalogCandidates(profession, mapID)
@@ -597,8 +505,7 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:SetScript("OnEvent", function(_, _, addonName)
     if addonName == "QuestieDB" then
-        sourceIndexState, sourceIndexCoroutine, recipeItemsBySpell = nil, nil, nil
-        if sourceIndexFrame then sourceIndexFrame:Hide() end
+        sourceIndexState, recipeItemsBySpell = nil, nil
         if ns.RequestRefresh then ns.RequestRefresh("professions", "QuestieDB loaded") end
     end
 end)

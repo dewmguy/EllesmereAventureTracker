@@ -1625,7 +1625,7 @@ local eventNames = {
 for i = 1, #eventNames do pcall(events.RegisterEvent, events, eventNames[i]) end
 pcall(events.RegisterEvent, events, "UNIT_AURA")
 
-local function ProvidersForTrackerEvent(event)
+local function ProvidersForTrackerEvent(event, ...)
     if event == "DISPLAY_SIZE_CHANGED" or event == "UI_SCALE_CHANGED" or event == "ADDON_LOADED" then
         return false
     elseif event == "UNIT_AURA" then
@@ -1644,9 +1644,9 @@ local function ProvidersForTrackerEvent(event)
         or event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" or event == "TRAINER_CLOSED" then
         return { "professions", "character-reminders" }
     elseif event == "ITEM_DATA_LOAD_RESULT" or event == "GET_ITEM_INFO_RECEIVED" then
-        return { "readiness", "professions", "instances" }
+        return ns.ConsumeItemDataProviders and ns.ConsumeItemDataProviders((...)) or nil
     elseif event == "SPELL_DATA_LOAD_RESULT" then
-        return { "readiness", "character-reminders", "professions" }
+        return ns.ConsumeSpellDataProviders and ns.ConsumeSpellDataProviders((...)) or nil
     elseif event == "UNIT_INVENTORY_CHANGED" then
         return { "readiness", "professions", "instances" }
     elseif event == "SKILL_LINES_CHANGED" or event == "CHAT_MSG_SKILL" then
@@ -1717,7 +1717,10 @@ events:SetScript("OnEvent", function(_, event, ...)
             ns.RequestRefresh(false, "damage meter loaded")
         end
     else
-        ns.RequestRefresh(ProvidersForTrackerEvent(event), event)
+        local providers = ProvidersForTrackerEvent(event, ...)
+        if (event == "ITEM_DATA_LOAD_RESULT" or event == "GET_ITEM_INFO_RECEIVED"
+            or event == "SPELL_DATA_LOAD_RESULT") and not providers then return end
+        ns.RequestRefresh(providers, event)
     end
 end)
 

@@ -304,8 +304,8 @@ local function SpellDetails(spellID)
         local ok, value = pcall(C_Spell.GetSpellTexture, spellID)
         if ok and not IsSecret(value) then icon = value end
     end
-    if (not name or name == "") and C_Spell and C_Spell.RequestLoadSpellData then
-        pcall(C_Spell.RequestLoadSpellData, spellID)
+    if (not name or name == "") and ns.RequestSpellData then
+        ns.RequestSpellData(spellID, "character-reminders")
     end
     return name or ("Spell " .. tostring(spellID)), subText, icon or 136243
 end
@@ -562,7 +562,7 @@ ns.RegisterProvider("character-reminders", 5, Build)
 local catalogEvents = CreateFrame("Frame")
 for _, event in ipairs({
     "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_LEVEL_UP", "PLAYER_LEVEL_CHANGED",
-    "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED", "SPELL_DATA_LOAD_RESULT",
+    "PLAYER_TALENT_UPDATE", "SKILL_LINES_CHANGED",
 }) do
     pcall(catalogEvents.RegisterEvent, catalogEvents, event)
 end

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.6 - 2026-11-27
+
+- Removed the post-reload QuestieDB item-database worker completely. Recipe
+  teaching items now come from a compact, deterministic index generated from
+  the WoW: Forever 1.60.1.71139 `ItemEffect` and `ItemXItemEffect` client tables.
+- Added build-stamped product level gates from `ItemSparse`, eliminating the
+  bulk item-data requests that began when the old source index completed.
+- Scoped item- and spell-data completion events to loads explicitly requested
+  by Adventure Tracker. Cache traffic from other addons no longer rebuilds
+  readiness, professions, class reminders and instance loot, and duplicate
+  requests for the same pending record are coalesced.
+- Added a reproducible source-index generator and documented the no-worker
+  performance boundary. The live QuestieDB overlay still supplies vendor,
+  creature-drop, object-loot and quest-reward descriptions for mapped items.
+
 ## 0.8.5 - 2026-11-27
 
 - Stopped tracker renders from explicitly reapplying their EllesmereUI dynamic

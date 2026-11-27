@@ -8,7 +8,7 @@ Forever. It answers two questions in one small window:
 
 ## First preview
 
-Version 0.8.5 establishes the addon structure and a playable first pass:
+Version 0.8.6 establishes the addon structure and a playable first pass:
 
 - a draggable, lockable and collapsible window that keeps its enabled title,
   status and readiness-buff rows visible while collapsed and can be repositioned
@@ -103,8 +103,11 @@ Version 0.8.5 establishes the addon structure and a playable first pass:
   native and Custom Tweaks flight timers;
 - lightweight one-second instance, boss and flight display updates that change
   only their existing visible row text/progress instead of rebuilding the pane;
-- a time-budgeted QuestieDB recipe-source index that targets 0.35 ms of an idle
-  frame and pauses while moving, fighting, flying or handling an encounter;
+- a build-stamped Blizzard client-data recipe-item index, generated before
+  packaging, that preserves live QuestieDB vendor/drop/source recommendations
+  without scanning QuestieDB's entire item database after login or reload;
+- request-scoped item- and spell-data callbacks so cache activity from other
+  addons cannot invalidate Adventure Tracker providers;
 - independent flight bar texture, fill, background, border, font, outline,
   text-size, text-color and icon controls;
 - contextual In Flight, In Combat, Resting, Mounted, instance, life and

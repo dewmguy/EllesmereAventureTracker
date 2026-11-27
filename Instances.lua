@@ -709,11 +709,11 @@ local function BuildLootRows()
                     encounterID = encounterID,
                     improvement = candidateLevel - equippedLevel,
                 }
-            elseif C_Item and C_Item.RequestLoadItemDataByID then
-                pcall(C_Item.RequestLoadItemDataByID, itemID)
+            elseif ns.RequestItemData then
+                ns.RequestItemData(itemID, "instances")
             end
-        elseif itemID and C_Item and C_Item.RequestLoadItemDataByID then
-            pcall(C_Item.RequestLoadItemDataByID, itemID)
+        elseif itemID and ns.RequestItemData then
+            ns.RequestItemData(itemID, "instances")
         end
     end
     pcall(EJ_SetLootFilter, oldClass or 0, oldSpec or 0)

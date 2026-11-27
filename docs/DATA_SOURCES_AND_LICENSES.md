@@ -88,7 +88,9 @@ root `THIRD_PARTY_NOTICES.md`.
   item-to-mob drop relationships. QuestieDB remains an optional dependency.
 - Extended in 0.4.0 and 0.5.0 for current-zone quest eligibility and runtime
   recipe-item vendor, mob-drop, object-loot and quest-reward relationships.
-  The recipe index is built in coroutine batches and retains no coordinates.
+  Beginning in 0.8.6, recipe teaching items are selected by a generated
+  Blizzard client-data index, so QuestieDB is queried only for acquisition
+  relationships of relevant items and is never swept at runtime.
 - Extended in 0.7.0 for character-visited zone summaries and player-level
   aggregate XP from QuestieDB's public QuestXP support table. Coin rewards are
   read from the live client API by quest ID and are not copied from QuestieDB.
@@ -140,6 +142,10 @@ root `THIRD_PARTY_NOTICES.md`.
   distance table at runtime for a simplified in-tracker flight estimate. Its
   measured route history and every appearance setting are stored separately in
   Adventure Tracker and do not modify the native or Custom Tweaks flight timer.
+- Version 0.8.6 generates `Data/RecipeSourceIndex.lua` from the WoW: Forever
+  1.60.1.71139 `ItemEffect`, `ItemXItemEffect` and `ItemSparse` client tables.
+  The compact pack maps known catalogue spells to teaching items and records
+  product level gates; it contains no QuestieDB records or map data.
 - Boundary: Blizzard game data is not relicensed as Adventure Tracker content.
   Generated files identify the client build and retain the appropriate Blizzard
   ownership notice.

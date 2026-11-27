@@ -29,7 +29,7 @@ local function ItemName(itemID)
         local ok, value = pcall(api, itemID)
         if ok and value then return value end
     end
-    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, itemID) end
+    if ns.RequestItemData then ns.RequestItemData(itemID, "professions") end
     return "Item " .. tostring(itemID)
 end
 

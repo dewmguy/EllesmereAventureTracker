@@ -943,7 +943,7 @@ local function ItemInfo(itemID)
     if not getInfo then return nil end
     local ok, name, link, _, itemLevel, requiredLevel, _, _, _, equipLoc, icon, _, classID, subClassID = pcall(getInfo, itemID)
     if not ok or not name then
-        if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, itemID) end
+        if ns.RequestItemData then ns.RequestItemData(itemID, "professions") end
         return nil
     end
     return {

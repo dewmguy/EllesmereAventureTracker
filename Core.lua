@@ -9,6 +9,74 @@ if not EUI or EUI.IS_FOREVER ~= true then return end
 ns.ADDON_NAME = ADDON_NAME
 ns.EUI = EUI
 
+-- Item-data events are global and can be emitted by every addon. Track only
+-- requests Adventure Tracker initiated so unrelated cache traffic cannot
+-- repeatedly rebuild the tracker.
+local pendingItemDataProviders = {}
+local pendingSpellDataProviders = {}
+
+function ns.RequestItemData(itemID, providers)
+    itemID = tonumber(itemID)
+    if not itemID or itemID <= 0 then return false end
+    local request = C_Item and C_Item.RequestLoadItemDataByID
+    if type(request) ~= "function" then return false end
+    local pending = pendingItemDataProviders[itemID]
+    local shouldRequest = pending == nil
+    if not pending then
+        pending = {}
+        pendingItemDataProviders[itemID] = pending
+    end
+    if type(providers) == "string" then
+        pending[providers] = true
+    elseif type(providers) == "table" then
+        for index = 1, #providers do pending[providers[index]] = true end
+    end
+    if shouldRequest then pcall(request, itemID) end
+    return true
+end
+
+function ns.ConsumeItemDataProviders(itemID)
+    itemID = tonumber(itemID)
+    local pending = itemID and pendingItemDataProviders[itemID]
+    if not pending then return nil end
+    pendingItemDataProviders[itemID] = nil
+    local providers = {}
+    for providerID in pairs(pending) do providers[#providers + 1] = providerID end
+    table.sort(providers)
+    return #providers > 0 and providers or nil
+end
+
+function ns.RequestSpellData(spellID, providers)
+    spellID = tonumber(spellID)
+    if not spellID or spellID <= 0 then return false end
+    local request = C_Spell and C_Spell.RequestLoadSpellData
+    if type(request) ~= "function" then return false end
+    local pending = pendingSpellDataProviders[spellID]
+    local shouldRequest = pending == nil
+    if not pending then
+        pending = {}
+        pendingSpellDataProviders[spellID] = pending
+    end
+    if type(providers) == "string" then
+        pending[providers] = true
+    elseif type(providers) == "table" then
+        for index = 1, #providers do pending[providers[index]] = true end
+    end
+    if shouldRequest then pcall(request, spellID) end
+    return true
+end
+
+function ns.ConsumeSpellDataProviders(spellID)
+    spellID = tonumber(spellID)
+    local pending = spellID and pendingSpellDataProviders[spellID]
+    if not pending then return nil end
+    pendingSpellDataProviders[spellID] = nil
+    local providers = {}
+    for providerID in pairs(pending) do providers[#providers + 1] = providerID end
+    table.sort(providers)
+    return #providers > 0 and providers or nil
+end
+
 local DEFAULTS = {
     enabled = true,
     locked = false,
