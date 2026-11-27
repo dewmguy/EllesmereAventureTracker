@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.13 - 2026-11-26
+
+- Removed the redundant Unlock Mode button from the tracker Window settings.
+- Expanded the context line to show zone, specialization, class and selected
+  activity role.
+- Added Custom, Class Color and Accent Color choices for the shared title and
+  collapse-glyph color.
+- Kept the collapse control visible in a compact pane row when the title bar is
+  hidden, and allowed the tracker to remain collapsed in that appearance mode.
+
 ## 0.1.12 - 2026-11-26
 
 - Added per-profession trainer scans for currently available unlearned recipes

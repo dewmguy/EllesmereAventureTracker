@@ -44,10 +44,12 @@ local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 title:SetPoint("LEFT", 9, 0)
 title:SetText("Adventure Tracker")
 
--- Quest Tracker style: an unboxed +/- glyph in the title bar.
-local collapseButton = CreateFrame("Button", nil, header)
+-- Quest Tracker style: an unboxed +/- glyph. It belongs to the window so it
+-- remains available when the title bar itself is hidden.
+local collapseButton = CreateFrame("Button", nil, frame)
 collapseButton:SetSize(22, 20)
 collapseButton:SetPoint("RIGHT", -7, 0)
+collapseButton:SetFrameLevel(frame:GetFrameLevel() + 21)
 collapseButton.text = collapseButton:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 collapseButton.text:SetPoint("CENTER")
 collapseButton.text:SetText("−")
@@ -217,7 +219,24 @@ end
 
 local function ChromeHeight()
     local height = TitleBarHeight()
-    return height > 0 and height + 10 or 12
+    return height > 0 and height + 10 or 32
+end
+
+local function CollapsedHeight()
+    local height = TitleBarHeight()
+    return height > 0 and height + 2 or 28
+end
+
+local function TitleControlColor()
+    local mode = ns.Get("titleTextColorMode")
+    if mode == "class" and EUI.GetPlayerClassColor then
+        local ok, r, g, b = pcall(EUI.GetPlayerClassColor)
+        if ok and r and g and b then return r, g, b, 1 end
+    elseif mode == "accent" and EUI.GetAccentColor then
+        local ok, r, g, b = pcall(EUI.GetAccentColor)
+        if ok and r and g and b then return r, g, b, 1 end
+    end
+    return ColorValue("titleTextColor")
 end
 
 local function DamageMeterModule()
@@ -291,7 +310,7 @@ local function ApplyWindowStyle()
         header:SetBackdropColor(0, 0, 0, 0)
     end
 
-    local tr, tg, tb, ta = ColorValue("titleTextColor")
+    local tr, tg, tb, ta = TitleControlColor()
     local titleSize = Clamp(ns.Get("titleFontSize"), 9, 20, 13)
     local titleFont, _, titleFlags = title:GetFont()
     local collapseFont, _, collapseFlags = collapseButton.text:GetFont()
@@ -300,7 +319,13 @@ local function ApplyWindowStyle()
     title:SetTextColor(tr, tg, tb, ta)
     collapseButton.text:SetTextColor(tr, tg, tb, ta)
     title:SetShown(mode ~= "hidden" and ns.Get("showTitleText") == true)
-    collapseButton:SetShown(mode ~= "hidden")
+    collapseButton:ClearAllPoints()
+    if mode == "hidden" then
+        collapseButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -7, -4)
+    else
+        collapseButton:SetPoint("RIGHT", header, "RIGHT", -7, 0)
+    end
+    collapseButton:Show()
 
     title:ClearAllPoints()
     local alignment = ns.Get("titleAlignment")
@@ -323,7 +348,7 @@ local function ApplyWindowStyle()
     headerSeparator:SetShown(mode ~= "hidden" and separatorSize > 0)
 
     content:ClearAllPoints()
-    local topInset = headerHeight > 0 and headerHeight + 6 or 8
+    local topInset = headerHeight > 0 and headerHeight + 6 or 28
     content:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -topInset)
     content:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -topInset)
     UpdateLockIcon()
@@ -417,11 +442,11 @@ local function Render()
 
     local width = math.max(280, math.min(480, tonumber(ns.Get("width")) or 340))
     frame:SetWidth(width)
-    local collapsed = ns.Get("collapsed") == true and TitleBarMode() ~= "hidden"
+    local collapsed = ns.Get("collapsed") == true
     collapseButton.text:SetText(collapsed and "+" or "−")
     content:SetShown(not collapsed)
     if collapsed then
-        frame:SetHeight(TitleBarHeight() + 2)
+        frame:SetHeight(CollapsedHeight())
         UpdateLockFade()
         return
     end
@@ -430,7 +455,17 @@ local function Render()
     if ns.Get("showContext") then
         local zone = ns.GetZoneName()
         local role = ns.ROLE_LABELS[ns.GetRole()] or ns.GetRole()
-        contextText:SetText(zone .. "  •  " .. role)
+        local className = UnitClass and UnitClass("player") or "Character"
+        local specName
+        if GetSpecialization and GetSpecializationInfo then
+            local specialization = GetSpecialization()
+            if specialization then
+                local ok, _, name = pcall(GetSpecializationInfo, specialization)
+                if ok and type(name) == "string" and name ~= "" then specName = name end
+            end
+        end
+        local build = specName and (specName .. " " .. className) or className
+        contextText:SetText(zone .. "  •  " .. build .. "  •  " .. role)
         contextText:Show()
         y = y - 19
     else
@@ -515,6 +550,21 @@ end
 
 ns.RefreshTracker = Render
 ns.TrackerFrame = frame
+
+if EUI.RegAccent then
+    EUI.RegAccent({
+        type = "callback",
+        obj = frame,
+        fn = function()
+            if ns.Get("titleTextColorMode") == "accent" then ApplyWindowStyle() end
+        end,
+    })
+end
+if hooksecurefunc and type(EUI.ApplyColorsToOUF) == "function" then
+    pcall(hooksecurefunc, EUI, "ApplyColorsToOUF", function()
+        if ns.Get("titleTextColorMode") == "class" then ApplyWindowStyle() end
+    end)
+end
 
 local unlockRegistered = false
 local function RegisterUnlockElement()

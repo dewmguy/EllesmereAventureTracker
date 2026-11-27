@@ -40,7 +40,6 @@ end
 
 local function AppearanceSet(key, value, refreshPage)
     ns.Set(key, value, true)
-    if key == "titleBarMode" and value == "hidden" then ns.Set("collapsed", false, true) end
     if ns.ApplySettings then ns.ApplySettings() end
     if refreshPage and EUI.RefreshPage then EUI:RefreshPage() end
 end
@@ -82,7 +81,7 @@ end
 local TRACKER_KEYS = {
     "enabled", "locked", "width", "scale", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext",
     "backgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
-    "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
+    "titleTextColorMode", "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
 }
 local READINESS_KEYS = { "showReadiness", "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes", "showCompletedReadiness", "roleByCharacter" }
 local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBlizzardTalentReminder" }
@@ -104,12 +103,7 @@ local function BuildTracker(pageName, parent, yOffset)
         _, h = W:DualRow(parent, y,
             { type = "button", text = "Reset Position", tooltip = "Returns the tracker to its default screen position, size, scale and opacity.",
               onClick = function() ns.ResetKeys({ "position", "width", "scale", "opacity" }) end },
-            { type = "button", text = "Unlock Mode", tooltip = "Opens EllesmereUI Unlock Mode with an Adventure Tracker mover and anchor controls.",
-              onClick = function()
-                  if InCombatLockdown and InCombatLockdown() then return end
-                  if EUI.EnsureLoaded then EUI:EnsureLoaded() end
-                  if EUI.ToggleUnlockMode then EUI:ToggleUnlockMode() end
-              end })
+            nil)
         y = y - h
 
         _, h = W:SectionHeader(parent, "SIZE", y); y = y - h
@@ -119,7 +113,7 @@ local function BuildTracker(pageName, parent, yOffset)
         y = y - h
         _, h = W:DualRow(parent, y,
             Slider("opacity", "Window Opacity", 0.25, 1.00, 0.05, "Opacity of the whole tracker, multiplied with individual background colors."),
-            Toggle("showContext", "Show Zone and Role", "Shows the current zone and selected activity role above the readiness icons."))
+            Toggle("showContext", "Show Zone, Class, Spec and Role", "Shows the current zone, class, specialization and selected activity role above the readiness icons."))
         y = y - h
 
         _, h = W:SectionHeader(parent, "VISIBILITY", y); y = y - h
@@ -141,7 +135,8 @@ local function BuildTracker(pageName, parent, yOffset)
             { type = "button", text = "Reset Window Style", tooltip = "Restores all background, border and title bar appearance defaults.",
               onClick = function()
                   ns.ResetKeys({ "backgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight",
-                      "titleBarColor", "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor" })
+                      "titleBarColor", "titleTextColorMode", "titleTextColor", "titleFontSize", "titleAlignment", "showTitleText",
+                      "titleSeparatorSize", "titleSeparatorColor" })
               end })
         y = y - h
 
@@ -158,10 +153,11 @@ local function BuildTracker(pageName, parent, yOffset)
         local titleHidden = function() return ns.Get("titleBarMode") == "hidden" end
         local titleNotFilled = function() return ns.Get("titleBarMode") ~= "filled" end
         local titleTextHidden = function() return titleHidden() or not ns.Get("showTitleText") end
+        local customTitleColorDisabled = function() return ns.Get("titleTextColorMode") ~= "custom" end
         _, h = W:SectionHeader(parent, "TITLE BAR", y); y = y - h
         _, h = W:DualRow(parent, y,
             Dropdown("titleBarMode", "Title Bar", { filled = "Filled", transparent = "Transparent", hidden = "Hidden" },
-                { "filled", "transparent", "hidden" }, "Hidden removes the title, drag surface and minimize glyph; Unlock Mode remains available.", nil, true),
+                { "filled", "transparent", "hidden" }, "Hidden removes the title and drag surface; the collapse control moves into the tracker pane.", nil, true),
             Slider("titleBarHeight", "Title Bar Height", 20, 40, 1, "Height of the title bar and its drag surface.", titleHidden))
         y = y - h
         _, h = W:DualRow(parent, y,
@@ -169,13 +165,16 @@ local function BuildTracker(pageName, parent, yOffset)
             StyleToggle("showTitleText", "Show Title Text", "Shows Adventure Tracker in the title bar.", titleHidden, true))
         y = y - h
         _, h = W:DualRow(parent, y,
-            ColorPicker("titleTextColor", "Title and Minimize Color", "Color shared by the title and Quest Tracker-style minimize glyph.", true, titleHidden),
-            Slider("titleFontSize", "Title Font Size", 9, 20, 1, "Font size shared by the title and minimize glyph.", titleHidden))
+            Dropdown("titleTextColorMode", "Title and Minimize Color",
+                { custom = "Custom", class = "Class Color", accent = "Accent Color" },
+                { "custom", "class", "accent" }, "Colors the title and Quest Tracker-style collapse glyph.", nil, true),
+            ColorPicker("titleTextColor", "Custom Title Color", "Custom color shared by the title and collapse glyph.", true,
+                customTitleColorDisabled))
         y = y - h
         _, h = W:DualRow(parent, y,
+            Slider("titleFontSize", "Title Font Size", 9, 20, 1, "Font size shared by the title and collapse glyph."),
             Dropdown("titleAlignment", "Title Alignment", { LEFT = "Left", CENTER = "Center", RIGHT = "Right" },
-                { "LEFT", "CENTER", "RIGHT" }, "Horizontal title alignment.", titleTextHidden),
-            nil)
+                { "LEFT", "CENTER", "RIGHT" }, "Horizontal title alignment.", titleTextHidden))
         y = y - h
         _, h = W:DualRow(parent, y,
             Slider("titleSeparatorSize", "Bottom Separator", 0, 4, 1, "Optional divider beneath the title bar.", titleHidden),

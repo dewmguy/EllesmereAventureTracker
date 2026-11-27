@@ -23,6 +23,7 @@ local DEFAULTS = {
     titleBarMode = "filled",
     titleBarHeight = 28,
     titleBarColor = { r = 0.04, g = 0.055, b = 0.065, a = 0.98 },
+    titleTextColorMode = "custom",
     titleTextColor = { r = 1, g = 0.82, b = 0, a = 1 },
     titleFontSize = 13,
     titleAlignment = "LEFT",
