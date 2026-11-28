@@ -1074,6 +1074,21 @@ local function EquippedItemLevel(equipLoc)
     return lowest
 end
 
+local function ItemIsEquipped(itemID, equipLoc)
+    itemID = tonumber(itemID)
+    local slots = itemID and EQUIPMENT_SLOTS[equipLoc]
+    if not slots then return false end
+    for index = 1, #slots do
+        local equippedID = GetInventoryItemID and GetInventoryItemID("player", slots[index])
+        if equippedID and not (_G.issecretvalue and _G.issecretvalue(equippedID))
+            and tonumber(equippedID) == itemID then
+            return true
+        end
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+    return false
+end
+
 local function CharacterBuildName()
     local _, className = UnitClass("player")
     local specialization = GetSpecialization and GetSpecialization()
@@ -1128,9 +1143,12 @@ function ns.GetCraftedItemUpgrade(itemID)
     -- products are still scored; ordinary client use will populate more.
     local item = ItemInfo(itemID, false)
     if not item or not IsUsableEquippable(itemID, item) then return nil end
+    if ItemIsEquipped(itemID, item.equipLoc) then
+        return item, nil, SLOT_LABELS[item.equipLoc] or "gear", nil, true
+    end
     local equippedLevel = EquippedItemLevel(item.equipLoc)
     if equippedLevel == nil then return nil end
-    return item, item.itemLevel - equippedLevel, SLOT_LABELS[item.equipLoc] or "gear", equippedLevel
+    return item, item.itemLevel - equippedLevel, SLOT_LABELS[item.equipLoc] or "gear", equippedLevel, false
 end
 
 local function BestGearRecipe(profession, professions, mapID)
@@ -1141,7 +1159,8 @@ local function BestGearRecipe(profession, professions, mapID)
     for _, recipe in pairs(cache.recipes) do
         if recipe.resultItemID then
             local item = ItemInfo(recipe.resultItemID)
-            if item and IsUsableEquippable(recipe.resultItemID, item) then
+            if item and IsUsableEquippable(recipe.resultItemID, item)
+                and not ItemIsEquipped(recipe.resultItemID, item.equipLoc) then
                 local equippedLevel = EquippedItemLevel(item.equipLoc)
                 if equippedLevel ~= nil then
                     local delta = item.itemLevel - equippedLevel

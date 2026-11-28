@@ -539,7 +539,7 @@ local function CatalogCandidates(profession, mapID, learned)
             and (not requiredLevel or requiredLevel <= playerLevel + 5) then
             local source = RecipeSource(entry, areaID)
             if source then
-                local item, delta, slot
+                local item, delta, slot, _, alreadyEquipped
                 local equippable = C_Item and C_Item.IsEquippableItem
                 local evaluate = true
                 if type(equippable) == "function" then
@@ -547,9 +547,9 @@ local function CatalogCandidates(profession, mapID, learned)
                     evaluate = ok and value == true
                 end
                 if evaluate and ns.GetCraftedItemUpgrade then
-                    item, delta, slot = ns.GetCraftedItemUpgrade(entry.productID)
+                    item, delta, slot, _, alreadyEquipped = ns.GetCraftedItemUpgrade(entry.productID)
                 end
-                if not item or (item.requiredLevel or 0) <= playerLevel then
+                if not alreadyEquipped and (not item or (item.requiredLevel or 0) <= playerLevel) then
                     local score = source.score - math.max(0, approximateSkill - rank) * 2
                         + (delta and delta > 0 and (300 + delta * 10) or 0)
                     candidates[#candidates + 1] = {
@@ -595,7 +595,7 @@ local function MerchantFavorCandidates(profession, mapID, learned)
                     tooltip = "Purchase this recipe from a Merchant's Favor vendor.",
                 }
             end
-            local item, delta, slot
+            local item, delta, slot, _, alreadyEquipped
             local equippable = C_Item and C_Item.IsEquippableItem
             local evaluate = productID > 0
             if evaluate and type(equippable) == "function" then
@@ -603,9 +603,9 @@ local function MerchantFavorCandidates(profession, mapID, learned)
                 evaluate = ok and value == true
             end
             if evaluate and ns.GetCraftedItemUpgrade then
-                item, delta, slot = ns.GetCraftedItemUpgrade(productID)
+                item, delta, slot, _, alreadyEquipped = ns.GetCraftedItemUpgrade(productID)
             end
-            if not item or (item.requiredLevel or 0) <= playerLevel then
+            if not alreadyEquipped and (not item or (item.requiredLevel or 0) <= playerLevel) then
                 candidates[#candidates + 1] = {
                     entry = { spellID = fact.spellID, productID = displayItemID },
                     source = source,

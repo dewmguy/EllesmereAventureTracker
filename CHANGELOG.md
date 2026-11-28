@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.10 - 2026-11-27
+
+- Stopped learned profession gear recommendations from suggesting an item the
+  character already has equipped, including matching random-suffix variants.
+- Applied the same exact-item suppression to attainable and Merchant's Favor
+  recipe opportunities so the duplicate cannot reappear through another
+  profession recommendation path.
+
 ## 0.9.9 - 2026-11-27
 
 - Replaced the generic missing Cozy Sleeping Bag warning at level 14+ with a
