@@ -6,6 +6,25 @@ local _, ns = ...
 local CAMP_BENEFITS = 1229741
 local SLEEPING_BAG_BUFF = 429959
 local SLEEPING_BAG_ITEM = 211527
+local SLEEPING_BAG_MIN_LEVEL = 14
+local SLEEPING_BAG_QUESTS = {
+    [79007] = true, -- Horde: ...and that note you found
+    [79008] = true, -- Alliance: ...and that note you found
+    [79192] = true, -- Stepping Stones
+    [79980] = true, -- Scramble
+    [79974] = true, -- Wet Job
+    [79975] = true, -- Eagle's Fist
+    [79976] = true, -- This Must Be the Place
+}
+local SLEEPING_BAG_STOPS = {
+    westfall = { zone = "Westfall", mapID = 1436, x = 37.4, y = 50.6, object = "Burned-Out Remains" },
+    barrens = { zone = "The Barrens", mapID = 1413, x = 46.4, y = 73.9, object = "Burned-Out Remains" },
+    stonetalonCamp = { zone = "Stonetalon Mountains", mapID = 1442, x = 40.7, y = 52.4, object = "Pocket Litter" },
+    stonetalonLedge = { zone = "Stonetalon Mountains", mapID = 1442, x = 39.6, y = 49.9, object = "Mound of Dirt" },
+    lochModan = { zone = "Loch Modan", mapID = 1432, x = 49.4, y = 12.9, object = "Carved Figurine" },
+    hillsbradCart = { zone = "Hillsbrad Foothills", mapID = 1424, x = 87.3, y = 49.6, object = "Cart below Thoradin's Wall" },
+    thoradinsWall = { zone = "Arathi Highlands", mapID = 1417, x = 22.5, y = 24.2, object = "Messenger Bag and Satchel" },
+}
 local WELL_FED = 19705
 local NUTRITIOUS_FOOD = 1248377
 local FOOD_BUFFS = { 19705, 18192, 18194, 22730, 25661, 18125, 18141 }
@@ -285,6 +304,153 @@ local function GetItemCount(itemID)
     return 0
 end
 
+local function GetItemCountIncludingBank(itemID)
+    if C_Item and C_Item.GetItemCount then
+        local ok, count = pcall(C_Item.GetItemCount, itemID, true)
+        if ok and type(count) == "number" then return count end
+    end
+    if _G.GetItemCount then
+        local ok, count = pcall(_G.GetItemCount, itemID, true)
+        if ok and type(count) == "number" then return count end
+    end
+    return GetItemCount(itemID)
+end
+
+local function QuestComplete(questID)
+    local api = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted or _G.IsQuestFlaggedCompleted
+    if type(api) ~= "function" then return false end
+    local ok, value = pcall(api, questID)
+    return ok and not IsSecret(value) and value == true
+end
+
+local function QuestActive(questID)
+    if C_QuestLog and type(C_QuestLog.IsOnQuest) == "function" then
+        local ok, value = pcall(C_QuestLog.IsOnQuest, questID)
+        if ok and not IsSecret(value) and value == true then return true end
+    end
+    if type(GetQuestLogIndexByID) == "function" then
+        local ok, index = pcall(GetQuestLogIndexByID, questID)
+        if ok and not IsSecret(index) and tonumber(index) and tonumber(index) > 0 then return true end
+    end
+    return false
+end
+
+local function SleepingBagRoute()
+    local level = UnitLevel and UnitLevel("player") or 0
+    if level < SLEEPING_BAG_MIN_LEVEL then return nil end
+    local faction = UnitFactionGroup and UnitFactionGroup("player") or "Alliance"
+    local firstQuest = faction == "Horde" and 79007 or 79008
+    local firstStop = faction == "Horde" and SLEEPING_BAG_STOPS.barrens or SLEEPING_BAG_STOPS.westfall
+    local secondStop = faction == "Horde" and SLEEPING_BAG_STOPS.westfall or SLEEPING_BAG_STOPS.barrens
+
+    if not QuestComplete(firstQuest) and not QuestActive(firstQuest) then
+        return {
+            detail = string.format("Begin the sleeping-bag chain in %s at %.1f, %.1f.", firstStop.zone, firstStop.x, firstStop.y),
+            tooltip = "Click the Burned-Out Remains to begin ...and that note you found.",
+            points = { firstStop },
+        }
+    end
+    if not QuestComplete(firstQuest) then
+        return {
+            detail = string.format("Continue to %s at %.1f, %.1f.", secondStop.zone, secondStop.x, secondStop.y),
+            tooltip = "Click the Burned-Out Remains to finish the first clue, then use the nearby Nailed Plank.",
+            points = { secondStop },
+        }
+    end
+    if not QuestComplete(79192) and not QuestActive(79192) then
+        return {
+            detail = string.format("Return to the Nailed Plank in %s at %.1f, %.1f.", secondStop.zone, secondStop.x, secondStop.y),
+            tooltip = "The Nailed Plank begins Stepping Stones.",
+            points = { secondStop },
+        }
+    end
+    if not QuestComplete(79192) then
+        local stop = SLEEPING_BAG_STOPS.stonetalonCamp
+        return {
+            detail = string.format("Continue to %s at %.1f, %.1f.", stop.zone, stop.x, stop.y),
+            tooltip = "Click the Pocket Litter at the abandoned camp to finish Stepping Stones and begin Scramble.",
+            points = { stop },
+        }
+    end
+    if not QuestComplete(79980) and not QuestActive(79980) then
+        local stop = SLEEPING_BAG_STOPS.stonetalonCamp
+        return {
+            detail = string.format("Return to the Pocket Litter in %s at %.1f, %.1f.", stop.zone, stop.x, stop.y),
+            tooltip = "The Pocket Litter begins Scramble.",
+            points = { stop },
+        }
+    end
+    if not QuestComplete(79980) then
+        local stop = SLEEPING_BAG_STOPS.stonetalonLedge
+        return {
+            detail = string.format("Climb to the ledge in %s at %.1f, %.1f.", stop.zone, stop.x, stop.y),
+            tooltip = "Click the Mound of Dirt to finish Scramble and begin Wet Job.",
+            points = { stop },
+        }
+    end
+    if not QuestComplete(79974) and not QuestActive(79974) then
+        local stop = SLEEPING_BAG_STOPS.stonetalonLedge
+        return {
+            detail = string.format("Return to the Mound of Dirt in %s at %.1f, %.1f.", stop.zone, stop.x, stop.y),
+            tooltip = "The Mound of Dirt begins Wet Job.",
+            points = { stop },
+        }
+    end
+    if not QuestComplete(79974) then
+        local stop = SLEEPING_BAG_STOPS.lochModan
+        return {
+            detail = string.format("Continue to Stonewrought Dam in %s at %.1f, %.1f.", stop.zone, stop.x, stop.y),
+            tooltip = "Click the Carved Figurine on the Wetlands side of the dam to finish Wet Job and begin Eagle's Fist.",
+            points = { stop },
+        }
+    end
+    if not QuestComplete(79975) and not QuestActive(79975) then
+        local stop = SLEEPING_BAG_STOPS.lochModan
+        return {
+            detail = string.format("Return to the Carved Figurine in %s at %.1f, %.1f.", stop.zone, stop.x, stop.y),
+            tooltip = "The Carved Figurine begins Eagle's Fist.",
+            points = { stop },
+        }
+    end
+    if not QuestComplete(79975) then
+        local cart, wall = SLEEPING_BAG_STOPS.hillsbradCart, SLEEPING_BAG_STOPS.thoradinsWall
+        return {
+            detail = string.format("Climb Thoradin's Wall from %s %.1f, %.1f; cross to the Arathi side at %.1f, %.1f.", cart.zone, cart.x, cart.y, wall.x, wall.y),
+            tooltip = "Use the overturned cart on the Hillsbrad side to climb the wall, then click the Messenger Bag and the satchel beneath it.",
+            points = { cart, wall },
+        }
+    end
+    if not QuestComplete(79976) then
+        local stop = SLEEPING_BAG_STOPS.thoradinsWall
+        return {
+            detail = string.format("Claim the Cozy Sleeping Bag at Thoradin's Wall, %.1f, %.1f.", stop.x, stop.y),
+            tooltip = QuestActive(79976)
+                and "Click the Hastily Rolled-Up Satchel beneath the Messenger Bag to finish This Must Be the Place."
+                or "Click the Messenger Bag to begin This Must Be the Place, then click the satchel beneath it.",
+            points = { stop },
+        }
+    end
+end
+
+local function SleepingBagMapLink(point)
+    local label = string.format("%s: %s", point.zone, point.object)
+    return string.format("|cffffff00|Hworldmap:%d:%d:%d|h[%s]|h|r |cff9ca3af(%.1f, %.1f)|r",
+        point.mapID, math.floor(point.x * 100 + 0.5), math.floor(point.y * 100 + 0.5),
+        label, point.x, point.y)
+end
+
+local function PrintSleepingBagRoute(route)
+    if type(route) ~= "table" or type(route.points) ~= "table" then return end
+    if InCombatLockdown and InCombatLockdown() then
+        print("|cff0cd29fAdventure Tracker:|r Sleeping-bag map links are available after combat.")
+        return
+    end
+    local links = {}
+    for index = 1, #route.points do links[#links + 1] = SleepingBagMapLink(route.points[index]) end
+    print("|cff0cd29fAdventure Tracker:|r Next sleeping-bag stop: " .. table.concat(links, "  →  "))
+    print("|cff0cd29fAdventure Tracker:|r Click a link to place Blizzard's map pin, then track that pin from the map.")
+end
+
 local function ItemTexture(itemID)
     if C_Item and C_Item.GetItemIconByID then return C_Item.GetItemIconByID(itemID) end
     return GetItemIcon and GetItemIcon(itemID)
@@ -395,7 +561,10 @@ function ns.MarkReadinessInventoryBagDirty(bag)
 end
 
 function ns.GetReadinessInventorySignature()
-    if not ns.Get("showReadiness") or not ns.Get("trackFood") then return "" end
+    if not ns.Get("showReadiness") then return "" end
+    local sleepingSignature = ns.Get("trackSleepingBag")
+        and ("sleeping:" .. tostring(GetItemCount(SLEEPING_BAG_ITEM))) or "sleeping:off"
+    if not ns.Get("trackFood") then return sleepingSignature end
     if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemID) then return "" end
     if not foodBagsInitialized then
         for bag = 0, NUM_BAG_SLOTS or 4 do
@@ -412,7 +581,7 @@ function ns.GetReadinessInventorySignature()
     local cachedSignature = foodSignatureCache[role]
     if cachedSignature and cachedSignature.inventoryRevision == foodInventoryRevision
         and cachedSignature.classificationRevision == classificationRevision then
-        return cachedSignature.value
+        return sleepingSignature .. "|" .. cachedSignature.value
     end
 
     local counts = {}
@@ -439,7 +608,7 @@ function ns.GetReadinessInventorySignature()
         classificationRevision = classificationRevision,
         value = signature,
     }
-    return signature
+    return sleepingSignature .. "|" .. signature
 end
 
 local function EvaluateCombatFood(itemID)
@@ -708,11 +877,33 @@ local function BuildSleeping(statuses, rows, warnSeconds)
     if not ns.Get("trackSleepingBag") or IsAtMaxLevel() then return end
     local aura, readable = GetAura(SLEEPING_BAG_BUFF)
     local count = GetItemCount(SLEEPING_BAG_ITEM)
+    local owned = GetItemCountIncludingBank(SLEEPING_BAG_ITEM)
     local status = { key = "sleeping", label = "Well-Rested", icon = SpellTexture(SLEEPING_BAG_BUFF) or ItemTexture(SLEEPING_BAG_ITEM) }
-    if not readable then
+    if count <= 0 then
+        status.label = "Cozy Sleeping Bag"
+        status.state = "unavailable"
+        if owned > 0 then
+            status.detail = "Retrieve your Cozy Sleeping Bag from the bank."
+            status.tooltip = "You already own the bag, so the quest route is hidden."
+        elseif (UnitLevel and UnitLevel("player") or 0) < SLEEPING_BAG_MIN_LEVEL then
+            status.detail = "The Cozy Sleeping Bag quest chain unlocks at level 14."
+        elseif QuestComplete(79976) then
+            status.detail = "Quest chain complete • check your bank or item restoration."
+            status.tooltip = "The final quest is already complete, so its reward cannot be earned from the chain again."
+        else
+            local route = SleepingBagRoute()
+            if route then
+                status.state = "warning"
+                status.detail = route.detail
+                status.tooltip = route.tooltip .. "\n\nFull route: Westfall and The Barrens → Stonetalon Mountains → Loch Modan → Thoradin's Wall."
+                status.onClick = function() PrintSleepingBagRoute(route) end
+                status.clickHint = "Click to print native map links for the next stop."
+            else
+                status.detail = "Cozy Sleeping Bag not found in your bags."
+            end
+        end
+    elseif not readable then
         status.state, status.detail = "unknown", "Well-Rested stacks cannot be read right now."
-    elseif count <= 0 and not aura then
-        status.state, status.detail = "unavailable", "Cozy Sleeping Bag not found in your bags."
     else
         local stacks = aura and aura.applications or 0
         if IsSecret(stacks) or type(stacks) ~= "number" then stacks = 0 end
@@ -927,3 +1118,14 @@ local function Build()
 end
 
 ns.RegisterProvider("readiness", 10, Build)
+
+local sleepingQuestEvents = CreateFrame("Frame")
+for _, event in ipairs({ "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN" }) do
+    pcall(sleepingQuestEvents.RegisterEvent, sleepingQuestEvents, event)
+end
+sleepingQuestEvents:SetScript("OnEvent", function(_, event, ...)
+    local questID = event == "QUEST_ACCEPTED" and select(2, ...) or select(1, ...)
+    if SLEEPING_BAG_QUESTS[tonumber(questID)] and ns.RequestRefresh then
+        ns.RequestRefresh("readiness", "sleeping bag quest progress")
+    end
+end)

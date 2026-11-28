@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.9 - 2026-11-27
+
+- Replaced the generic missing Cozy Sleeping Bag warning at level 14+ with a
+  faction-aware route to the next unresolved quest-chain stop.
+- Added precise zone and coordinate guidance for Westfall, The Barrens,
+  Stonetalon Mountains, Loch Modan and both sides of Thoradin's Wall.
+- Made the route respond to accepted, abandoned and completed chain quests.
+  Clicking the recommendation prints safe Blizzard-native map links instead
+  of calling waypoint setters from addon code.
+- Added bank and completed-chain handling so characters who already own or
+  previously earned the bag are not sent back to the first quest.
+
 ## 0.9.8 - 2026-11-27
 
 - Separated recipes purchased with Merchant's Favor from ordinary vendor

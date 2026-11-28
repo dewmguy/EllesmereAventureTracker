@@ -44,6 +44,8 @@ Version 0.9.2 includes:
 - live Camp Benefits, Well-Rested, food, class-buff and weapon-enhancement
   checks, with expiring-soon states kept in the icon strip instead of duplicated
   as entries under Missing Buffs;
+- a level- and faction-aware Cozy Sleeping Bag route that advances with the
+  six-quest chain and prints native map links for the next unresolved stop;
 - combat-safe state retention so restricted aura reads do not become false
   missing-buff warnings;
 - a role-aware Well Fed recommendation that prefers suitable food already in
