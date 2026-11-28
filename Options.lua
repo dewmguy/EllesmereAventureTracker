@@ -630,8 +630,8 @@ local function BuildProfessions(pageName, parent, yOffset)
         y = y - h
         _, h = W:DualRow(parent, y,
             Toggle("showProfessionAttainableRecipes", "Looted and Purchased Recipes",
-                "Shows reasonably attainable unlearned recipe items from the build-stamped catalogue and QuestieDB source relations."),
-            Label("The best option stays visible; expand its summary row to show every currently attainable worldwide option."))
+                "Shows unlearned recipes you can obtain from vendors, quests, objects and enemies."),
+            Label("Vendor, quest and object sources stay concise; mob-drop recipes have their own collapsed summary with mob and zone details."))
         y = y - h
         _, h = W:DualRow(parent, y,
             Toggle("showObservedGathering", "Show Local Catch and Skinning History",

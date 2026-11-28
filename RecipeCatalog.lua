@@ -22,6 +22,7 @@ local catalogByProfession
 local recipeItemsBySpell
 local sourceIndexState
 local RecipeSource
+local areaNameCache = {}
 
 local function Materialize(value)
     if type(value) == "table" then return value end
@@ -210,15 +211,45 @@ local function LocalSpawnIDs(entity, ids, areaID)
 end
 
 local function AreaName(areaID)
+    areaID = tonumber(areaID)
+    if not areaID then return nil end
+    local cached = areaNameCache[areaID]
+    if cached ~= nil then return cached or nil end
+
     local library = _G.LibQuestieDB
-    if not (library and library.Support and type(library.Support.Get) == "function") then return nil end
+    if not (library and library.Support and type(library.Support.Get) == "function") then
+        areaNameCache[areaID] = false
+        return nil
+    end
     local ok, zones = pcall(library.Support.Get, "ZoneDB")
-    if not ok or type(zones) ~= "table" then return nil end
+    if not ok or type(zones) ~= "table" then
+        areaNameCache[areaID] = false
+        return nil
+    end
     local private = type(zones.private) == "table" and zones.private or {}
+
+    local dungeons = Materialize(zones.dungeons or private.dungeons)
+    local dungeon = dungeons and dungeons[areaID]
+    if not dungeon and type(dungeons) == "table" then
+        for _, entry in pairs(dungeons) do
+            for _, alternativeID in ipairs(type(entry) == "table" and entry[2] or {}) do
+                if tonumber(alternativeID) == areaID then dungeon = entry break end
+            end
+            if dungeon then break end
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
+    end
+    if type(dungeon) == "table" and type(dungeon[1]) == "string" then
+        areaNameCache[areaID] = dungeon[1]
+        return dungeon[1]
+    end
+
     local reverse = Materialize(zones.areaIdToUiMapId or private.areaIdToUiMapId)
-    local mapID = reverse and tonumber(reverse[tonumber(areaID)])
+    local mapID = reverse and tonumber(reverse[areaID])
     local info = mapID and C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
-    return info and info.name or nil
+    local name = info and info.name or nil
+    areaNameCache[areaID] = name or false
+    return name
 end
 
 local function SpawnZoneName(entity, ids, preferredAreaID)
@@ -265,17 +296,19 @@ local function BestSourceForItem(itemID, areaID, ignoreInventory)
         return {
             score = 140, localSource = true, itemID = itemID,
             detail = recipeName .. " is already in your bags",
-            tooltip = "This recipe item is already carried by the current character.",
+            tooltip = "You already have this recipe in your bags.",
         }
     end
 
     local best
-    local function Consider(score, localSource, detail, tooltip, kind, zoneName, names)
+    local function Consider(score, localSource, detail, kind, zoneName, names, note)
         score = score + (localSource and 30 or 0)
         if not best or score > best.score then
+            if zoneName then detail = detail .. " in " .. zoneName end
             best = {
                 score = score, localSource = localSource, itemID = itemID,
-                detail = recipeName .. " • " .. detail, tooltip = tooltip or detail,
+                detail = recipeName .. " • " .. detail,
+                tooltip = detail .. "." .. (note and (" " .. note) or ""),
                 kind = kind, zoneName = zoneName, names = names,
             }
         end
@@ -286,8 +319,8 @@ local function BestSourceForItem(itemID, areaID, ignoreInventory)
     if vendorCount > 0 then
         local localSource = AnySpawnHere(npcDB, vendors, areaID)
         Consider(120, localSource, "Sold by " .. vendorNames,
-            "Known vendor source available to your faction. Stock and price can vary; Adventure Tracker does not show vendor coordinates.",
-            "vendor", SpawnZoneName(npcDB, vendors, areaID), vendorNames)
+            "vendor", SpawnZoneName(npcDB, vendors, areaID), vendorNames,
+            "Stock and price may vary.")
     end
 
     local drops = ReasonableDrops(npcDB, ns.QuestData.Value(itemDB, "npcDrops", itemID))
@@ -296,7 +329,6 @@ local function BestSourceForItem(itemID, areaID, ignoreInventory)
     if dropCount > 0 then
         local localSource = AnySpawnHere(npcDB, drops, areaID)
         Consider(90, localSource, "Drops from " .. dropNames,
-            "Targeted mob-drop source within a reasonable level range. Drop chance is not assumed.",
             "drop", SpawnZoneName(npcDB, namedDrops, areaID), dropNames)
     end
 
@@ -305,7 +337,6 @@ local function BestSourceForItem(itemID, areaID, ignoreInventory)
     if objectCount > 0 then
         local localSource = AnySpawnHere(objectDB, objects, areaID)
         Consider(75, localSource, "Looted from " .. objectNames,
-            "Known object-loot source. No coordinates or route guidance are shown.",
             "object", SpawnZoneName(objectDB, objects, areaID), objectNames)
     end
 
@@ -323,7 +354,6 @@ local function BestSourceForItem(itemID, areaID, ignoreInventory)
         local questNames, questCount = Names(questDB, available, 2)
         if questCount > 0 then
             Consider(100, false, "Reward from " .. questNames,
-                "Known quest reward whose recorded requirements are currently satisfied.",
                 "quest", nil, questNames)
         end
     end
@@ -367,16 +397,17 @@ local function LearnedSpells(profession)
     return learned, cache
 end
 
-local function ExpansionKey(profession)
-    return tostring(ns.CharacterKey()) .. ":" .. tostring(profession.skillLineID)
+local function ExpansionKey(profession, group)
+    local key = tostring(ns.CharacterKey()) .. ":" .. tostring(profession.skillLineID)
+    return group and (key .. ":" .. group) or key
 end
 
-local function Expanded(profession)
+local function Expanded(profession, group)
     local source = ns.Get("professionRecipeCatalogExpandedByCharacter")
-    return type(source) == "table" and source[ExpansionKey(profession)] == true
+    return type(source) == "table" and source[ExpansionKey(profession, group)] == true
 end
 
-local function ToggleExpanded(profession)
+local function ToggleExpanded(profession, group)
     local source = ns.Get("professionRecipeCatalogExpandedByCharacter")
     local copy = {}
     if type(source) == "table" then
@@ -385,7 +416,7 @@ local function ToggleExpanded(profession)
             if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
-    local key = ExpansionKey(profession)
+    local key = ExpansionKey(profession, group)
     copy[key] = not (copy[key] == true)
     ns.Set("professionRecipeCatalogExpandedByCharacter", copy)
 end
@@ -461,8 +492,11 @@ local function CandidateRow(candidate, indent)
         key = string.format("catalog-recipe-%s-%d", tostring(candidate.profession.skillLineID), entry.spellID),
         label = label,
         detail = detail,
-        tooltip = string.format("%s\n\n%s\n\nCatalogue build %s. Source relations come from the installed QuestieDB version.",
-            source.tooltip, detail, ns.RecipeCatalogData.build or "unknown"),
+        tooltip = string.format("%s\n\nLearnable at around %d %s skill.%s",
+            source.tooltip, skill, candidate.profession.name,
+            candidate.delta and candidate.delta > 0
+                and string.format(" This would be a %d-item-level upgrade for %s.", candidate.delta, candidate.slot or "gear")
+                or ""),
         state = candidate.delta and candidate.delta > 0 and "warning" or (source.localSource and "ready" or "info"),
         icon = ItemIcon(entry.productID),
         indentLevel = indent,
@@ -525,24 +559,54 @@ function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
 
     local candidates = CatalogCandidates(profession, mapID)
     if not candidates or #candidates == 0 then return end
-    rows[#rows + 1] = CandidateRow(candidates[1], 0)
-    if #candidates > 1 then
+
+    local direct, mobDrops = {}, {}
+    for index = 1, #candidates do
+        local target = candidates[index].source.kind == "drop" and mobDrops or direct
+        target[#target + 1] = candidates[index]
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+
+    if #direct > 0 then rows[#rows + 1] = CandidateRow(direct[1], 0) end
+    if #direct > 1 then
         local expanded = Expanded(profession)
         rows[#rows + 1] = {
             key = "catalog-expand-" .. tostring(profession.skillLineID),
-            label = string.format("%s %d additional attainable recipe%s worldwide",
-                expanded and "− Hide" or "+ Show", #candidates - 1, #candidates == 2 and "" or "s"),
+            label = string.format("%s %d additional attainable recipe%s",
+                expanded and "− Hide" or "+ Show", #direct - 1, #direct == 2 and "" or "s"),
             detail = expanded
-                and "Collapse the worldwide recipe-source list."
-                or "Expand every reasonably attainable vendor, drop, object-loot and quest-reward recipe.",
-            tooltip = "Sources are filtered for current profession skill, level and recorded prerequisites. No source coordinates are shown.",
+                and "Hide the additional vendor, quest and object-loot recipes."
+                or "Show additional recipes available from vendors, quests and objects.",
+            tooltip = "These recipes are appropriate to your current profession skill and character level.",
             state = "info",
             icon = profession.icon,
             onClick = function() ToggleExpanded(profession) end,
         }
         if expanded then
-            for index = 2, #candidates do
-                rows[#rows + 1] = CandidateRow(candidates[index], 1)
+            for index = 2, #direct do
+                rows[#rows + 1] = CandidateRow(direct[index], 1)
+                if ns.YieldForBudget then ns.YieldForBudget() end
+            end
+        end
+    end
+
+    if #mobDrops > 0 then
+        local expanded = Expanded(profession, "mob-drops")
+        rows[#rows + 1] = {
+            key = "catalog-mob-drops-" .. tostring(profession.skillLineID),
+            label = string.format("%s %d available mob-drop recipe%s",
+                expanded and "− Hide" or "+ Show", #mobDrops, #mobDrops == 1 and "" or "s"),
+            detail = expanded
+                and "Hide recipes obtained from enemies."
+                or "Show recipes obtained from enemies, including each mob and zone.",
+            tooltip = "Expand this list to see which enemies drop these recipes and where those enemies are found.",
+            state = "info",
+            icon = profession.icon,
+            onClick = function() ToggleExpanded(profession, "mob-drops") end,
+        }
+        if expanded then
+            for index = 1, #mobDrops do
+                rows[#rows + 1] = CandidateRow(mobDrops[index], 1)
                 if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end
@@ -553,7 +617,7 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:SetScript("OnEvent", function(_, _, addonName)
     if addonName == "QuestieDB" then
-        sourceIndexState, recipeItemsBySpell = nil, nil
+        sourceIndexState, recipeItemsBySpell, areaNameCache = nil, nil, {}
         if ns.RequestRefresh then ns.RequestRefresh("professions", "QuestieDB loaded") end
     end
 end)

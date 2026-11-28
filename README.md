@@ -171,8 +171,9 @@ Version 0.9.2 includes:
   QuestieDB vendor, reasonable-level mob-drop, object-loot and currently
   eligible quest-reward overlays; vendor sources are filtered to the current
   character's faction while neutral vendors remain available to both;
-- a best attainable unlearned recipe recommendation plus an expandable
-  per-character worldwide list, with source details but no coordinates;
+- a best attainable unlearned non-drop recipe recommendation plus expandable
+  source lists; mob-drop recipes remain collapsed behind their own summary and
+  show the source mob and zone only when requested;
 - cross-profession reagent goals when one opened profession can craft a
   material needed by another opened profession's current skill-up recipe;
 - a learned crafted-gear recommendation that prefers a class-usable upgrade

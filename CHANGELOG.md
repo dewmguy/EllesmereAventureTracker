@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.6 - 2026-11-27
+
+- Moved all mob-drop recipe opportunities behind a separate collapsed summary
+  per profession so dozens of world drops cannot overwhelm the tracker.
+- Added QuestieDB dungeon-name resolution to recipe sources. Rock Garden now
+  identifies Relic Guardian as being in Excavation Site: Wetlands.
+- Rewrote recipe-source tooltips as player-facing acquisition guidance and
+  removed catalogue-build, provider-version and internal filtering language.
+
 ## 0.9.5 - 2026-11-27
 
 - Kept all profession sections at the bottom of the tracker while grouping the
