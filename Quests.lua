@@ -260,15 +260,19 @@ local function MaskAllows(mask, flag)
     return flag and flag > 0 and BitSet(mask, flag) or false
 end
 
-local function QuestIsNonTrivial(questDB, questID, playerLevel)
-    local questLevel = tonumber(ns.QuestData.Value(questDB, "questLevel", questID)) or 0
-    if questLevel <= 0 then return false end
+local function TrivialQuestRange()
     local trivialRange = 5
     if C_QuestLog and type(C_QuestLog.GetTrivialRange) == "function" then
         local ok, value = pcall(C_QuestLog.GetTrivialRange)
         if ok and not IsSecret(value) then trivialRange = tonumber(value) or trivialRange end
     end
-    return questLevel - playerLevel >= -trivialRange
+    return trivialRange
+end
+
+local function QuestIsNonTrivial(questDB, questID, playerLevel)
+    local questLevel = tonumber(ns.QuestData.Value(questDB, "questLevel", questID)) or 0
+    if questLevel <= 0 then return false end
+    return questLevel - playerLevel >= -TrivialQuestRange()
 end
 
 local function QuestMatchesCharacter(data, questDB, questID, visited, playerLevel)
@@ -754,7 +758,7 @@ local function QuestRow(candidate, zone)
 end
 
 local function CandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
-    local candidates, totalXP, totalMoney, moneyKnown = {}, 0, 0, false
+    local candidates = {}
     local ids = CandidateIDs(questDB, zone.areaID)
     for index = 1, #ids do
         local questID = ids[index]
@@ -764,19 +768,15 @@ local function CandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, x
         if not recurring and not data.IsComplete(questID) and not data.IsInLog(questID)
             and not (ns.IsQuestHidden and ns.IsQuestHidden(questID))
             and data.RequirementsMet(questDB, questID) then
-            local source, icon = data.Starter(questDB, npcDB, itemDB, questID, objectDB)
+            local source, icon, starterKind = data.Starter(questDB, npcDB, itemDB, questID, objectDB)
             if source then
                 local score, questLevel = QuestScore(questDB, questID, source)
                 local xp, money = AdjustedQuestXP(questID, xpMultiplier), QuestMoney(questID)
-                totalXP = totalXP + xp
-                if money ~= nil then
-                    moneyKnown = true
-                    totalMoney = totalMoney + money
-                end
                 candidates[#candidates + 1] = {
                     id = questID,
                     name = data.Value(questDB, "name", questID) or ("Quest " .. tostring(questID)),
                     source = source,
+                    starterKind = starterKind,
                     icon = icon,
                     questLevel = questLevel,
                     requiredLevel = tonumber(data.Value(questDB, "requiredLevel", questID)) or 0,
@@ -793,7 +793,7 @@ local function CandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, x
         if a.questLevel ~= b.questLevel then return a.questLevel < b.questLevel end
         return a.name < b.name
     end)
-    return candidates, totalXP, totalMoney, moneyKnown
+    return candidates
 end
 
 local function CachedCandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
@@ -803,17 +803,76 @@ local function CachedCandidatesForZone(data, questDB, npcDB, itemDB, objectDB, z
         tostring(xpMultiplier or 1) }, ":")
     local cached = zoneResultCache[cacheKey]
     if cached then
-        return cached.candidates, cached.totalXP, cached.totalMoney, cached.moneyKnown
+        return cached.candidates
     end
-    local candidates, totalXP, totalMoney, moneyKnown =
-        CandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
-    zoneResultCache[cacheKey] = {
-        candidates = candidates,
-        totalXP = totalXP,
-        totalMoney = totalMoney,
-        moneyKnown = moneyKnown,
-    }
-    return candidates, totalXP, totalMoney, moneyKnown
+    local candidates = CandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
+    zoneResultCache[cacheKey] = { candidates = candidates }
+    return candidates
+end
+
+local function QuestPassesPresentationFilters(candidate)
+    local starterKind = candidate.starterKind
+    if starterKind == "npc" and not ns.Get("questShowNPCStarters") then return false end
+    if starterKind == "object" and not ns.Get("questShowObjectStarters") then return false end
+    if starterKind == "item" and not ns.Get("questShowItemStarters") then return false end
+
+    local mode = ns.Get("questDifficultyFilter")
+    local questLevel = tonumber(candidate.questLevel) or 0
+    local playerLevel = UnitLevel and UnitLevel("player") or 0
+    if mode == "nontrivial" and questLevel > 0
+        and questLevel - playerLevel < -TrivialQuestRange() then
+        return false
+    elseif mode == "atlevel" and (questLevel <= 0 or questLevel < playerLevel) then
+        return false
+    end
+    return true
+end
+
+local function SortPresentedQuests(candidates)
+    local mode = ns.Get("questSortMode")
+    ns.BudgetedSort(candidates, function(a, b)
+        if mode == "name" then
+            if a.name ~= b.name then return a.name < b.name end
+        elseif mode == "level_desc" then
+            if a.questLevel ~= b.questLevel then return a.questLevel > b.questLevel end
+        elseif mode == "level_asc" then
+            if a.questLevel ~= b.questLevel then return a.questLevel < b.questLevel end
+        elseif mode == "xp" then
+            if (a.xp or 0) ~= (b.xp or 0) then return (a.xp or 0) > (b.xp or 0) end
+        elseif mode == "money" then
+            if (a.money or 0) ~= (b.money or 0) then return (a.money or 0) > (b.money or 0) end
+        else
+            if a.score ~= b.score then return a.score > b.score end
+        end
+        if a.questLevel ~= b.questLevel then return a.questLevel < b.questLevel end
+        return a.name < b.name
+    end)
+end
+
+local function ApplyQuestPresentation(candidates)
+    local displayed = {}
+    for index = 1, #candidates do
+        local candidate = candidates[index]
+        if QuestPassesPresentationFilters(candidate) then displayed[#displayed + 1] = candidate end
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+    SortPresentedQuests(displayed)
+    local limit = math.max(0, math.floor(tonumber(ns.Get("questMaxPerZone")) or 0))
+    while limit > 0 and #displayed > limit do
+        displayed[#displayed] = nil
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+    local totalXP, totalMoney, moneyKnown = 0, 0, false
+    for index = 1, #displayed do
+        local candidate = displayed[index]
+        totalXP = totalXP + (tonumber(candidate.xp) or 0)
+        if candidate.money ~= nil then
+            moneyKnown = true
+            totalMoney = totalMoney + (tonumber(candidate.money) or 0)
+        end
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+    return displayed, totalXP, totalMoney, moneyKnown
 end
 
 local function RewardSummary(totalXP, totalMoney, moneyKnown)
@@ -901,8 +960,8 @@ local function Build()
     local populated = {}
     for index = 1, #zones do
         local zone = zones[index]
-        local candidates, totalXP, totalMoney, moneyKnown =
-            CachedCandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
+        local cached = CachedCandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
+        local candidates, totalXP, totalMoney, moneyKnown = ApplyQuestPresentation(cached)
         if #candidates > 0 then
             zone.candidates = candidates
             zone.totalXP = totalXP
@@ -915,42 +974,55 @@ local function Build()
     if #populated == 0 and #rows == 0 then return {} end
     local currentZone, continentsByID, continents = nil, {}, {}
     local currentContinentID = select(1, ContinentForMap(currentMapID))
+    local historyScope = ns.Get("questHistoryScope")
     for zoneIndex = 1, #populated do
         local zone = populated[zoneIndex]
         if zone.areaID == currentAreaID then
             currentZone = zone
-        else
+        elseif historyScope ~= "current" then
             local continentID, continentName = ContinentForMap(zone.mapID)
-            local key = tostring(continentID)
-            local continent = continentsByID[key]
-            if not continent then
-                continent = {
-                    id = continentID,
-                    name = continentName,
-                    zones = {},
-                    questCount = 0,
-                }
-                continentsByID[key] = continent
-                continents[#continents + 1] = continent
+            if historyScope ~= "continent" or tostring(continentID) == tostring(currentContinentID) then
+                local key = tostring(continentID)
+                local continent = continentsByID[key]
+                if not continent then
+                    continent = {
+                        id = continentID,
+                        name = continentName,
+                        zones = {},
+                        questCount = 0,
+                    }
+                    continentsByID[key] = continent
+                    continents[#continents + 1] = continent
+                end
+                continent.zones[#continent.zones + 1] = zone
+                continent.questCount = continent.questCount + #zone.candidates
             end
-            continent.zones[#continent.zones + 1] = zone
-            continent.questCount = continent.questCount + #zone.candidates
         end
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
 
     if currentZone then AppendZoneRows(rows, currentZone, { alwaysExpanded = true }) end
 
+    local continentSortMode = ns.Get("questContinentSortMode")
     ns.BudgetedSort(continents, function(a, b)
-        local aCurrent = tostring(a.id) == tostring(currentContinentID)
-        local bCurrent = tostring(b.id) == tostring(currentContinentID)
-        if aCurrent ~= bCurrent then return aCurrent end
+        if continentSortMode == "quests" and a.questCount ~= b.questCount then
+            return a.questCount > b.questCount
+        elseif continentSortMode == "current" then
+            local aCurrent = tostring(a.id) == tostring(currentContinentID)
+            local bCurrent = tostring(b.id) == tostring(currentContinentID)
+            if aCurrent ~= bCurrent then return aCurrent end
+        end
         return a.name < b.name
     end)
+    local zoneSortMode = ns.Get("questZoneSortMode")
     for continentIndex = 1, #continents do
         local continent = continents[continentIndex]
         ns.BudgetedSort(continent.zones, function(a, b)
-            if a.lastVisited ~= b.lastVisited then return a.lastVisited > b.lastVisited end
+            if zoneSortMode == "quests" and #a.candidates ~= #b.candidates then
+                return #a.candidates > #b.candidates
+            elseif zoneSortMode == "recent" and a.lastVisited ~= b.lastVisited then
+                return a.lastVisited > b.lastVisited
+            end
             return a.name < b.name
         end)
         local continentID = continent.id

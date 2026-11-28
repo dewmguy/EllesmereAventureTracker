@@ -145,7 +145,10 @@ local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBli
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit" }
 local QUEST_KEYS = {
-    "showZoneQuests", "zoneQuestExpandedByCharacter", "zoneQuestContinentExpandedByCharacter",
+    "showZoneQuests", "questSortMode", "questZoneSortMode", "questContinentSortMode",
+    "questDifficultyFilter", "questHistoryScope", "questShowNPCStarters",
+    "questShowObjectStarters", "questShowItemStarters", "questMaxPerZone",
+    "zoneQuestExpandedByCharacter", "zoneQuestContinentExpandedByCharacter",
     "zoneQuestVisitedByCharacter",
     "warnFutureQuestItems", "futureQuestItemsByCharacter",
 }
@@ -526,6 +529,50 @@ local function BuildQuests(pageName, parent, yOffset)
           onClick = function() if ns.ShowQuestReportExport then ns.ShowQuestReportExport() end end },
         { type = "button", text = "Restore Hidden Quests", tooltip = "Restores every quest hidden through the right-click menu for this character. A confirmation is required.",
           onClick = function() if ns.ConfirmRestoreHiddenQuests then ns.ConfirmRestoreHiddenQuests() end end })
+    y = y - h
+
+    _, h = W:SectionHeader(parent, "SORTING", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Dropdown("questSortMode", "Quest Order", {
+            recommended = "Recommended", level_desc = "Quest Level: Highest First",
+            level_asc = "Quest Level: Lowest First", name = "Name: A-Z",
+            xp = "XP Reward: Highest First", money = "Coin Reward: Highest First",
+        }, { "recommended", "level_desc", "level_asc", "name", "xp", "money" },
+            "Controls the order of quests inside every expanded zone."),
+        Dropdown("questZoneSortMode", "Visited Zone Order", {
+            recent = "Most Recently Visited", name = "Name: A-Z", quests = "Most Quests First",
+        }, { "recent", "name", "quests" },
+            "Controls zone-summary order inside each continent."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Dropdown("questContinentSortMode", "Continent Order", {
+            current = "Current Continent First", name = "Name: A-Z", quests = "Most Quests First",
+        }, { "current", "name", "quests" },
+            "Controls continent-summary order below the current-zone quests."),
+        Dropdown("questHistoryScope", "Visited-Zone Scope", {
+            all = "All Visited Continents", continent = "Current Continent Only",
+            current = "Current Zone Only",
+        }, { "all", "continent", "current" },
+            "Limits historical quest summaries. Current-zone quests always remain visible."))
+    y = y - h
+
+    _, h = W:SectionHeader(parent, "FILTERING", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Dropdown("questDifficultyFilter", "Quest Difficulty", {
+            all = "All Eligible Quests", nontrivial = "Hide Trivial (Gray)",
+            atlevel = "At-Level or Higher",
+        }, { "all", "nontrivial", "atlevel" },
+            "Filters by displayed quest level after the actual minimum-level and prerequisite availability rules are satisfied."),
+        Slider("questMaxPerZone", "Maximum Quests per Zone", 0, 50, 1,
+            "Limits displayed quests after filtering and sorting. Zero shows every matching quest."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("questShowNPCStarters", "NPC-Started Quests", "Includes quests started directly by a quest giver."),
+        Toggle("questShowObjectStarters", "Object-Started Quests", "Includes quests started directly from a clickable world object."))
+    y = y - h
+    _, h = W:DualRow(parent, y,
+        Toggle("questShowItemStarters", "Item-Started Quests", "Includes quests started by an item dropped from a known enemy."),
+        Label("Hard availability rules remain active regardless of these filters: completed, accepted, unavailable and prerequisite-gated quests stay hidden."))
     y = y - h
 
     _, h = W:SectionHeader(parent, "PRESENTATION RULES", y); y = y - h

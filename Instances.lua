@@ -504,10 +504,10 @@ local function QuestStarter(questDB, npcDB, itemDB, questID, objectDB)
     local startedBy = EntityValue(questDB, "startedBy", questID)
     if type(startedBy) ~= "table" then return nil end
     local npcText, npcCount = JoinNames(npcDB, startedBy[1], 3)
-    if npcCount > 0 then return "Quest giver: " .. npcText, QUEST_ICON end
+    if npcCount > 0 then return "Quest giver: " .. npcText, QUEST_ICON, "npc" end
 
     local objectText, objectCount = JoinNames(objectDB, startedBy[2], 3)
-    if objectCount > 0 then return "Quest object: " .. objectText, QUEST_ICON end
+    if objectCount > 0 then return "Quest object: " .. objectText, QUEST_ICON, "object" end
 
     if type(startedBy[3]) == "table" then
         for _, itemID in pairs(startedBy[3]) do
@@ -518,7 +518,7 @@ local function QuestStarter(questDB, npcDB, itemDB, questID, objectDB)
                 local itemName = EntityValue(itemDB, "name", itemID) or (GetItemInfo and GetItemInfo(itemID))
                     or ("Item " .. tostring(itemID))
                 local icon = GetItemIcon and GetItemIcon(itemID) or QUEST_ICON
-                return string.format("%s • Drops from: %s", itemName, mobText), icon
+                return string.format("%s • Drops from: %s", itemName, mobText), icon, "item"
             end
             if ns.YieldForBudget then ns.YieldForBudget() end
         end

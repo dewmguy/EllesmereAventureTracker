@@ -219,6 +219,15 @@ local DEFAULTS = {
     legacyChallengeLimit = 4,
 
     showZoneQuests = true,
+    questSortMode = "recommended",
+    questZoneSortMode = "recent",
+    questContinentSortMode = "current",
+    questDifficultyFilter = "all",
+    questHistoryScope = "all",
+    questShowNPCStarters = true,
+    questShowObjectStarters = true,
+    questShowItemStarters = true,
+    questMaxPerZone = 0,
     zoneQuestExpandedByCharacter = {},
     zoneQuestContinentExpandedByCharacter = {},
     zoneQuestVisitedByCharacter = {},
@@ -370,7 +379,10 @@ RegisterSettingProviders({ "legacy" }, {
     "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit",
 })
 RegisterSettingProviders({ "zone-quests" }, {
-    "showZoneQuests", "zoneQuestVisitedByCharacter", "zoneQuestContinentExpandedByCharacter",
+    "showZoneQuests", "questSortMode", "questZoneSortMode", "questContinentSortMode",
+    "questDifficultyFilter", "questHistoryScope", "questShowNPCStarters",
+    "questShowObjectStarters", "questShowItemStarters", "questMaxPerZone",
+    "zoneQuestVisitedByCharacter", "zoneQuestContinentExpandedByCharacter",
     "hiddenZoneQuestsByCharacter",
     "warnFutureQuestItems", "futureQuestItemsByCharacter",
 })

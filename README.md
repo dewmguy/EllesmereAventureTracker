@@ -98,6 +98,10 @@ Version 0.9.2 includes:
 - current-zone quests pinned open at the top of Quest Progress, followed by
   collapsed continent summaries that reveal visited-zone summaries and then
   their quests; the current zone is not duplicated in its continent;
+- Quest Progress sorting for quests, zones and continents plus filters for
+  displayed difficulty, historical scope, NPC/object/item starters and a
+  post-sort per-zone limit; these operate on cached eligible candidates and
+  never override hard availability or prerequisite rules;
 - a persistent right-click quest review workflow with confirmed per-character
   hiding, categorized issue reports, copyable batch exports and a preselected
   Wowhead quest URL; generic quest rows use a parchment icon instead of the

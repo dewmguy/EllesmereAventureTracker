@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.21 - 2026-11-28
+
+- Added Quest Progress sorting controls for quest order, visited-zone order and
+  continent order.
+- Added filters for quest difficulty, visited-zone scope, NPC/object/item
+  starter types and a configurable maximum number of quests per zone.
+- Kept actual minimum-level, completion, quest-log, availability and chain
+  prerequisite rules mandatory regardless of display filters.
+- Applied sorting and filtering to cached eligible candidates so changing these
+  settings does not rebuild the QuestieDB candidate index.
+
 ## 0.9.20 - 2026-11-28
 
 - Kept all current-zone quest entries expanded at the top of Quest Progress.
