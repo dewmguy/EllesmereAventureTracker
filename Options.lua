@@ -357,9 +357,9 @@ local function BuildTracker(pageName, parent, yOffset)
 
     _, h = W:SectionHeader(parent, "PERFORMANCE", y); y = y - h
     _, h = W:DualRow(parent, y,
-        Slider("runtimeFrameBudgetPercent", "Background Work per Frame (%)", 5, 25, 1,
-            "Percentage of each frame Adventure Tracker may use for queued analysis and layout work. Higher values finish loading sooner but leave less protection against frame-time spikes."),
-        Label("10% is the balanced default. The runtime also keeps an absolute 0.35–4.00 ms safety range."))
+        Slider("runtimeFrameBudgetPercent", "Background Work per Frame (%)", 5, 100, 1,
+            "Percentage of each frame Adventure Tracker may use for queued analysis and layout work. Higher values finish loading sooner. At 100%, queued work may consume an entire frame and cause visible hitching."),
+        Label("10% is the balanced default. Values above 25% are intended for performance testing on faster systems."))
     y = y - h
     return math.abs(y)
 end

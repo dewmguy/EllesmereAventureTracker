@@ -578,7 +578,6 @@ end
 -- later frame instead of allowing an event burst to monopolize a frame.
 local RUNTIME_FRAME_BUDGET_DEFAULT_PERCENT = 10
 local RUNTIME_FRAME_BUDGET_MIN_MS = 0.35
-local RUNTIME_FRAME_BUDGET_MAX_MS = 4.00
 local workQueue, workByKey = {}, {}
 local activeWork, activeSliceStartedAt, activeFrameBudgetMS = RUNTIME_FRAME_BUDGET_MIN_MS
 local worker = CreateFrame("Frame")
@@ -592,9 +591,9 @@ local function RuntimeFrameBudget()
     local fps = GetFramerate and tonumber(GetFramerate()) or 60
     if not fps or fps <= 0 then fps = 60 end
     local percent = tonumber(ns.Get("runtimeFrameBudgetPercent")) or RUNTIME_FRAME_BUDGET_DEFAULT_PERCENT
-    percent = math.max(5, math.min(25, percent))
+    percent = math.max(5, math.min(100, percent))
     local budget = (1000 / fps) * (percent / 100)
-    return math.max(RUNTIME_FRAME_BUDGET_MIN_MS, math.min(RUNTIME_FRAME_BUDGET_MAX_MS, budget))
+    return math.max(RUNTIME_FRAME_BUDGET_MIN_MS, budget)
 end
 
 function ns.YieldForBudget(force)
@@ -743,7 +742,7 @@ end
 
 function ns.GetRuntimeFrameBudgetFraction()
     local percent = tonumber(ns.Get("runtimeFrameBudgetPercent")) or RUNTIME_FRAME_BUDGET_DEFAULT_PERCENT
-    return math.max(5, math.min(25, percent)) / 100
+    return math.max(5, math.min(100, percent)) / 100
 end
 
 -- Lua's table.sort is a single C call and cannot yield. Providers use this

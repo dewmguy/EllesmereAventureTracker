@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.15 - 2026-11-27
+
+- Extended the Background Work per Frame slider from 25% to 100% while keeping
+  the balanced default at 10%.
+- Removed the former 4 ms ceiling so experimental values above 25% increase the
+  real scheduler allowance instead of becoming ineffective at higher frame
+  rates. The options pane now warns that the upper range may cause hitching.
+
 ## 0.9.14 - 2026-11-27
 
 - Fixed all cached disclosure children being treated as visible when their
