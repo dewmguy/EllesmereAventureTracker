@@ -158,3 +158,15 @@ Sources:
 
 - <https://github.com/Questie/Questie/commit/01979e26f60047cd6fda53d4680fc6233c9074ae>
 - <https://github.com/Questie/Questie/blob/master/LICENSE>
+
+## All The Things
+
+Adventure Tracker uses All The Things' public availability research to exclude
+the factual quest ID 93928, Of Mice and Milk, which its Forever database marks
+as beta-only content removed before launch. No All The Things code or database
+is redistributed. All The Things is available under the MIT License.
+
+Sources:
+
+- <https://github.com/ATTWoWAddon/AllTheThings/commit/efb59f27785585017cd84d7ddf99dbe8a3aa3622>
+- <https://github.com/ATTWoWAddon/AllTheThings/blob/master/LICENSE>

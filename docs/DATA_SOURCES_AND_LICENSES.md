@@ -101,6 +101,9 @@ root `THIRD_PARTY_NOTICES.md`.
   shared eligibility adapter additionally mirrors Questie's own non-SoD
   blacklist for Duskwood Mission I–XVIII, which otherwise appear as ordinary
   available quests in QuestieDB's Forever artifact.
+- In 0.9.7 the adapter also excludes Of Mice and Milk (93928). QuestieDB still
+  presents the beta starter and turn-in as normal live data, while All The
+  Things classifies the quest as removed before Forever launched.
 
 ### What's Training?
 

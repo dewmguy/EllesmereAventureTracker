@@ -9,16 +9,18 @@ local QUEST_ICON = 134400
 local LOOT_ICON = 133784
 local QUEST_LEVEL_AHEAD_LIMIT = 5
 
--- Questie keeps flavor availability outside QuestieDB's public quest schema.
--- These Season of Discovery Duskwood missions are present in the Forever data
--- artifact with ordinary starters and flags, but Questie's own blacklist hides
--- them on every non-SoD client (Questie/Questie commit 01979e26f60047cd6fda53d4680fc6233c9074ae).
+-- QuestieDB's public quest schema cannot distinguish every client record from
+-- content that can actually be offered on live Forever. Questie's non-SoD
+-- blacklist supplies the Duskwood mission exclusions below. All The Things
+-- independently records Of Mice and Milk as beta-only content removed before
+-- launch (ATTWoWAddon/AllTheThings commit efb59f27785585017cd84d7ddf99dbe8a3aa3622).
 local KNOWN_UNAVAILABLE_QUESTS = {
     [81730] = true, [81731] = true, [81732] = true, [81733] = true,
     [81734] = true, [81735] = true, [81736] = true, [81737] = true,
     [81738] = true, [81739] = true, [81740] = true, [81741] = true,
     [81742] = true, [81743] = true, [81744] = true, [81745] = true,
     [81746] = true, [81747] = true,
+    [93928] = true, -- Of Mice and Milk
 }
 
 local state = {

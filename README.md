@@ -89,8 +89,8 @@ Version 0.9.2 includes:
   and coin rewards, and conservative QuestieDB filtering for level, class,
   race and profession eligibility without exposing locations, routes or
   objectives; only standalone starts are listed, while every quest carrying a
-  recorded chain prerequisite is omitted; known cross-flavor records are
-  suppressed using Questie's upstream non-SoD blacklist;
+  recorded chain prerequisite is omitted; known cross-flavor and beta-only
+  records are suppressed using upstream availability research;
 - event-invalidated provider and composed zone-result caches that keep
   QuestieDB lookups out of timer, aura, group and unrelated presentation
   refreshes;

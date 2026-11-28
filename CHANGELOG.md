@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.7 - 2026-11-27
+
+- Excluded Of Mice and Milk (93928) from Quest Progress. Its Mouse starter and
+  Hemet Nesingwary turn-in remain in QuestieDB, but current availability
+  research identifies it as a beta quest removed before Forever launched.
+
 ## 0.9.6 - 2026-11-27
 
 - Moved all mob-drop recipe opportunities behind a separate collapsed summary
