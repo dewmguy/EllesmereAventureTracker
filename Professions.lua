@@ -141,11 +141,15 @@ local function ProfessionList()
                     rankBonus = math.max(0, tonumber(rankBonus) or 0),
                     maxRank = tonumber(maxRank) or 0,
                     skillLineID = skillLineID,
+                    isPrimary = i <= 2,
                 }
             end
         end
     end
-    table.sort(result, function(a, b) return a.name < b.name end)
+    table.sort(result, function(a, b)
+        if a.isPrimary ~= b.isPrimary then return a.isPrimary end
+        return a.name < b.name
+    end)
     return result
 end
 ns.GetProfessionList = ProfessionList

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.5 - 2026-11-27
+
+- Kept all profession sections at the bottom of the tracker while grouping the
+  character's primary professions before secondary professions. Names remain
+  alphabetical within each group.
+
 ## 0.9.4 - 2026-11-27
 
 - Tightened Quest Progress to standalone quest starts. Any quest carrying a
