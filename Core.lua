@@ -220,6 +220,7 @@ local DEFAULTS = {
 
     showZoneQuests = true,
     zoneQuestExpandedByCharacter = {},
+    zoneQuestContinentExpandedByCharacter = {},
     zoneQuestVisitedByCharacter = {},
     hiddenZoneQuestsByCharacter = {},
     questIssueReports = {},
@@ -337,7 +338,7 @@ for _, key in ipairs({
     "badgeTextColorMode", "badgeTextColor", "badgeAnchor", "badgeOffsetX", "badgeOffsetY",
     "titleAlignment", "titleSeparatorSize", "titleSeparatorColorMode", "titleSeparatorColor",
     "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
-    "zoneQuestExpandedByCharacter", "professionRecipeCatalogExpandedByCharacter",
+    "zoneQuestExpandedByCharacter", "zoneQuestContinentExpandedByCharacter", "professionRecipeCatalogExpandedByCharacter",
     "readinessIconSize", "readinessIconSpacing", "readinessIconBorderTexture", "readinessIconBorderSize",
     "readinessIconReadyBorderColorMode", "readinessIconReadyBorderColor", "readinessIconWarningBorderColorMode", "readinessIconWarningBorderColor",
     "readinessIconMissingBorderColorMode", "readinessIconMissingBorderColor", "readinessIconUnavailableBorderColorMode", "readinessIconUnavailableBorderColor",
@@ -369,7 +370,8 @@ RegisterSettingProviders({ "legacy" }, {
     "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit",
 })
 RegisterSettingProviders({ "zone-quests" }, {
-    "showZoneQuests", "zoneQuestVisitedByCharacter", "hiddenZoneQuestsByCharacter",
+    "showZoneQuests", "zoneQuestVisitedByCharacter", "zoneQuestContinentExpandedByCharacter",
+    "hiddenZoneQuestsByCharacter",
     "warnFutureQuestItems", "futureQuestItemsByCharacter",
 })
 RegisterSettingProviders({ "professions" }, {

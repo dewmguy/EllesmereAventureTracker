@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.20 - 2026-11-28
+
+- Kept all current-zone quest entries expanded at the top of Quest Progress.
+- Grouped every other visited zone with available quests under a collapsed
+  continent summary. Expanding a continent reveals its zone summaries, and
+  expanding a zone reveals its quests.
+- Omitted the current zone from its continent group to avoid duplicate rows and
+  persisted continent expansion independently for each character.
+
 ## 0.9.19 - 2026-11-28
 
 - Replaced Fishing's generic Local Opportunities text and separate threshold

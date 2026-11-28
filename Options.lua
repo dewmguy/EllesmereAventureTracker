@@ -145,7 +145,8 @@ local REMINDER_KEYS = { "showTalentReminder", "showClassTrainerSkills", "hideBli
 local WORLD_BUFF_KEYS = { "showWorldBuffs", "showActiveWorldBuffs", "showMissingWorldBuffs", "worldBuffCurrentZoneOnly", "worldBuffWarnMinutes" }
 local LEGACY_KEYS = { "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit" }
 local QUEST_KEYS = {
-    "showZoneQuests", "zoneQuestExpandedByCharacter", "zoneQuestVisitedByCharacter",
+    "showZoneQuests", "zoneQuestExpandedByCharacter", "zoneQuestContinentExpandedByCharacter",
+    "zoneQuestVisitedByCharacter",
     "warnFutureQuestItems", "futureQuestItemsByCharacter",
 }
 local PROFESSION_KEYS = { "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear", "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts", "showProfessionAttainableRecipes", "showObservedGathering", "professionRecipeCatalogExpandedByCharacter", "showCompletedProfessions", "showProfessionZoneHints", "showProviderDiagnostics" }
@@ -508,7 +509,7 @@ local function BuildQuests(pageName, parent, yOffset)
     _, h = W:SectionHeader(parent, "QUEST PROGRESS", y); y = y - h
     _, h = W:DualRow(parent, y,
         Toggle("showZoneQuests", "Visited-Zone Quest Progress",
-            "Lists eligible, incomplete quests in zones this character has entered on foot and that are not already in the quest log.", true),
+            "Keeps current-zone quests visible, then nests eligible incomplete quests from previously visited zones under continent and zone summaries.", true),
         Label((_G.LibQuestieDB and "QuestieDB detected." or "QuestieDB is not installed or enabled."),
             "QuestieDB is an optional runtime provider; Adventure Tracker does not copy its database or expose map data."))
     y = y - h
@@ -529,7 +530,7 @@ local function BuildQuests(pageName, parent, yOffset)
 
     _, h = W:SectionHeader(parent, "PRESENTATION RULES", y); y = y - h
     _, h = W:DualRow(parent, y,
-        Label("Each visited zone has one summary row with its quest count and combined rewards; click it to expand every available quest."),
+        Label("Current-zone quests stay expanded at the top. Each continent expands to its visited-zone summaries, and each zone expands to its available quests."),
         Label("Quest entries support a right-click menu for hiding, categorized reports and a copyable Wowhead URL."))
     y = y - h
     _, h = W:DualRow(parent, y,
@@ -864,7 +865,7 @@ local function Register()
             },
             {
                 key = "quests", title = "Quests",
-                description = "Expandable quest progress for zones this character has actually visited.",
+                description = "Current-zone quests plus continent and zone summaries for places this character has visited.",
                 pages = { "Progress" }, buildPage = BuildQuests,
                 onReset = function() ns.ResetKeys(QUEST_KEYS) end,
             },

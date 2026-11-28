@@ -86,15 +86,18 @@ Version 0.9.2 includes:
   runtime provider, limited to eligible quests that are incomplete and absent
   from the quest log, with only a quest giver, direct quest object, or starting
   item and its dropping mobs shown;
-- a Quest Progress section with one expandable summary per zone the character
-  has actually entered outside flight-path travel, combined player-level XP
-  and coin rewards, and conservative QuestieDB filtering using the quest's
+- a Quest Progress section tracking zones the character has actually entered
+  outside flight-path travel, with combined player-level XP and coin rewards
+  and conservative QuestieDB filtering using the quest's
   actual minimum level plus class, race and profession eligibility without
   exposing locations, routes or objectives; direct ungated starts are listed,
   including the first quest of a
   chain, while every quest carrying a recorded prerequisite is omitted; known
   cross-flavor and beta-only
   records are suppressed using upstream availability research;
+- current-zone quests pinned open at the top of Quest Progress, followed by
+  collapsed continent summaries that reveal visited-zone summaries and then
+  their quests; the current zone is not duplicated in its continent;
 - a persistent right-click quest review workflow with confirmed per-character
   hiding, categorized issue reports, copyable batch exports and a preselected
   Wowhead quest URL; generic quest rows use a parchment icon instead of the

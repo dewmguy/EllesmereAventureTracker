@@ -96,6 +96,31 @@ local function ToggleExpanded(areaID)
     end
 end
 
+local function CharacterContinentKey(continentID)
+    return tostring(ns.CharacterKey()) .. ":" .. tostring(continentID)
+end
+
+local function IsContinentExpanded(continentID)
+    local source = ns.Get("zoneQuestContinentExpandedByCharacter")
+    return type(source) == "table" and source[CharacterContinentKey(continentID)] == true
+end
+
+local function ToggleContinentExpanded(continentID)
+    local source = ns.Get("zoneQuestContinentExpandedByCharacter")
+    local copy = {}
+    if type(source) == "table" then
+        for key, value in pairs(source) do copy[key] = value end
+    end
+    local key = CharacterContinentKey(continentID)
+    copy[key] = not (copy[key] == true)
+    ns.Set("zoneQuestContinentExpandedByCharacter", copy, true)
+    if ns.RequestPresentationRefresh then
+        ns.RequestPresentationRefresh("quest continent expansion")
+    elseif ns.RequestRefresh then
+        ns.RequestRefresh(false, "quest continent expansion")
+    end
+end
+
 local function PlayerIsOnTaxi()
     if type(UnitOnTaxi) ~= "function" then return false end
     local ok, value = pcall(UnitOnTaxi, "player")
@@ -151,6 +176,23 @@ local function VisitedZones()
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return result
+end
+
+local function ContinentForMap(mapID)
+    mapID = tonumber(mapID)
+    local continentType = Enum and Enum.UIMapType and Enum.UIMapType.Continent or 2
+    local visited = {}
+    for _ = 1, 12 do
+        if not mapID or mapID <= 0 or visited[mapID] then break end
+        visited[mapID] = true
+        local ok, info = C_Map and C_Map.GetMapInfo and pcall(C_Map.GetMapInfo, mapID)
+        if not ok or type(info) ~= "table" then break end
+        if tonumber(info.mapType) == tonumber(continentType) then
+            return mapID, type(info.name) == "string" and info.name or ("Continent " .. mapID)
+        end
+        mapID = tonumber(info.parentMapID)
+    end
+    return "other", "Other Areas"
 end
 
 local function BitSet(mask, flag)
@@ -782,6 +824,55 @@ local function RewardSummary(totalXP, totalMoney, moneyKnown)
     return "Total rewards: " .. table.concat(parts, ", ") .. "."
 end
 
+local function AppendZoneRows(rows, zone, options)
+    options = options or {}
+    local zoneAreaID = zone.areaID
+    local alwaysExpanded = options.alwaysExpanded == true
+    local parentVisible = options.parentVisible or function() return true end
+    local indentLevel = tonumber(options.indentLevel) or 0
+    local function ZoneExpanded()
+        return alwaysExpanded or IsExpanded(zoneAreaID)
+    end
+    local summary = {
+        key = "zone-quests-summary-" .. tostring(zoneAreaID),
+        label = function()
+            if alwaysExpanded then
+                return string.format("%d current-zone quest%s available", #zone.candidates,
+                    #zone.candidates == 1 and "" or "s")
+            end
+            return string.format("%s %d %s quest%s available", ZoneExpanded() and "−" or "+",
+                #zone.candidates, zone.name, #zone.candidates == 1 and "" or "s")
+        end,
+        detail = RewardSummary(zone.totalXP, zone.totalMoney, zone.moneyKnown),
+        tooltip = alwaysExpanded and "Current-zone quests stay visible at the top of Quest Progress."
+            or function()
+                return ZoneExpanded()
+                    and string.format("Collapse the available quests in %s.", zone.name)
+                    or string.format("Expand the available quests in %s.", zone.name)
+            end,
+        state = "info",
+        icon = zone.candidates[1].icon or QUEST_ICON,
+        indentLevel = indentLevel,
+        visible = parentVisible,
+    }
+    if not alwaysExpanded then
+        summary.clickHint = function()
+            return ZoneExpanded() and "Click to collapse this zone." or "Click to expand this zone."
+        end
+        summary.onClick = function() ToggleExpanded(zoneAreaID) end
+        summary.disclosure = true
+        summary.expanded = ZoneExpanded
+    end
+    rows[#rows + 1] = summary
+    for candidateIndex = 1, #zone.candidates do
+        local row = QuestRow(zone.candidates[candidateIndex], zone)
+        row.indentLevel = indentLevel + 1
+        row.visible = function() return parentVisible() and ZoneExpanded() end
+        rows[#rows + 1] = row
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+end
+
 local function Build()
     if not ns.Get("showZoneQuests") then return {} end
     local data = ns.QuestData
@@ -822,45 +913,80 @@ local function Build()
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
     if #populated == 0 and #rows == 0 then return {} end
-    ns.BudgetedSort(populated, function(a, b)
-        local aCurrent, bCurrent = a.areaID == currentAreaID, b.areaID == currentAreaID
-        if aCurrent ~= bCurrent then return aCurrent end
-        if a.lastVisited ~= b.lastVisited then return a.lastVisited > b.lastVisited end
-        return a.name < b.name
-    end)
-
+    local currentZone, continentsByID, continents = nil, {}, {}
+    local currentContinentID = select(1, ContinentForMap(currentMapID))
     for zoneIndex = 1, #populated do
         local zone = populated[zoneIndex]
-        local zoneAreaID = zone.areaID
-        local function ZoneExpanded() return IsExpanded(zoneAreaID) end
-        rows[#rows + 1] = {
-            key = "zone-quests-summary-" .. tostring(zoneAreaID),
-            label = function()
-                return string.format("%s %d %s quest%s available", ZoneExpanded() and "−" or "+",
-                    #zone.candidates, zone.name, #zone.candidates == 1 and "" or "s")
-            end,
-            detail = RewardSummary(zone.totalXP, zone.totalMoney, zone.moneyKnown),
-            tooltip = function()
-                return ZoneExpanded()
-                    and string.format("Collapse the available quests in %s.", zone.name)
-                    or string.format("Expand the available quests in %s.", zone.name)
-            end,
-            clickHint = function()
-                return ZoneExpanded() and "Click to collapse this zone." or "Click to expand this zone."
-            end,
-            state = "info",
-            icon = zone.candidates[1].icon or QUEST_ICON,
-            onClick = function() ToggleExpanded(zoneAreaID) end,
-            disclosure = true,
-            expanded = ZoneExpanded,
-        }
-        for candidateIndex = 1, #zone.candidates do
-            local row = QuestRow(zone.candidates[candidateIndex], zone)
-            row.visible = ZoneExpanded
-            rows[#rows + 1] = row
-            if ns.YieldForBudget then ns.YieldForBudget() end
+        if zone.areaID == currentAreaID then
+            currentZone = zone
+        else
+            local continentID, continentName = ContinentForMap(zone.mapID)
+            local key = tostring(continentID)
+            local continent = continentsByID[key]
+            if not continent then
+                continent = {
+                    id = continentID,
+                    name = continentName,
+                    zones = {},
+                    questCount = 0,
+                }
+                continentsByID[key] = continent
+                continents[#continents + 1] = continent
+            end
+            continent.zones[#continent.zones + 1] = zone
+            continent.questCount = continent.questCount + #zone.candidates
         end
         if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+
+    if currentZone then AppendZoneRows(rows, currentZone, { alwaysExpanded = true }) end
+
+    ns.BudgetedSort(continents, function(a, b)
+        local aCurrent = tostring(a.id) == tostring(currentContinentID)
+        local bCurrent = tostring(b.id) == tostring(currentContinentID)
+        if aCurrent ~= bCurrent then return aCurrent end
+        return a.name < b.name
+    end)
+    for continentIndex = 1, #continents do
+        local continent = continents[continentIndex]
+        ns.BudgetedSort(continent.zones, function(a, b)
+            if a.lastVisited ~= b.lastVisited then return a.lastVisited > b.lastVisited end
+            return a.name < b.name
+        end)
+        local continentID = continent.id
+        local continentName = continent.name
+        local continentZones = continent.zones
+        local continentQuestCount = continent.questCount
+        local function ContinentExpanded() return IsContinentExpanded(continentID) end
+        rows[#rows + 1] = {
+            key = "zone-quests-continent-" .. tostring(continentID),
+            label = function()
+                return string.format("%s %s", ContinentExpanded() and "−" or "+", continentName)
+            end,
+            detail = string.format("%d visited zone%s • %d quest%s available.", #continentZones,
+                #continentZones == 1 and "" or "s", continentQuestCount,
+                continentQuestCount == 1 and "" or "s"),
+            tooltip = function()
+                return ContinentExpanded()
+                    and string.format("Collapse visited zones in %s.", continentName)
+                    or string.format("Expand visited zones in %s.", continentName)
+            end,
+            clickHint = function()
+                return ContinentExpanded() and "Click to collapse this continent." or "Click to expand this continent."
+            end,
+            state = "info",
+            icon = "Interface\\Icons\\INV_Misc_Map_01",
+            onClick = function() ToggleContinentExpanded(continentID) end,
+            disclosure = true,
+            expanded = ContinentExpanded,
+        }
+        for zoneIndex = 1, #continentZones do
+            AppendZoneRows(rows, continentZones[zoneIndex], {
+                parentVisible = ContinentExpanded,
+                indentLevel = 1,
+            })
+            if ns.YieldForBudget then ns.YieldForBudget() end
+        end
     end
     return {
         id = "zone-quests",
