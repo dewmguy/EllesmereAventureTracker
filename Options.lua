@@ -574,16 +574,6 @@ local function BuildQuests(pageName, parent, yOffset)
         Toggle("questShowItemStarters", "Item-Started Quests", "Includes quests started by an item dropped from a known enemy."),
         Label("Hard availability rules remain active regardless of these filters: completed, accepted, unavailable and prerequisite-gated quests stay hidden."))
     y = y - h
-
-    _, h = W:SectionHeader(parent, "PRESENTATION RULES", y); y = y - h
-    _, h = W:DualRow(parent, y,
-        Label("Current-zone quests stay expanded at the top. Each continent expands to its visited-zone summaries, and each zone expands to its available quests."),
-        Label("Quest entries support a right-click menu for hiding, categorized reports and a copyable Wowhead URL."))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        Label("NPC, world-object and item starts are supported. Repeatable quests, unavailable chain steps and unknown starters are excluded."),
-        Label("No coordinates, routes, objectives, pins, arrows or waypoint guidance are shown."))
-    y = y - h
     return math.abs(y)
 end
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.26 - 2026-11-28
+
+- Removed the overflowing, informational-only Presentation Rules block from
+  Quest Progress settings. Relevant behavior remains described by the actual
+  controls and their tooltips.
+
 ## 0.9.25 - 2026-11-28
 
 - Made the current-zone quest summary use the same cached expand/collapse
