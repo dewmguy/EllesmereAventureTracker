@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.18 - 2026-11-28
+
+- Added a right-click menu to zone and instance quest entries with confirmed
+  per-character hiding and a restore control in Quest Progress settings.
+- Added persistent categorized quest reports with character, zone, starter and
+  level context. `/at questreports` and the settings button open a selected,
+  copyable batch for later investigation.
+- Added a Copy Wowhead URL action that opens the exact quest link preselected
+  for Ctrl+C, since WoW cannot write directly to the system clipboard.
+- Replaced the red missing-icon question mark on generic quest rows with a
+  parchment quest-note icon.
+
 ## 0.9.17 - 2026-11-28
 
 - Added direct world-object quest starters from QuestieDB to Quest Progress

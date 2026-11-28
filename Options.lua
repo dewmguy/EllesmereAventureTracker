@@ -520,13 +520,20 @@ local function BuildQuests(pageName, parent, yOffset)
             "Later chain steps are intentionally considered so useful materials are not discarded before the quest itself becomes available."))
     y = y - h
 
+    _, h = W:DualRow(parent, y,
+        { type = "button", text = "Copy Quest Reports", tooltip = "Opens the persistent quest-issue batch in a selected text field. Press Ctrl+C and paste it into a message when you want the reports investigated.",
+          onClick = function() if ns.ShowQuestReportExport then ns.ShowQuestReportExport() end end },
+        { type = "button", text = "Restore Hidden Quests", tooltip = "Restores every quest hidden through the right-click menu for this character. A confirmation is required.",
+          onClick = function() if ns.ConfirmRestoreHiddenQuests then ns.ConfirmRestoreHiddenQuests() end end })
+    y = y - h
+
     _, h = W:SectionHeader(parent, "PRESENTATION RULES", y); y = y - h
     _, h = W:DualRow(parent, y,
         Label("Each visited zone has one summary row with its quest count and combined rewards; click it to expand every available quest."),
-        Label("NPC-started quests show only the giver. Item-started quests show only the item and mobs that drop it."))
+        Label("Quest entries support a right-click menu for hiding, categorized reports and a copyable Wowhead URL."))
     y = y - h
     _, h = W:DualRow(parent, y,
-        Label("Flight-path pass-throughs, repeatable quests, unavailable chain steps, unknown starters and object-only starts are excluded."),
+        Label("NPC, world-object and item starts are supported. Repeatable quests, unavailable chain steps and unknown starters are excluded."),
         Label("No coordinates, routes, objectives, pins, arrows or waypoint guidance are shown."))
     y = y - h
     return math.abs(y)

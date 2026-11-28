@@ -221,6 +221,8 @@ local DEFAULTS = {
     showZoneQuests = true,
     zoneQuestExpandedByCharacter = {},
     zoneQuestVisitedByCharacter = {},
+    hiddenZoneQuestsByCharacter = {},
+    questIssueReports = {},
     warnFutureQuestItems = true,
     futureQuestItemsByCharacter = {},
 
@@ -314,7 +316,12 @@ function ns.Get(key)
     return value
 end
 
-local NO_RENDER_SETTINGS = { locked = true, position = true, runtimeFrameBudgetPercent = true }
+local NO_RENDER_SETTINGS = {
+    locked = true,
+    position = true,
+    runtimeFrameBudgetPercent = true,
+    questIssueReports = true,
+}
 local RENDER_ONLY_SETTINGS = {}
 for _, key in ipairs({
     "enabled", "collapsed", "width", "scale", "frameStrata", "maximizePaneHeight",
@@ -362,7 +369,7 @@ RegisterSettingProviders({ "legacy" }, {
     "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit",
 })
 RegisterSettingProviders({ "zone-quests" }, {
-    "showZoneQuests", "zoneQuestVisitedByCharacter",
+    "showZoneQuests", "zoneQuestVisitedByCharacter", "hiddenZoneQuestsByCharacter",
     "warnFutureQuestItems", "futureQuestItemsByCharacter",
 })
 RegisterSettingProviders({ "professions" }, {
@@ -1177,6 +1184,12 @@ SlashCmdList.EUIADVENTURETRACKER = function(message)
         end
     elseif command == "providers" or command == "diagnostics" then
         ns.PrintProviderDiagnostics()
+    elseif command == "questreports" or command == "reports" then
+        if ns.ShowQuestReportExport then
+            ns.ShowQuestReportExport()
+        else
+            print("Adventure Tracker quest reports are not available yet.")
+        end
     elseif command == "show" then
         ns.Set("enabled", true)
     elseif command == "hide" then

@@ -5,7 +5,7 @@ local _, ns = ...
 
 local TIMER_ICON = 134376
 local BOSS_ICON = 136116
-local QUEST_ICON = 134400
+local QUEST_ICON = "Interface\\Icons\\INV_Misc_Note_01"
 local LOOT_ICON = 133784
 -- QuestieDB's public quest schema cannot distinguish every client record from
 -- content that can actually be offered on live Forever. Questie's non-SoD
@@ -587,11 +587,21 @@ local function BuildQuestRows()
     for index = 1, #candidates do
         local questID = candidates[index]
         if not IsQuestComplete(questID) and not IsQuestInLog(questID)
+            and not (ns.IsQuestHidden and ns.IsQuestHidden(questID))
             and QuestRequirementsMet(questDB, questID) then
             local source, icon = QuestStarter(questDB, npcDB, itemDB, questID, objectDB)
             if source then
                 local name = EntityValue(questDB, "name", questID) or ("Quest " .. tostring(questID))
                 local questLevel = tonumber(EntityValue(questDB, "questLevel", questID)) or 0
+                local context = {
+                    id = questID,
+                    name = name,
+                    source = source,
+                    questLevel = questLevel,
+                    requiredLevel = tonumber(EntityValue(questDB, "requiredLevel", questID)) or 0,
+                    zoneName = state.instanceName,
+                    areaID = areaID,
+                }
                 rows[#rows + 1] = {
                     key = "instance-quest-" .. tostring(questID),
                     label = questLevel > 0 and string.format("%s (Level %d)", name, questLevel) or name,
@@ -599,6 +609,10 @@ local function BuildQuestRows()
                     tooltip = source,
                     state = "info",
                     icon = icon or QUEST_ICON,
+                    onRightClick = function(owner)
+                        if ns.ShowQuestContextMenu then ns.ShowQuestContextMenu(owner, context) end
+                    end,
+                    rightClickHint = "Right-click to hide, report or copy the Wowhead link.",
                 }
             end
         end
@@ -617,6 +631,10 @@ local function BuildQuestRows()
         }
     end
     return rows
+end
+
+function ns.InvalidateInstanceQuestRows()
+    questRowsCache = nil
 end
 
 local function ItemLevel(item)

@@ -95,6 +95,10 @@ Version 0.9.2 includes:
   chain, while every quest carrying a recorded prerequisite is omitted; known
   cross-flavor and beta-only
   records are suppressed using upstream availability research;
+- a persistent right-click quest review workflow with confirmed per-character
+  hiding, categorized issue reports, copyable batch exports and a preselected
+  Wowhead quest URL; generic quest rows use a parchment icon instead of the
+  red missing-texture question mark;
 - event-invalidated provider and composed zone-result caches that keep
   QuestieDB lookups out of timer, aura, group and unrelated presentation
   refreshes;
@@ -224,6 +228,7 @@ EllesmereUI settings panel. The sidebar section is named `Adventure Tracker`.
 /at unlock          Unlock its position
 /at reset           Reset position, width and scale
 /at options         Open its EllesmereUI settings
+/at questreports    Open the copyable quest-issue batch
 ```
 
 Long forms `/advtracker` and `/adventuretracker` are also available.
@@ -231,6 +236,7 @@ Long forms `/advtracker` and `/adventuretracker` are also available.
 ## Project layout
 
 - `Core.lua` — saved settings, provider registry and slash commands
+- `QuestReview.lua` — quest hiding, issue reports, Wowhead links and exports
 - `Reminders.lua` — talent and class-training reminders plus scoped
   Blizzard-callout suppression
 - `Readiness.lua` — preparation and buff-family interpretation

@@ -3,7 +3,7 @@
 -------------------------------------------------------------------------------
 local _, ns = ...
 
-local QUEST_ICON = 134400
+local QUEST_ICON = "Interface\\Icons\\INV_Misc_Note_01"
 local candidateCache = {}
 local candidateIndexOwner
 local zoneResultCache = {}
@@ -678,7 +678,7 @@ local function QuestScore(questDB, questID, source)
     return score, questLevel
 end
 
-local function QuestRow(candidate)
+local function QuestRow(candidate, zone)
     local label = candidate.questLevel > 0
         and string.format("%s (Level %d)", candidate.name, candidate.questLevel)
         or candidate.name
@@ -687,6 +687,15 @@ local function QuestRow(candidate)
     if candidate.money and candidate.money > 0 then rewards[#rewards + 1] = FormatMoney(candidate.money) end
     local tooltip = candidate.source
     if #rewards > 0 then tooltip = tooltip .. "\nRewards: " .. table.concat(rewards, ", ") end
+    local context = {
+        id = candidate.id,
+        name = candidate.name,
+        source = candidate.source,
+        questLevel = candidate.questLevel,
+        requiredLevel = candidate.requiredLevel,
+        zoneName = zone and zone.name,
+        areaID = zone and zone.areaID,
+    }
     return {
         key = "zone-quest-" .. tostring(candidate.id),
         label = label,
@@ -695,6 +704,10 @@ local function QuestRow(candidate)
         state = "info",
         icon = candidate.icon or QUEST_ICON,
         indentLevel = 1,
+        onRightClick = function(owner)
+            if ns.ShowQuestContextMenu then ns.ShowQuestContextMenu(owner, context) end
+        end,
+        rightClickHint = "Right-click to hide, report or copy the Wowhead link.",
     }
 end
 
@@ -707,6 +720,7 @@ local function CandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, x
         local questFlags = tonumber(data.Value(questDB, "questFlags", questID)) or 0
         local recurring = BitSet(specialFlags, 1) or BitSet(questFlags, 4096) or BitSet(questFlags, 32768)
         if not recurring and not data.IsComplete(questID) and not data.IsInLog(questID)
+            and not (ns.IsQuestHidden and ns.IsQuestHidden(questID))
             and data.RequirementsMet(questDB, questID) then
             local source, icon = data.Starter(questDB, npcDB, itemDB, questID, objectDB)
             if source then
@@ -723,6 +737,7 @@ local function CandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, x
                     source = source,
                     icon = icon,
                     questLevel = questLevel,
+                    requiredLevel = tonumber(data.Value(questDB, "requiredLevel", questID)) or 0,
                     score = score,
                     xp = xp,
                     money = money,
@@ -742,7 +757,8 @@ end
 local function CachedCandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
     local level = UnitLevel and UnitLevel("player") or 0
     local cacheKey = table.concat({ ns.CharacterKey(), zone.areaID or 0, level,
-        questStateRevision, tostring(xpMultiplier or 1) }, ":")
+        questStateRevision, ns.GetHiddenQuestRevision and ns.GetHiddenQuestRevision() or 0,
+        tostring(xpMultiplier or 1) }, ":")
     local cached = zoneResultCache[cacheKey]
     if cached then
         return cached.candidates, cached.totalXP, cached.totalMoney, cached.moneyKnown
@@ -839,7 +855,7 @@ local function Build()
             expanded = ZoneExpanded,
         }
         for candidateIndex = 1, #zone.candidates do
-            local row = QuestRow(zone.candidates[candidateIndex])
+            local row = QuestRow(zone.candidates[candidateIndex], zone)
             row.visible = ZoneExpanded
             rows[#rows + 1] = row
             if ns.YieldForBudget then ns.YieldForBudget() end

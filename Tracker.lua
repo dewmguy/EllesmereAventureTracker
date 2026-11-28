@@ -346,10 +346,119 @@ local function ShowTooltip(owner, data)
     local clickHint = data.onClick and (DataValue(data, "clickHint") or "Click to open.")
         or (owner._secureAction and data.secureClickHint)
     if clickHint then GameTooltip:AddLine(clickHint, 0.55, 0.82, 1) end
+    if type(data.onRightClick) == "function" then
+        GameTooltip:AddLine(DataValue(data, "rightClickHint") or "Right-click for quest options.", 0.30, 0.90, 0.72)
+    end
     if data.key and pendingDisclosuresByKey[data.key] then
         GameTooltip:AddLine("Updating this list...", 1, 0.82, 0.24)
     end
     GameTooltip:Show()
+end
+
+local contextMenuOverlay, contextMenu, contextMenuButtons
+
+local function HideContextMenu()
+    if contextMenuOverlay then contextMenuOverlay:Hide() end
+end
+ns.HideContextMenu = HideContextMenu
+
+local function CreateContextMenu()
+    if contextMenu then return end
+    contextMenuButtons = {}
+    contextMenuOverlay = CreateFrame("Button", "EUIAdventureTrackerContextMenuOverlay", UIParent)
+    contextMenuOverlay:SetAllPoints(UIParent)
+    contextMenuOverlay:SetFrameStrata("TOOLTIP")
+    contextMenuOverlay:SetFrameLevel(200)
+    contextMenuOverlay:EnableMouse(true)
+    contextMenuOverlay:RegisterForClicks("AnyUp")
+    contextMenuOverlay:SetScript("OnClick", HideContextMenu)
+    contextMenuOverlay:Hide()
+
+    contextMenu = CreateFrame("Frame", nil, contextMenuOverlay, "BackdropTemplate")
+    contextMenu:SetWidth(330)
+    contextMenu:SetFrameLevel(contextMenuOverlay:GetFrameLevel() + 10)
+    contextMenu:SetClampedToScreen(true)
+    contextMenu:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    contextMenu:SetBackdropColor(0.025, 0.032, 0.04, 0.99)
+    contextMenu:SetBackdropBorderColor(0.12, 0.78, 0.62, 1)
+    contextMenu.title = contextMenu:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    contextMenu.title:SetPoint("TOPLEFT", 10, -9)
+    contextMenu.title:SetPoint("TOPRIGHT", -10, -9)
+    contextMenu.title:SetJustifyH("LEFT")
+
+    if type(UISpecialFrames) == "table" then
+        UISpecialFrames[#UISpecialFrames + 1] = contextMenuOverlay:GetName()
+    end
+end
+
+local function ContextMenuButton(index)
+    local button = contextMenuButtons[index]
+    if button then return button end
+    button = CreateFrame("Button", nil, contextMenu, "BackdropTemplate")
+    button:SetHeight(22)
+    button:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
+    button:SetBackdropColor(1, 1, 1, 0)
+    button.text = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    button.text:SetPoint("LEFT", 8, 0)
+    button.text:SetPoint("RIGHT", -8, 0)
+    button.text:SetJustifyH("LEFT")
+    button:SetScript("OnEnter", function(self)
+        if self.action then self:SetBackdropColor(1, 1, 1, 0.08) end
+    end)
+    button:SetScript("OnLeave", function(self) self:SetBackdropColor(1, 1, 1, 0) end)
+    button:SetScript("OnClick", function(self)
+        local action = self.action
+        if not action then return end
+        HideContextMenu()
+        local ok, message = pcall(action)
+        if not ok then
+            local handler = geterrorhandler and geterrorhandler()
+            if type(handler) == "function" then handler(message) end
+        end
+    end)
+    contextMenuButtons[index] = button
+    return button
+end
+
+function ns.ShowContextMenu(owner, menuTitle, entries)
+    if not owner or type(entries) ~= "table" then return false end
+    CreateContextMenu()
+    contextMenu.title:SetText(tostring(menuTitle or "Adventure Tracker"))
+    local y = -32
+    for index = 1, #entries do
+        local entry = entries[index]
+        local button = ContextMenuButton(index)
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT", 6, y)
+        button:SetPoint("TOPRIGHT", -6, y)
+        button.action = not entry.disabled and not entry.heading and entry.action or nil
+        button.text:SetText(tostring(entry.text or ""))
+        if entry.heading then
+            button.text:SetTextColor(0.30, 0.90, 0.72)
+        elseif entry.disabled then
+            button.text:SetTextColor(0.52, 0.55, 0.58)
+        elseif type(entry.color) == "table" then
+            button.text:SetTextColor(entry.color[1] or 1, entry.color[2] or 1, entry.color[3] or 1)
+        else
+            button.text:SetTextColor(0.94, 0.95, 0.96)
+        end
+        button:Show()
+        y = y - 22
+    end
+    for index = #entries + 1, #contextMenuButtons do
+        contextMenuButtons[index].action = nil
+        contextMenuButtons[index]:Hide()
+    end
+    contextMenu:SetHeight(math.abs(y) + 7)
+    contextMenu:ClearAllPoints()
+    contextMenu:SetPoint("TOPLEFT", owner, "TOPRIGHT", 6, 0)
+    contextMenuOverlay:Show()
+    contextMenu:Show()
+    return true
 end
 
 local secureActionPool = {}
@@ -576,6 +685,7 @@ local function AcquireRow(index)
     if row then return row end
     row = CreateFrame("Button", nil, content, "BackdropTemplate")
     row:SetHeight(37)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
     row:SetBackdropColor(1, 1, 1, 0.025)
     row._attentionBackground = true
@@ -654,8 +764,19 @@ local function AcquireRow(index)
         GameTooltip_Hide()
         if UpdateLockFade then C_Timer.After(0, UpdateLockFade) end
     end)
-    row:SetScript("OnClick", function(self)
+    row:SetScript("OnClick", function(self, mouseButton)
         if self._trackerDragged then return end
+        if mouseButton == "RightButton" then
+            if self.data and type(self.data.onRightClick) == "function" then
+                GameTooltip_Hide()
+                local ok, message = pcall(self.data.onRightClick, self)
+                if not ok then
+                    local handler = geterrorhandler and geterrorhandler()
+                    if type(handler) == "function" then handler(message) end
+                end
+            end
+            return
+        end
         if self.data and self.data.onClick then
             BeginDisclosureInteraction(self, self.data)
             local ok, message = pcall(self.data.onClick)
