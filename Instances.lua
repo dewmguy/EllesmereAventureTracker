@@ -7,8 +7,6 @@ local TIMER_ICON = 134376
 local BOSS_ICON = 136116
 local QUEST_ICON = 134400
 local LOOT_ICON = 133784
-local QUEST_LEVEL_AHEAD_LIMIT = 5
-
 -- QuestieDB's public quest schema cannot distinguish every client record from
 -- content that can actually be offered on live Forever. Questie's non-SoD
 -- blacklist supplies the Duskwood mission exclusions below. All The Things
@@ -435,14 +433,6 @@ local function QuestRequirementsMet(questDB, questID)
     local requiredMaxLevel = tonumber(EntityValue(questDB, "requiredMaxLevel", questID)) or 0
     if requiredLevel > level or (requiredMaxLevel > 0 and level > requiredMaxLevel) then return false end
 
-    -- QuestieDB's minimum level and displayed quest level are separate values.
-    -- Some quests (notably city donation quests) have a low minimum but a much
-    -- higher displayed level, so requiredLevel alone can make them look like
-    -- sensible leveling recommendations. Keep genuinely red quests, but do not
-    -- call anything more than five levels ahead currently available progress.
-    local questLevel = tonumber(EntityValue(questDB, "questLevel", questID)) or 0
-    if level > 0 and questLevel > level + QUEST_LEVEL_AHEAD_LIMIT then return false end
-
     local _, classToken
     if UnitClass then _, classToken = UnitClass("player") end
     local _, _, raceID
@@ -454,7 +444,7 @@ local function QuestRequirementsMet(questDB, questID)
     if not MaskIncludes(EntityValue(questDB, "requiredRaces", questID), raceMask) then return false end
     if ns.YieldForBudget then ns.YieldForBudget() end
 
-    -- Adventure Tracker deliberately recommends standalone quest starts only.
+    -- Adventure Tracker deliberately recommends direct, ungated quest starts only.
     -- Even when Blizzard reports the prior step complete, a recorded chain gate
     -- remains outside this addon's conservative definition of "available."
     if QuestHasChainPrerequisite(questDB, questID) then return false end
@@ -510,11 +500,14 @@ local function JoinNames(entity, ids, limit)
     return text, total
 end
 
-local function QuestStarter(questDB, npcDB, itemDB, questID)
+local function QuestStarter(questDB, npcDB, itemDB, questID, objectDB)
     local startedBy = EntityValue(questDB, "startedBy", questID)
     if type(startedBy) ~= "table" then return nil end
     local npcText, npcCount = JoinNames(npcDB, startedBy[1], 3)
     if npcCount > 0 then return "Quest giver: " .. npcText, QUEST_ICON end
+
+    local objectText, objectCount = JoinNames(objectDB, startedBy[2], 3)
+    if objectCount > 0 then return "Quest object: " .. objectText, QUEST_ICON end
 
     if type(startedBy[3]) == "table" then
         for _, itemID in pairs(startedBy[3]) do
@@ -552,7 +545,7 @@ local function BuildQuestRows()
     if ns.IsCombatRestricted and ns.IsCombatRestricted() then
         return questRowsCache or {}
     end
-    local questDB, npcDB, itemDB = QuestieEntities()
+    local questDB, npcDB, itemDB, objectDB = QuestieEntities()
     if not questDB then
         return {{
             key = "instance-quests-provider",
@@ -595,7 +588,7 @@ local function BuildQuestRows()
         local questID = candidates[index]
         if not IsQuestComplete(questID) and not IsQuestInLog(questID)
             and QuestRequirementsMet(questDB, questID) then
-            local source, icon = QuestStarter(questDB, npcDB, itemDB, questID)
+            local source, icon = QuestStarter(questDB, npcDB, itemDB, questID, objectDB)
             if source then
                 local name = EntityValue(questDB, "name", questID) or ("Quest " .. tostring(questID))
                 local questLevel = tonumber(EntityValue(questDB, "questLevel", questID)) or 0

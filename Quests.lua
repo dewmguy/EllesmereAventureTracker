@@ -698,7 +698,7 @@ local function QuestRow(candidate)
     }
 end
 
-local function CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
+local function CandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
     local candidates, totalXP, totalMoney, moneyKnown = {}, 0, 0, false
     local ids = CandidateIDs(questDB, zone.areaID)
     for index = 1, #ids do
@@ -708,7 +708,7 @@ local function CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplie
         local recurring = BitSet(specialFlags, 1) or BitSet(questFlags, 4096) or BitSet(questFlags, 32768)
         if not recurring and not data.IsComplete(questID) and not data.IsInLog(questID)
             and data.RequirementsMet(questDB, questID) then
-            local source, icon = data.Starter(questDB, npcDB, itemDB, questID)
+            local source, icon = data.Starter(questDB, npcDB, itemDB, questID, objectDB)
             if source then
                 local score, questLevel = QuestScore(questDB, questID, source)
                 local xp, money = AdjustedQuestXP(questID, xpMultiplier), QuestMoney(questID)
@@ -739,7 +739,7 @@ local function CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplie
     return candidates, totalXP, totalMoney, moneyKnown
 end
 
-local function CachedCandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
+local function CachedCandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
     local level = UnitLevel and UnitLevel("player") or 0
     local cacheKey = table.concat({ ns.CharacterKey(), zone.areaID or 0, level,
         questStateRevision, tostring(xpMultiplier or 1) }, ":")
@@ -748,7 +748,7 @@ local function CachedCandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMul
         return cached.candidates, cached.totalXP, cached.totalMoney, cached.moneyKnown
     end
     local candidates, totalXP, totalMoney, moneyKnown =
-        CandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
+        CandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
     zoneResultCache[cacheKey] = {
         candidates = candidates,
         totalXP = totalXP,
@@ -770,7 +770,7 @@ local function Build()
     if not ns.Get("showZoneQuests") then return {} end
     local data = ns.QuestData
     if type(data) ~= "table" then return {} end
-    local questDB, npcDB, itemDB = data.GetEntities()
+    local questDB, npcDB, itemDB, objectDB = data.GetEntities()
     if not questDB then
         return {
             id = "zone-quests-provider",
@@ -795,7 +795,7 @@ local function Build()
     for index = 1, #zones do
         local zone = zones[index]
         local candidates, totalXP, totalMoney, moneyKnown =
-            CachedCandidatesForZone(data, questDB, npcDB, itemDB, zone, xpMultiplier)
+            CachedCandidatesForZone(data, questDB, npcDB, itemDB, objectDB, zone, xpMultiplier)
         if #candidates > 0 then
             zone.candidates = candidates
             zone.totalXP = totalXP

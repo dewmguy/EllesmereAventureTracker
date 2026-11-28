@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.17 - 2026-11-28
+
+- Added direct world-object quest starters from QuestieDB to Quest Progress
+  without exposing coordinates, routes or objectives.
+- Corrected quest eligibility to use the quest's actual minimum required level,
+  not an arbitrary comparison with its displayed quest level.
+- Ungated starts may appear even when they begin a chain, while every later
+  step with a recorded prerequisite remains hidden.
+
 ## 0.9.16 - 2026-11-28
 
 - Removed the pushed-button movement from the clickable status row while
