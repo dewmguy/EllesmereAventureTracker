@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.24 - 2026-11-28
+
+- Added a Duplicate quest giver category to the quest-report menu for quests
+  whose alternate starter remains available after the quest is accepted.
+
 ## 0.9.23 - 2026-11-28
 
 - Made the Wowhead URL copy prompt a compact, single-line dialog while keeping

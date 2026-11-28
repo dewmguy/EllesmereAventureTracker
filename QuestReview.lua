@@ -16,6 +16,7 @@ local REPORT_REASONS = {
     { key = "unavailable", label = "Unavailable, removed, test or bugged quest" },
     { key = "restriction", label = "Wrong faction, class or profession restriction" },
     { key = "starter", label = "Quest giver, object or starting item is wrong" },
+    { key = "duplicate_starter", label = "Duplicate quest giver" },
     { key = "zone", label = "Listed under the wrong zone" },
     { key = "status", label = "Repeatable, completed or already accepted" },
     { key = "reward", label = "XP or coin reward is wrong" },
