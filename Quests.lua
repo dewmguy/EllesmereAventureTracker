@@ -886,42 +886,34 @@ end
 local function AppendZoneRows(rows, zone, options)
     options = options or {}
     local zoneAreaID = zone.areaID
-    local alwaysExpanded = options.alwaysExpanded == true
     local parentVisible = options.parentVisible or function() return true end
     local indentLevel = tonumber(options.indentLevel) or 0
     local function ZoneExpanded()
-        return alwaysExpanded or IsExpanded(zoneAreaID)
+        return IsExpanded(zoneAreaID)
     end
     local summary = {
         key = "zone-quests-summary-" .. tostring(zoneAreaID),
         label = function()
-            if alwaysExpanded then
-                return string.format("%d %s quest%s available", #zone.candidates, zone.name,
-                    #zone.candidates == 1 and "" or "s")
-            end
             return string.format("%s %d %s quest%s available", ZoneExpanded() and "−" or "+",
                 #zone.candidates, zone.name, #zone.candidates == 1 and "" or "s")
         end,
         detail = RewardSummary(zone.totalXP, zone.totalMoney, zone.moneyKnown),
-        tooltip = alwaysExpanded and "Current-zone quests stay visible at the top of Quest Progress."
-            or function()
-                return ZoneExpanded()
-                    and string.format("Collapse the available quests in %s.", zone.name)
-                    or string.format("Expand the available quests in %s.", zone.name)
-            end,
+        tooltip = function()
+            return ZoneExpanded()
+                and string.format("Collapse the available quests in %s.", zone.name)
+                or string.format("Expand the available quests in %s.", zone.name)
+        end,
         state = "info",
         icon = zone.candidates[1].icon or QUEST_ICON,
         indentLevel = indentLevel,
         visible = parentVisible,
-    }
-    if not alwaysExpanded then
-        summary.clickHint = function()
+        clickHint = function()
             return ZoneExpanded() and "Click to collapse this zone." or "Click to expand this zone."
-        end
-        summary.onClick = function() ToggleExpanded(zoneAreaID) end
-        summary.disclosure = true
-        summary.expanded = ZoneExpanded
-    end
+        end,
+        onClick = function() ToggleExpanded(zoneAreaID) end,
+        disclosure = true,
+        expanded = ZoneExpanded,
+    }
     rows[#rows + 1] = summary
     for candidateIndex = 1, #zone.candidates do
         local row = QuestRow(zone.candidates[candidateIndex], zone)
@@ -1001,7 +993,7 @@ local function Build()
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
 
-    if currentZone then AppendZoneRows(rows, currentZone, { alwaysExpanded = true }) end
+    if currentZone then AppendZoneRows(rows, currentZone) end
 
     local continentSortMode = ns.Get("questContinentSortMode")
     ns.BudgetedSort(continents, function(a, b)

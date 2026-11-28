@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.25 - 2026-11-28
+
+- Made the current-zone quest summary use the same cached expand/collapse
+  behavior as every other zone while keeping it at the top of Quest Progress.
+
 ## 0.9.24 - 2026-11-28
 
 - Added a Duplicate quest giver category to the quest-report menu for quests
