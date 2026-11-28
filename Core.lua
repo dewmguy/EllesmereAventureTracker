@@ -224,6 +224,7 @@ local DEFAULTS = {
     showCompletedProfessions = false,
     showProfessionZoneHints = true,
     showProviderDiagnostics = false,
+    runtimeFrameBudgetPercent = 10,
 
     showInstances = true,
     showInstanceRunTimer = true,
@@ -298,7 +299,7 @@ function ns.Get(key)
     return value
 end
 
-local NO_RENDER_SETTINGS = { locked = true, position = true }
+local NO_RENDER_SETTINGS = { locked = true, position = true, runtimeFrameBudgetPercent = true }
 local RENDER_ONLY_SETTINGS = {}
 for _, key in ipairs({
     "enabled", "collapsed", "width", "scale", "frameStrata", "maximizePaneHeight",
@@ -313,6 +314,7 @@ for _, key in ipairs({
     "badgeTextColorMode", "badgeTextColor", "badgeAnchor", "badgeOffsetX", "badgeOffsetY",
     "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
     "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
+    "zoneQuestExpandedByCharacter", "professionRecipeCatalogExpandedByCharacter",
     "readinessIconSize", "readinessIconSpacing", "readinessIconBorderTexture", "readinessIconBorderSize",
     "readinessIconReadyBorderColor", "readinessIconWarningBorderColor", "readinessIconMissingBorderColor",
     "readinessIconUnavailableBorderColor", "readinessIconUnknownBorderColor", "readinessIconInfoBorderColor",
@@ -343,13 +345,13 @@ RegisterSettingProviders({ "legacy" }, {
     "showLegacy", "showUnspentLegacy", "showLegacyProfessionGoals", "showLegacyChallenges", "legacyChallengeLimit",
 })
 RegisterSettingProviders({ "zone-quests" }, {
-    "showZoneQuests", "zoneQuestExpandedByCharacter", "zoneQuestVisitedByCharacter",
+    "showZoneQuests", "zoneQuestVisitedByCharacter",
     "warnFutureQuestItems", "futureQuestItemsByCharacter",
 })
 RegisterSettingProviders({ "professions" }, {
     "showProfessions", "showProfessionProgress", "showProfessionSynergy", "showProfessionGear",
     "showProfessionCaps", "showProfessionTrainerRecipes", "showProfessionMarketCosts",
-    "showProfessionAttainableRecipes", "showObservedGathering", "professionRecipeCatalogExpandedByCharacter",
+    "showProfessionAttainableRecipes", "showObservedGathering",
     "showCompletedProfessions", "showProfessionZoneHints",
 })
 RegisterSettingProviders({ "instances" }, {
@@ -574,9 +576,11 @@ end
 -- therefore shares one deliberately small frame budget. Work functions may
 -- call ns.YieldForBudget() at safe boundaries; the scheduler resumes them on a
 -- later frame instead of allowing an event burst to monopolize a frame.
-local RUNTIME_FRAME_BUDGET_MS = 0.35
+local RUNTIME_FRAME_BUDGET_DEFAULT_PERCENT = 10
+local RUNTIME_FRAME_BUDGET_MIN_MS = 0.35
+local RUNTIME_FRAME_BUDGET_MAX_MS = 4.00
 local workQueue, workByKey = {}, {}
-local activeWork, activeSliceStartedAt
+local activeWork, activeSliceStartedAt, activeFrameBudgetMS = RUNTIME_FRAME_BUDGET_MIN_MS
 local worker = CreateFrame("Frame")
 worker:Hide()
 
@@ -584,9 +588,18 @@ local function RuntimeNow()
     return debugprofilestop and debugprofilestop() or 0
 end
 
+local function RuntimeFrameBudget()
+    local fps = GetFramerate and tonumber(GetFramerate()) or 60
+    if not fps or fps <= 0 then fps = 60 end
+    local percent = tonumber(ns.Get("runtimeFrameBudgetPercent")) or RUNTIME_FRAME_BUDGET_DEFAULT_PERCENT
+    percent = math.max(5, math.min(25, percent))
+    local budget = (1000 / fps) * (percent / 100)
+    return math.max(RUNTIME_FRAME_BUDGET_MIN_MS, math.min(RUNTIME_FRAME_BUDGET_MAX_MS, budget))
+end
+
 function ns.YieldForBudget(force)
     if not activeWork or not activeSliceStartedAt then return false end
-    if not force and RuntimeNow() - activeSliceStartedAt < RUNTIME_FRAME_BUDGET_MS then return false end
+    if not force and RuntimeNow() - activeSliceStartedAt < activeFrameBudgetMS then return false end
     coroutine.yield("frame-budget")
     return true
 end
@@ -638,9 +651,10 @@ end
 
 worker:SetScript("OnUpdate", function(self)
     if #workQueue == 0 then self:Hide(); return end
+    activeFrameBudgetMS = RuntimeFrameBudget()
     activeSliceStartedAt = RuntimeNow()
     local deferred = 0
-    while #workQueue > 0 and RuntimeNow() - activeSliceStartedAt < RUNTIME_FRAME_BUDGET_MS do
+    while #workQueue > 0 and RuntimeNow() - activeSliceStartedAt < activeFrameBudgetMS do
         local entry = table.remove(workQueue, 1)
         local runnable = type(entry.canRun) ~= "function" or entry.canRun() ~= false
         if not runnable then
@@ -661,7 +675,7 @@ worker:SetScript("OnUpdate", function(self)
             local callElapsed = RuntimeNow() - callStartedAt
             entry.activeElapsed = (entry.activeElapsed or 0) + callElapsed
             activeWork = nil
-            if callElapsed > RUNTIME_FRAME_BUDGET_MS and ns.RecordProfileDuration then
+            if callElapsed > activeFrameBudgetMS and ns.RecordProfileDuration then
                 ns.RecordProfileDuration("runtime-overrun:" .. entry.key,
                     callElapsed, "single resume exceeded frame budget")
             end
@@ -695,7 +709,12 @@ worker:SetScript("OnUpdate", function(self)
 end)
 
 function ns.GetRuntimeFrameBudget()
-    return RUNTIME_FRAME_BUDGET_MS
+    return RuntimeFrameBudget()
+end
+
+function ns.GetRuntimeFrameBudgetFraction()
+    local percent = tonumber(ns.Get("runtimeFrameBudgetPercent")) or RUNTIME_FRAME_BUDGET_DEFAULT_PERCENT
+    return math.max(5, math.min(25, percent)) / 100
 end
 
 -- Lua's table.sort is a single C call and cannot yield. Providers use this
@@ -955,6 +974,19 @@ function ns.InvalidateAllProviders(reason)
     end
 end
 
+function ns.ResolveTrackerDataValue(data, key)
+    if type(data) ~= "table" then return nil end
+    local value = data[key]
+    if type(value) ~= "function" then return value end
+    local ok, resolved = pcall(value, data)
+    return ok and resolved or nil
+end
+
+function ns.IsTrackerDataVisible(data)
+    local visible = ns.ResolveTrackerDataValue(data, "visible")
+    return visible ~= false
+end
+
 local function AppendProviderResult(snapshot, result)
     if type(result) ~= "table" then return end
     local sections = result.id and { result } or result
@@ -973,8 +1005,11 @@ local function AppendProviderResult(snapshot, result)
             if type(section.rows) == "table" then
                 for k = 1, #section.rows do
                     if ns.YieldForBudget then ns.YieldForBudget() end
-                    local state = section.rows[k].state
-                    if state == "missing" or state == "warning" then snapshot.actionable = true end
+                    local row = section.rows[k]
+                    local state = row.state
+                    if ns.IsTrackerDataVisible(row) and (state == "missing" or state == "warning") then
+                        snapshot.actionable = true
+                    end
                 end
             end
         end

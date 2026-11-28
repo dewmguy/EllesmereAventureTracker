@@ -321,7 +321,7 @@ local function ToggleProfessionTrainer(skillLineID)
     local character = db.professionTrainerExpandedByCharacter[characterKey]
     local cacheKey = tostring(skillLineID)
     character[cacheKey] = not ProfessionTrainerExpanded(skillLineID)
-    if ns.RequestRefresh then ns.RequestRefresh("professions", "profession trainer expansion") end
+    if ns.RequestRefresh then ns.RequestRefresh(false, "profession trainer expansion") end
 end
 
 local function CleanTrainerTooltipText(value)
@@ -1306,21 +1306,27 @@ local function AddTrainerRecipeRows(rows, profession)
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
 
-    local expanded = ProfessionTrainerExpanded(profession.skillLineID)
+    local skillLineID = profession.skillLineID
+    local function ExpandedNow() return ProfessionTrainerExpanded(skillLineID) end
     rows[#rows + 1] = {
         key = "trainer-recipes-total-" .. tostring(profession.skillLineID),
-        label = string.format("%s %d trainer recipe%s available",
-            expanded and "−" or "+", #services, #services == 1 and "" or "s"),
+        label = function()
+            return string.format("%s %d trainer recipe%s available",
+                ExpandedNow() and "−" or "+", #services, #services == 1 and "" or "s")
+        end,
         detail = string.format("Total training cost: %s", FormatMoney(total)),
-        tooltip = string.format("Permanent WoW Forever trainer catalog at %d %s skill. Learn every listed recipe for %s. %s",
-            profession.rank, profession.name, FormatMoney(total),
-            expanded and "Collapse the individual recipe list." or "Expand the individual recipe list."),
-        clickHint = expanded and "Click to collapse trainer recipes." or "Click to expand trainer recipes.",
+        tooltip = function()
+            return string.format("Permanent WoW Forever trainer catalog at %d %s skill. Learn every listed recipe for %s. %s",
+                profession.rank, profession.name, FormatMoney(total), ExpandedNow()
+                    and "Collapse the individual recipe list." or "Expand the individual recipe list.")
+        end,
+        clickHint = function()
+            return ExpandedNow() and "Click to collapse trainer recipes." or "Click to expand trainer recipes."
+        end,
         onClick = function() ToggleProfessionTrainer(profession.skillLineID) end,
         state = "warning",
         icon = profession.icon,
     }
-    if not expanded then return end
 
     for index = 1, #services do
         local service = services[index]
@@ -1335,6 +1341,7 @@ local function AddTrainerRecipeRows(rows, profession)
             state = "warning",
             icon = service.icon or profession.icon,
             indentLevel = 1,
+            visible = ExpandedNow,
         }
         if ns.YieldForBudget then ns.YieldForBudget() end
     end

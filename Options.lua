@@ -165,7 +165,7 @@ local TRACKER_KEYS = {
     "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "statusTextAlignment", "contextTextColorMode", "contextTextColor",
     "sectionFontSize", "sectionTextColorMode", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor",
     "entryDetailFontSize", "entryDetailTextColorMode", "entryDetailTextColor",
-    "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor",
+    "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor", "runtimeFrameBudgetPercent",
 }
 local READINESS_KEYS = {
     "showReadiness", "readinessIconSize", "readinessIconSpacing", "readinessIconBorderTexture", "readinessIconBorderSize",
@@ -353,6 +353,13 @@ local function BuildTracker(pageName, parent, yOffset)
     _, h = W:DualRow(parent, y,
         Slider("entryDetailFontSize", "Entry Detail Font Size", 8, 24, 1, "Size of recommendation detail text."),
         TextColorSwatches("entryDetailTextColorMode", "entryDetailTextColor", "Entry Detail Color"))
+    y = y - h
+
+    _, h = W:SectionHeader(parent, "PERFORMANCE", y); y = y - h
+    _, h = W:DualRow(parent, y,
+        Slider("runtimeFrameBudgetPercent", "Background Work per Frame (%)", 5, 25, 1,
+            "Percentage of each frame Adventure Tracker may use for queued analysis and layout work. Higher values finish loading sooner but leave less protection against frame-time spikes."),
+        Label("10% is the balanced default. The runtime also keeps an absolute 0.35–4.00 ms safety range."))
     y = y - h
     return math.abs(y)
 end

@@ -68,7 +68,7 @@ local function TrainerCache()
     return all[ns.CharacterKey()]
 end
 
-local StaticTrainerServices, MarkCatalogSeen
+local StaticTrainerServices, MarkCatalogSeen, ClearTrainerSkillAttention
 local staticServiceCache
 
 local function TrainerSkillsExpanded()
@@ -84,16 +84,8 @@ local function ToggleTrainerSkills()
     local key = ns.CharacterKey()
     local expanding = not TrainerSkillsExpanded()
     db.classTrainerExpandedByCharacter[key] = expanding
-    if expanding then
-        if MarkCatalogSeen then MarkCatalogSeen() end
-        local cache = TrainerCache()
-        if cache then
-            cache.newServiceKeys = nil
-            cache.newServiceCount = 0
-        end
-        staticServiceCache = nil
-    end
-    if ns.RequestRefresh then ns.RequestRefresh("character-reminders", "class trainer expansion") end
+    if expanding and ClearTrainerSkillAttention then ClearTrainerSkillAttention() end
+    if ns.RequestRefresh then ns.RequestRefresh(false, "class trainer expansion") end
 end
 
 local function CleanTrainerTooltipText(value)
@@ -416,7 +408,20 @@ MarkCatalogSeen = function()
     end
 end
 
-local function NewCatalogServiceCount(services)
+ClearTrainerSkillAttention = function()
+    if MarkCatalogSeen then MarkCatalogSeen() end
+    local cache = TrainerCache()
+    if cache then
+        cache.newServiceKeys = nil
+        cache.newServiceCount = 0
+    end
+    for _, service in ipairs(staticServiceCache or {}) do
+        service.liveNew = nil
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+end
+
+local function NewCatalogServiceCount(services, presentationOnly)
     local seen, count = CatalogSeenTable(false), 0
     for _, service in ipairs(services or {}) do
         if service.spellID and not (seen and seen[tostring(service.spellID)]) then
@@ -424,7 +429,7 @@ local function NewCatalogServiceCount(services)
         elseif service.liveNew then
             count = count + 1
         end
-        if ns.YieldForBudget then ns.YieldForBudget() end
+        if not presentationOnly and ns.YieldForBudget then ns.YieldForBudget() end
     end
     return count
 end
@@ -553,46 +558,57 @@ local function Build()
                 if ns.YieldForBudget then ns.YieldForBudget() end
             end
             local expanded = TrainerSkillsExpanded()
-            if expanded and MarkCatalogSeen then MarkCatalogSeen() end
-            local newServiceCount = NewCatalogServiceCount(services)
+            if expanded and ClearTrainerSkillAttention then ClearTrainerSkillAttention() end
+            local function ExpandedNow() return TrainerSkillsExpanded() end
+            local function NewServiceCount() return NewCatalogServiceCount(services, true) end
             rows[#rows + 1] = {
                 key = "class-training-total",
-                label = string.format("%s %d class-trainer skill%s available",
-                    expanded and "−" or "+", #services, #services == 1 and "" or "s"),
-                detail = string.format("Total training cost: %s%s", FormatMoney(total),
-                    newServiceCount > 0 and string.format(" • %d newly available", newServiceCount) or ""),
-                tooltip = string.format("Learn every listed skill for %s. %s",
-                    FormatMoney(total), expanded and "Collapse the individual skill list."
-                        or "Expand the individual skill list."),
-                clickHint = expanded and "Click to collapse class-trainer skills."
-                    or "Click to expand class-trainer skills.",
+                label = function()
+                    return string.format("%s %d class-trainer skill%s available",
+                        ExpandedNow() and "−" or "+", #services, #services == 1 and "" or "s")
+                end,
+                detail = function()
+                    local newServiceCount = NewServiceCount()
+                    return string.format("Total training cost: %s%s", FormatMoney(total),
+                        newServiceCount > 0 and string.format(" • %d newly available", newServiceCount) or "")
+                end,
+                tooltip = function()
+                    return string.format("Learn every listed skill for %s. %s", FormatMoney(total),
+                        ExpandedNow() and "Collapse the individual skill list."
+                            or "Expand the individual skill list.")
+                end,
+                clickHint = function()
+                    return ExpandedNow() and "Click to collapse class-trainer skills."
+                        or "Click to expand class-trainer skills."
+                end,
                 onClick = ToggleTrainerSkills,
                 state = "warning",
-                attention = not expanded and newServiceCount > 0 and "warning" or nil,
+                attention = function()
+                    return not ExpandedNow() and NewServiceCount() > 0 and "warning" or nil
+                end,
                 icon = 136243,
             }
-            if expanded then
-                for index = 1, #services do
-                    local service = services[index]
-                    local label = service.name or "Unknown skill"
-                    if service.subText and service.subText ~= "" then
-                        label = string.format("%s (%s)", label, service.subText)
-                    end
-                    rows[#rows + 1] = {
-                        key = "class-training-" .. tostring(service.spellID or index),
-                        label = label,
-                        detail = "Cost: " .. FormatMoney(service.cost),
-                        tooltip = service.spellID and "" or service.tooltipText,
-                        tooltipFunc = not service.spellID and function(owner)
-                            return ShowLiveTrainerTooltip(owner, service)
-                        end or nil,
-                        spellID = service.spellID,
-                        state = "warning",
-                        icon = service.icon or 136243,
-                        indentLevel = 1,
-                    }
-                    if ns.YieldForBudget then ns.YieldForBudget() end
+            for index = 1, #services do
+                local service = services[index]
+                local label = service.name or "Unknown skill"
+                if service.subText and service.subText ~= "" then
+                    label = string.format("%s (%s)", label, service.subText)
                 end
+                rows[#rows + 1] = {
+                    key = "class-training-" .. tostring(service.spellID or index),
+                    label = label,
+                    detail = "Cost: " .. FormatMoney(service.cost),
+                    tooltip = service.spellID and "" or service.tooltipText,
+                    tooltipFunc = not service.spellID and function(owner)
+                        return ShowLiveTrainerTooltip(owner, service)
+                    end or nil,
+                    spellID = service.spellID,
+                    state = "warning",
+                    icon = service.icon or 136243,
+                    indentLevel = 1,
+                    visible = ExpandedNow,
+                }
+                if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end
     end

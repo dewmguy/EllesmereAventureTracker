@@ -286,6 +286,16 @@ local function SetAttention(widget, attention, edgeSize)
     if not glow.animation:IsPlaying() then glow.animation:Play() end
 end
 
+local function DataValue(data, key)
+    if ns.ResolveTrackerDataValue then return ns.ResolveTrackerDataValue(data, key) end
+    return type(data) == "table" and data[key] or nil
+end
+
+local function DataVisible(data)
+    if ns.IsTrackerDataVisible then return ns.IsTrackerDataVisible(data) end
+    return DataValue(data, "visible") ~= false
+end
+
 local function ShowTooltip(owner, data)
     if type(data.tooltipFunc) == "function" then
         local ok, handled = pcall(data.tooltipFunc, owner)
@@ -302,13 +312,13 @@ local function ShowTooltip(owner, data)
     elseif data.secureItemID and GameTooltip.SetHyperlink then
         actionTooltip = pcall(GameTooltip.SetHyperlink, GameTooltip, "item:" .. tostring(data.secureItemID))
     end
-    if not actionTooltip then GameTooltip:SetText(data.label or "Adventure Tracker") end
-    local detail = data.tooltip or data.detail
+    if not actionTooltip then GameTooltip:SetText(DataValue(data, "label") or "Adventure Tracker") end
+    local detail = DataValue(data, "tooltip") or DataValue(data, "detail")
     if detail and detail ~= "" then
         if actionTooltip then GameTooltip:AddLine(" ") end
         GameTooltip:AddLine(detail, 1, 1, 1, true)
     end
-    local clickHint = data.onClick and (data.clickHint or "Click to open.")
+    local clickHint = data.onClick and (DataValue(data, "clickHint") or "Click to open.")
         or (owner._secureAction and data.secureClickHint)
     if clickHint then GameTooltip:AddLine(clickHint, 0.55, 0.82, 1) end
     GameTooltip:Show()
@@ -874,8 +884,9 @@ end
 local function SectionAttention(rows)
     local attention
     for index = 1, #rows do
-        if rows[index].attention == "critical" then return "critical" end
-        if rows[index].attention == "warning" then attention = "warning" end
+        local rowAttention = DataVisible(rows[index]) and DataValue(rows[index], "attention") or nil
+        if rowAttention == "critical" then return "critical" end
+        if rowAttention == "warning" then attention = "warning" end
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
     return attention
@@ -955,7 +966,7 @@ local function TryPatchProviderResult(previous, current)
         button.icon:SetTexture(data.icon or 134400)
         button.badge:SetText(data.badge or "")
         ApplyReadinessIconAppearance(button, data.state, size, borderSize)
-        SetAttention(button, data.attention, 2)
+        SetAttention(button, DataValue(data, "attention"), 2)
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
 
@@ -972,15 +983,18 @@ local function TryPatchProviderResult(previous, current)
             local data = section.rows[rowIndex]
             local row = visibleRowsByKey[data.key]
             if not collapsed then
-                if not row then return false end
-                row.data = data
-                row.icon:SetTexture(data.icon or 134400)
-                row.label:SetText(data.label or "")
-                row.detail:SetText(data.detail or "")
-                row.stripe:SetColorTexture(StateColor(data.state))
-                ApplyProgress(row, data, row:GetWidth() or content:GetWidth() or 1)
-                ApplyDataTypography(row, data)
-                SetAttention(row, data.attention, 2)
+                local visible = DataVisible(data)
+                if visible ~= (row ~= nil) then return false end
+                if visible then
+                    row.data = data
+                    row.icon:SetTexture(data.icon or 134400)
+                    row.label:SetText(DataValue(data, "label") or "")
+                    row.detail:SetText(DataValue(data, "detail") or "")
+                    row.stripe:SetColorTexture(StateColor(data.state))
+                    ApplyProgress(row, data, row:GetWidth() or content:GetWidth() or 1)
+                    ApplyDataTypography(row, data)
+                    SetAttention(row, DataValue(data, "attention"), 2)
+                end
             end
             if ns.YieldForBudget then ns.YieldForBudget() end
         end
@@ -1529,7 +1543,7 @@ local function RenderBody(snapshot)
             button.icon:SetTexture(data.icon or 134400)
             button.badge:SetText(data.badge or "")
             ApplyReadinessIconAppearance(button, data.state, size, borderSize)
-            SetAttention(button, data.attention, 2)
+            SetAttention(button, DataValue(data, "attention"), 2)
             button:Show()
             if ns.YieldForBudget then ns.YieldForBudget() end
         end
@@ -1577,40 +1591,42 @@ local function RenderBody(snapshot)
             y = y - sectionHeight - 2
             if not sectionCollapsed then
                 for j = 1, #rows do
-                    rowIndex = rowIndex + 1
                     local data = rows[j]
-                    local row = AcquireRow(rowIndex)
-                    local labelSize = Clamp(data.labelFontSize, 8, 24, Clamp(ns.Get("entryLabelFontSize"), 8, 24, 12))
-                    local detailSize = Clamp(data.detailFontSize, 8, 24, Clamp(ns.Get("entryDetailFontSize"), 8, 24, 10))
-                    local progressHeight = type(data.progress) == "table" and Clamp(data.progress.height, 2, 24, 8) or 0
-                    local rowHeight = math.max(37, labelSize + detailSize + 12 + (progressHeight > 0 and progressHeight + 6 or 0))
-                    local rowIndent = Clamp(data.indentLevel, 0, 4, 0) * 18
-                    local rowContentWidth = math.max(1, contentWidth - rowIndent)
-                    row.data = data
-                    if data.key then visibleRowsByKey[data.key] = row end
-                    row:ClearAllPoints()
-                    row:SetHeight(rowHeight)
-                    row:SetPoint("TOPLEFT", content, "TOPLEFT", rowIndent, y)
-                    row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y)
-                    row.icon:SetTexture(data.icon or 134400)
-                    row.icon:SetShown(not data.hideIcon)
-                    local textLeft = data.hideIcon and 7 or 38
-                    local textRight = data.onDismiss and 26 or 7
-                    row.dismiss:SetShown(type(data.onDismiss) == "function")
-                    row.label:ClearAllPoints()
-                    row.label:SetPoint("TOPLEFT", row, "TOPLEFT", textLeft, -4)
-                    row.label:SetSize(math.max(1, rowContentWidth - textLeft - textRight), labelSize + 3)
-                    row.detail:ClearAllPoints()
-                    row.detail:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -2)
-                    row.detail:SetSize(math.max(1, rowContentWidth - textLeft - textRight), detailSize + 3)
-                    row.label:SetText(data.label or "")
-                    row.detail:SetText(data.detail or "")
-                    row.stripe:SetColorTexture(StateColor(data.state))
-                    ApplyProgress(row, data, rowContentWidth)
-                    SetAttention(row, data.attention, 2)
-                    row:EnableMouse(true)
-                    row:Show()
-                    y = y - rowHeight - 3
+                    if DataVisible(data) then
+                        rowIndex = rowIndex + 1
+                        local row = AcquireRow(rowIndex)
+                        local labelSize = Clamp(data.labelFontSize, 8, 24, Clamp(ns.Get("entryLabelFontSize"), 8, 24, 12))
+                        local detailSize = Clamp(data.detailFontSize, 8, 24, Clamp(ns.Get("entryDetailFontSize"), 8, 24, 10))
+                        local progressHeight = type(data.progress) == "table" and Clamp(data.progress.height, 2, 24, 8) or 0
+                        local rowHeight = math.max(37, labelSize + detailSize + 12 + (progressHeight > 0 and progressHeight + 6 or 0))
+                        local rowIndent = Clamp(data.indentLevel, 0, 4, 0) * 18
+                        local rowContentWidth = math.max(1, contentWidth - rowIndent)
+                        row.data = data
+                        if data.key then visibleRowsByKey[data.key] = row end
+                        row:ClearAllPoints()
+                        row:SetHeight(rowHeight)
+                        row:SetPoint("TOPLEFT", content, "TOPLEFT", rowIndent, y)
+                        row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y)
+                        row.icon:SetTexture(data.icon or 134400)
+                        row.icon:SetShown(not data.hideIcon)
+                        local textLeft = data.hideIcon and 7 or 38
+                        local textRight = data.onDismiss and 26 or 7
+                        row.dismiss:SetShown(type(data.onDismiss) == "function")
+                        row.label:ClearAllPoints()
+                        row.label:SetPoint("TOPLEFT", row, "TOPLEFT", textLeft, -4)
+                        row.label:SetSize(math.max(1, rowContentWidth - textLeft - textRight), labelSize + 3)
+                        row.detail:ClearAllPoints()
+                        row.detail:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -2)
+                        row.detail:SetSize(math.max(1, rowContentWidth - textLeft - textRight), detailSize + 3)
+                        row.label:SetText(DataValue(data, "label") or "")
+                        row.detail:SetText(DataValue(data, "detail") or "")
+                        row.stripe:SetColorTexture(StateColor(data.state))
+                        ApplyProgress(row, data, rowContentWidth)
+                        SetAttention(row, DataValue(data, "attention"), 2)
+                        row:EnableMouse(true)
+                        row:Show()
+                        y = y - rowHeight - 3
+                    end
                     if ns.YieldForBudget then ns.YieldForBudget() end
                 end
             end

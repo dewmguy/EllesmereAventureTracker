@@ -652,75 +652,82 @@ function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
 
     if #direct > 0 then rows[#rows + 1] = CandidateRow(direct[1], 0) end
     if #direct > 1 then
-        local expanded = Expanded(profession)
+        local function DirectExpanded() return Expanded(profession) end
         rows[#rows + 1] = {
             key = "catalog-expand-" .. tostring(profession.skillLineID),
-            label = string.format("%s %d additional attainable recipe%s",
-                expanded and "− Hide" or "+ Show", #direct - 1, #direct == 2 and "" or "s"),
-            detail = expanded
-                and "Hide the additional vendor, quest and object-loot recipes."
-                or "Show additional recipes available from vendors, quests and objects.",
+            label = function()
+                return string.format("%s %d additional attainable recipe%s",
+                    DirectExpanded() and "− Hide" or "+ Show", #direct - 1, #direct == 2 and "" or "s")
+            end,
+            detail = function()
+                return DirectExpanded()
+                    and "Hide the additional vendor, quest and object-loot recipes."
+                    or "Show additional recipes available from vendors, quests and objects."
+            end,
             tooltip = "These recipes are appropriate to your current profession skill and character level.",
             state = "info",
             icon = profession.icon,
             onClick = function() ToggleExpanded(profession) end,
         }
-        if expanded then
-            for index = 2, #direct do
-                rows[#rows + 1] = CandidateRow(direct[index], 1)
-                if ns.YieldForBudget then ns.YieldForBudget() end
-            end
+        for index = 2, #direct do
+            local row = CandidateRow(direct[index], 1)
+            row.visible = DirectExpanded
+            rows[#rows + 1] = row
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
 
     if #merchantFavor > 0 then
-        local expanded = Expanded(profession, "merchant-favor")
+        local function FavorExpanded() return Expanded(profession, "merchant-favor") end
         local bestName = ItemName(merchantFavor[1].entry.productID)
-        local detail
-        if favorQuantity > 0 then
-            detail = string.format("You have %d Merchant's Favor • Best fit: %s.", favorQuantity, bestName)
-        elseif expanded then
-            detail = "Hide recipes purchased with Merchant's Favor."
-        else
-            detail = "Show recipes purchased with Merchant's Favor instead of ordinary coin."
-        end
         rows[#rows + 1] = {
             key = "catalog-merchant-favor-" .. tostring(profession.skillLineID),
-            label = string.format("%s %d Merchant's Favor recipe%s",
-                expanded and "− Hide" or "+ Show", #merchantFavor, #merchantFavor == 1 and "" or "s"),
-            detail = detail,
+            label = function()
+                return string.format("%s %d Merchant's Favor recipe%s",
+                    FavorExpanded() and "− Hide" or "+ Show", #merchantFavor, #merchantFavor == 1 and "" or "s")
+            end,
+            detail = function()
+                if favorQuantity > 0 then
+                    return string.format("You have %d Merchant's Favor • Best fit: %s.", favorQuantity, bestName)
+                end
+                return FavorExpanded() and "Hide recipes purchased with Merchant's Favor."
+                    or "Show recipes purchased with Merchant's Favor instead of ordinary coin."
+            end,
             tooltip = string.format("You currently have %d Merchant's Favor. Recipes are ordered by usefulness for your current character. Check the vendor for the exact Favor cost and reputation requirement.", favorQuantity),
             state = favorQuantity > 0 and "ready" or "info",
             icon = favorIcon or profession.icon,
             onClick = function() ToggleExpanded(profession, "merchant-favor") end,
         }
-        if expanded then
-            for index = 1, #merchantFavor do
-                rows[#rows + 1] = CandidateRow(merchantFavor[index], 1)
-                if ns.YieldForBudget then ns.YieldForBudget() end
-            end
+        for index = 1, #merchantFavor do
+            local row = CandidateRow(merchantFavor[index], 1)
+            row.visible = FavorExpanded
+            rows[#rows + 1] = row
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
 
     if #mobDrops > 0 then
-        local expanded = Expanded(profession, "mob-drops")
+        local function MobDropsExpanded() return Expanded(profession, "mob-drops") end
         rows[#rows + 1] = {
             key = "catalog-mob-drops-" .. tostring(profession.skillLineID),
-            label = string.format("%s %d available mob-drop recipe%s",
-                expanded and "− Hide" or "+ Show", #mobDrops, #mobDrops == 1 and "" or "s"),
-            detail = expanded
-                and "Hide recipes obtained from enemies."
-                or "Show recipes obtained from enemies, including each mob and zone.",
+            label = function()
+                return string.format("%s %d available mob-drop recipe%s",
+                    MobDropsExpanded() and "− Hide" or "+ Show", #mobDrops, #mobDrops == 1 and "" or "s")
+            end,
+            detail = function()
+                return MobDropsExpanded() and "Hide recipes obtained from enemies."
+                    or "Show recipes obtained from enemies, including each mob and zone."
+            end,
             tooltip = "Expand this list to see which enemies drop these recipes and where those enemies are found.",
             state = "info",
             icon = profession.icon,
             onClick = function() ToggleExpanded(profession, "mob-drops") end,
         }
-        if expanded then
-            for index = 1, #mobDrops do
-                rows[#rows + 1] = CandidateRow(mobDrops[index], 1)
-                if ns.YieldForBudget then ns.YieldForBudget() end
-            end
+        for index = 1, #mobDrops do
+            local row = CandidateRow(mobDrops[index], 1)
+            row.visible = MobDropsExpanded
+            rows[#rows + 1] = row
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
     end
 end

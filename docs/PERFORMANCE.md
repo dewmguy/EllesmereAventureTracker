@@ -6,7 +6,8 @@ presentation timers into repeated database queries.
 
 ## Runtime rules
 
-- All variable-size runtime work shares a 0.35 ms frame budget. Providers,
+- All variable-size runtime work shares a configurable 5–25% of the current
+  frame time (10% by default), clamped between 0.35 and 4.00 ms. Providers,
   Questie indexing, inventory signatures, trainer/profession capture, large
   sorts and pane rendering must call `ns.YieldForBudget()` at safe record or UI
   element boundaries. They resume on a later frame through the central keyed
@@ -98,7 +99,7 @@ reproduce an interaction, then use `/at profile report` to print last, average
 and maximum active milliseconds for each budgeted task. Providers appear as
 `provider:<id>`; layout is `Render`; inventory, trainer and profession capture
 have their own names. A `runtime-overrun:<task>` entry means one uninterrupted
-resume exceeded the 0.35 ms target and identifies the remaining atomic hot
+resume exceeded the current dynamic frame target and identifies the remaining atomic hot
 path. Use `/at profile` again to disable profiling.
 
 ## Validation matrix

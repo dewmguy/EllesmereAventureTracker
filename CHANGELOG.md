@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.12 - 2026-11-27
+
+- Raised the shared runtime work allowance to 10% of the current frame time by
+  default and added a 5–25% performance slider for further testing. The runtime
+  retains an absolute 0.35–4.00 millisecond stutter safety range.
+- Made profession trainer recipes, class-trainer skills, zone quest lists and
+  attainable, Merchant's Favor and mob-drop recipe groups expand from their
+  already-built provider results without recalculating their data providers.
+- Kept genuine character, quest, profession, trainer and login changes on the
+  existing provider-invalidation path so cached lists still refresh when their
+  underlying information changes.
+
 ## 0.9.11 - 2026-11-27
 
 - Restored Enchanting trainer recipes to the collapsible profession summary.

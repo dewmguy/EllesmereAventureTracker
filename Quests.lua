@@ -89,7 +89,7 @@ local function ToggleExpanded(areaID)
     local key = CharacterZoneKey(areaID)
     copy[key] = not (copy[key] == true)
     ns.Set("zoneQuestExpandedByCharacter", copy, true)
-    if ns.RequestRefresh then ns.RequestRefresh("zone-quests", "zone quest expansion") end
+    if ns.RequestRefresh then ns.RequestRefresh(false, "zone quest expansion") end
 end
 
 local function PlayerIsOnTaxi()
@@ -812,25 +812,31 @@ local function Build()
     for zoneIndex = 1, #populated do
         local zone = populated[zoneIndex]
         local zoneAreaID = zone.areaID
-        local expanded = IsExpanded(zoneAreaID)
+        local function ZoneExpanded() return IsExpanded(zoneAreaID) end
         rows[#rows + 1] = {
             key = "zone-quests-summary-" .. tostring(zoneAreaID),
-            label = string.format("%s %d %s quest%s available", expanded and "−" or "+",
-                #zone.candidates, zone.name, #zone.candidates == 1 and "" or "s"),
+            label = function()
+                return string.format("%s %d %s quest%s available", ZoneExpanded() and "−" or "+",
+                    #zone.candidates, zone.name, #zone.candidates == 1 and "" or "s")
+            end,
             detail = RewardSummary(zone.totalXP, zone.totalMoney, zone.moneyKnown),
-            tooltip = expanded
-                and string.format("Collapse the available quests in %s.", zone.name)
-                or string.format("Expand the available quests in %s.", zone.name),
-            clickHint = expanded and "Click to collapse this zone." or "Click to expand this zone.",
+            tooltip = function()
+                return ZoneExpanded()
+                    and string.format("Collapse the available quests in %s.", zone.name)
+                    or string.format("Expand the available quests in %s.", zone.name)
+            end,
+            clickHint = function()
+                return ZoneExpanded() and "Click to collapse this zone." or "Click to expand this zone."
+            end,
             state = "info",
             icon = zone.candidates[1].icon or QUEST_ICON,
             onClick = function() ToggleExpanded(zoneAreaID) end,
         }
-        if expanded then
-            for candidateIndex = 1, #zone.candidates do
-                rows[#rows + 1] = QuestRow(zone.candidates[candidateIndex])
-                if ns.YieldForBudget then ns.YieldForBudget() end
-            end
+        for candidateIndex = 1, #zone.candidates do
+            local row = QuestRow(zone.candidates[candidateIndex])
+            row.visible = ZoneExpanded
+            rows[#rows + 1] = row
+            if ns.YieldForBudget then ns.YieldForBudget() end
         end
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
