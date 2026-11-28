@@ -1008,7 +1008,8 @@ function ns.ResolveTrackerDataValue(data, key)
     local value = data[key]
     if type(value) ~= "function" then return value end
     local ok, resolved = pcall(value, data)
-    return ok and resolved or nil
+    if not ok then return nil end
+    return resolved
 end
 
 function ns.IsTrackerDataVisible(data)

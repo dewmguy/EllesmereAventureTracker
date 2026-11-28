@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.14 - 2026-11-27
+
+- Fixed all cached disclosure children being treated as visible when their
+  dynamic visibility function explicitly returned false.
+- Restored collapsed-by-default behavior and made both expansion and collapse
+  actually show or hide class skills, profession recipes, zone quests and
+  recipe-opportunity lists.
+
 ## 0.9.13 - 2026-11-27
 
 - Fixed summary rows that could appear unable to expand or collapse while an
