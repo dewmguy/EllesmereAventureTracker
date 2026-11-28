@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.13 - 2026-11-27
+
+- Fixed summary rows that could appear unable to expand or collapse while an
+  older time-sliced tracker render was still ahead of the interaction.
+- Prioritized interactive presentation renders within the existing frame-time
+  safety budget without recalculating quest, profession or recipe providers.
+- Added an animated activity indicator to the right of class-trainer,
+  profession-trainer, zone-quest and recipe disclosure rows. It remains visible
+  until the requested expanded or collapsed layout has actually finished.
+- Prioritized section-header expansion and collapse through the same lightweight
+  presentation path.
+
 ## 0.9.12 - 2026-11-27
 
 - Raised the shared runtime work allowance to 10% of the current frame time by

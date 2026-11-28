@@ -135,6 +135,7 @@ playtimeText:SetWordWrap(true)
 local iconPool, sectionPool, rowPool = {}, {}, {}
 local visibleRowsByKey = {}
 local visibleIconsByKey, visibleSectionsByID = {}, {}
+local pendingDisclosuresByKey = {}
 local renderInProgress = false
 local skin
 local UpdateLockFade
@@ -296,6 +297,25 @@ local function DataVisible(data)
     return DataValue(data, "visible") ~= false
 end
 
+local function SetDisclosureActivity(row, active)
+    if not (row and row.activity) then return end
+    row.activity:SetShown(active == true)
+    if not row.activity.animation then return end
+    if active then
+        if not row.activity.animation:IsPlaying() then row.activity.animation:Play() end
+    else
+        row.activity.animation:Stop()
+        row.activity:SetAlpha(1)
+    end
+end
+
+local function BeginDisclosureInteraction(row, data)
+    if not (data and data.disclosure and data.key) then return end
+    local currentlyExpanded = DataValue(data, "expanded") == true
+    pendingDisclosuresByKey[data.key] = { expected = not currentlyExpanded }
+    SetDisclosureActivity(row, true)
+end
+
 local function ShowTooltip(owner, data)
     if type(data.tooltipFunc) == "function" then
         local ok, handled = pcall(data.tooltipFunc, owner)
@@ -321,6 +341,9 @@ local function ShowTooltip(owner, data)
     local clickHint = data.onClick and (DataValue(data, "clickHint") or "Click to open.")
         or (owner._secureAction and data.secureClickHint)
     if clickHint then GameTooltip:AddLine(clickHint, 0.55, 0.82, 1) end
+    if data.key and pendingDisclosuresByKey[data.key] then
+        GameTooltip:AddLine("Updating this list...", 1, 0.82, 0.24)
+    end
     GameTooltip:Show()
 end
 
@@ -594,6 +617,17 @@ local function AcquireRow(index)
         if data and data.onDismiss then data.onDismiss() end
     end)
     row.dismiss:Hide()
+    row.activity = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.activity:SetPoint("RIGHT", row, "RIGHT", -7, 0)
+    row.activity:SetText("...")
+    row.activity:SetTextColor(1, 0.82, 0.24)
+    row.activity.animation = row.activity:CreateAnimationGroup()
+    row.activity.animation:SetLooping("BOUNCE")
+    local activityFade = row.activity.animation:CreateAnimation("Alpha")
+    activityFade:SetFromAlpha(0.25)
+    activityFade:SetToAlpha(1)
+    activityFade:SetDuration(0.45)
+    row.activity:Hide()
     row.progress = CreateFrame("StatusBar", nil, row, "BackdropTemplate")
     row.progress:SetMinMaxValues(0, 1)
     row.progress:SetValue(0)
@@ -617,7 +651,16 @@ local function AcquireRow(index)
     end)
     row:SetScript("OnClick", function(self)
         if self._trackerDragged then return end
-        if self.data and self.data.onClick then self.data.onClick() end
+        if self.data and self.data.onClick then
+            BeginDisclosureInteraction(self, self.data)
+            local ok, message = pcall(self.data.onClick)
+            if not ok then
+                if self.data.key then pendingDisclosuresByKey[self.data.key] = nil end
+                SetDisclosureActivity(self, false)
+                local handler = geterrorhandler and geterrorhandler()
+                if type(handler) == "function" then handler(message) end
+            end
+        end
     end)
     if RegisterDragSurface then RegisterDragSurface(row) end
     rowPool[index] = row
@@ -649,6 +692,7 @@ local function HideUnusedPools(iconCount, sectionCount, rowCount)
     end
     for i = (rowCount or 0) + 1, #rowPool do
         SetAttention(rowPool[i], nil)
+        SetDisclosureActivity(rowPool[i], false)
         rowPool[i]:Hide()
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
@@ -878,7 +922,11 @@ local function ToggleSection(sectionID)
     end
     local character = db.collapsedSectionsByCharacter[characterKey]
     character[sectionID] = not SectionCollapsed(sectionID)
-    if ns.RequestRefresh then ns.RequestRefresh(false, "section collapse") end
+    if ns.RequestPresentationRefresh then
+        ns.RequestPresentationRefresh("section collapse")
+    elseif ns.RequestRefresh then
+        ns.RequestRefresh(false, "section collapse")
+    end
 end
 
 local function SectionAttention(rows)
@@ -1473,6 +1521,7 @@ end
 local function RenderBody(snapshot)
     if HideSecureActionButtons then HideSecureActionButtons() end
     BeginPoolRender()
+    local renderedDisclosures = {}
     SetAttention(collapseButton, nil)
     if not BaseVisibilityAllows() then frame:Hide(); return end
     if ns.Get("hideWhenReady") and not snapshot.actionable and not snapshot.forceVisible then frame:Hide(); return end
@@ -1610,8 +1659,12 @@ local function RenderBody(snapshot)
                         row.icon:SetTexture(data.icon or 134400)
                         row.icon:SetShown(not data.hideIcon)
                         local textLeft = data.hideIcon and 7 or 38
-                        local textRight = data.onDismiss and 26 or 7
+                        local textRight = (data.onDismiss or data.disclosure) and 26 or 7
                         row.dismiss:SetShown(type(data.onDismiss) == "function")
+                        if data.disclosure and data.key then
+                            renderedDisclosures[data.key] = DataValue(data, "expanded") == true
+                        end
+                        SetDisclosureActivity(row, data.key and pendingDisclosuresByKey[data.key] ~= nil)
                         row.label:ClearAllPoints()
                         row.label:SetPoint("TOPLEFT", row, "TOPLEFT", textLeft, -4)
                         row.label:SetSize(math.max(1, rowContentWidth - textLeft - textRight), labelSize + 3)
@@ -1651,9 +1704,16 @@ local function RenderBody(snapshot)
     SetScroll(scrollFrame:GetVerticalScroll())
     if QueueSecureActionSync then QueueSecureActionSync() end
     UpdateLockFade()
+    for key, pending in pairs(pendingDisclosuresByKey) do
+        local renderedState = renderedDisclosures[key]
+        if renderedState == nil or renderedState == pending.expected then
+            pendingDisclosuresByKey[key] = nil
+            SetDisclosureActivity(visibleRowsByKey[key], false)
+        end
+    end
 end
 
-function ns.RequestRender(reason)
+function ns.RequestRender(reason, priority)
     reason = reason or "tracker render"
     if not ns.QueueBudgetedWork then return end
     ns.QueueBudgetedWork("Render", function()
@@ -1666,7 +1726,11 @@ function ns.RequestRender(reason)
         renderInProgress = false
         local handler = geterrorhandler and geterrorhandler()
         if type(handler) == "function" then handler(message) end
-    end)
+    end, priority == true)
+end
+
+function ns.RequestPresentationRefresh(reason)
+    ns.RequestRender(reason or "interactive presentation refresh", true)
 end
 
 function ns.ApplySettings()

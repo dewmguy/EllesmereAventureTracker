@@ -321,7 +321,11 @@ local function ToggleProfessionTrainer(skillLineID)
     local character = db.professionTrainerExpandedByCharacter[characterKey]
     local cacheKey = tostring(skillLineID)
     character[cacheKey] = not ProfessionTrainerExpanded(skillLineID)
-    if ns.RequestRefresh then ns.RequestRefresh(false, "profession trainer expansion") end
+    if ns.RequestPresentationRefresh then
+        ns.RequestPresentationRefresh("profession trainer expansion")
+    elseif ns.RequestRefresh then
+        ns.RequestRefresh(false, "profession trainer expansion")
+    end
 end
 
 local function CleanTrainerTooltipText(value)
@@ -1324,6 +1328,8 @@ local function AddTrainerRecipeRows(rows, profession)
             return ExpandedNow() and "Click to collapse trainer recipes." or "Click to expand trainer recipes."
         end,
         onClick = function() ToggleProfessionTrainer(profession.skillLineID) end,
+        disclosure = true,
+        expanded = ExpandedNow,
         state = "warning",
         icon = profession.icon,
     }

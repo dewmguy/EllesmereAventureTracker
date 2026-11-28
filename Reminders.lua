@@ -85,7 +85,11 @@ local function ToggleTrainerSkills()
     local expanding = not TrainerSkillsExpanded()
     db.classTrainerExpandedByCharacter[key] = expanding
     if expanding and ClearTrainerSkillAttention then ClearTrainerSkillAttention() end
-    if ns.RequestRefresh then ns.RequestRefresh(false, "class trainer expansion") end
+    if ns.RequestPresentationRefresh then
+        ns.RequestPresentationRefresh("class trainer expansion")
+    elseif ns.RequestRefresh then
+        ns.RequestRefresh(false, "class trainer expansion")
+    end
 end
 
 local function CleanTrainerTooltipText(value)
@@ -582,6 +586,8 @@ local function Build()
                         or "Click to expand class-trainer skills."
                 end,
                 onClick = ToggleTrainerSkills,
+                disclosure = true,
+                expanded = ExpandedNow,
                 state = "warning",
                 attention = function()
                     return not ExpandedNow() and NewServiceCount() > 0 and "warning" or nil

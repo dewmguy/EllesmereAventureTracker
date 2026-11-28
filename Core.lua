@@ -613,13 +613,27 @@ local function ReportWorkError(entry, message)
     if type(handler) == "function" then handler(message) end
 end
 
+local function RemoveQueuedEntry(entry)
+    for index = 1, #workQueue do
+        if workQueue[index] == entry then
+            table.remove(workQueue, index)
+            return true
+        end
+    end
+    return false
+end
+
 local function EnqueueWorkEntry(entry)
     workByKey[entry.key] = entry
-    workQueue[#workQueue + 1] = entry
+    if entry.priority then
+        table.insert(workQueue, 1, entry)
+    else
+        workQueue[#workQueue + 1] = entry
+    end
     worker:Show()
 end
 
-function ns.QueueBudgetedWork(key, work, onComplete, canRun, onError)
+function ns.QueueBudgetedWork(key, work, onComplete, canRun, onError, priority)
     if type(key) ~= "string" or type(work) ~= "function" then return false end
     local existing = workByKey[key]
     if existing then
@@ -628,19 +642,30 @@ function ns.QueueBudgetedWork(key, work, onComplete, canRun, onError)
             existing.onComplete = onComplete
             existing.canRun = canRun
             existing.onError = onError
+            if priority then
+                existing.priority = true
+                if RemoveQueuedEntry(existing) then table.insert(workQueue, 1, existing) end
+                worker:Show()
+            end
             return true
         end
         -- Coalesce arbitrarily many requests into one latest rerun. The active
         -- coroutine is allowed to finish so it cannot leave a half-applied UI.
+        local rerunPriority = priority == true or (existing.rerun and existing.rerun.priority == true)
         existing.rerun = {
             key = key, work = work, onComplete = onComplete,
-            canRun = canRun, onError = onError,
+            canRun = canRun, onError = onError, priority = rerunPriority,
         }
+        if priority then
+            existing.priority = true
+            if RemoveQueuedEntry(existing) then table.insert(workQueue, 1, existing) end
+            worker:Show()
+        end
         return true
     end
     EnqueueWorkEntry({
         key = key, work = work, onComplete = onComplete,
-        canRun = canRun, onError = onError,
+        canRun = canRun, onError = onError, priority = priority == true,
     })
     return true
 end
@@ -695,7 +720,11 @@ worker:SetScript("OnUpdate", function(self)
                     entry.onComplete(unpack(resumed))
                 end
             else
-                workQueue[#workQueue + 1] = entry
+                if entry.priority then
+                    table.insert(workQueue, 1, entry)
+                else
+                    workQueue[#workQueue + 1] = entry
+                end
                 -- Yielding means this work consumed its slice. Never resume it
                 -- twice in the same frame even if the timer granularity rounds
                 -- the measured duration down.

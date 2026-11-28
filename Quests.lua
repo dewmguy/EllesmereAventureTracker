@@ -89,7 +89,11 @@ local function ToggleExpanded(areaID)
     local key = CharacterZoneKey(areaID)
     copy[key] = not (copy[key] == true)
     ns.Set("zoneQuestExpandedByCharacter", copy, true)
-    if ns.RequestRefresh then ns.RequestRefresh(false, "zone quest expansion") end
+    if ns.RequestPresentationRefresh then
+        ns.RequestPresentationRefresh("zone quest expansion")
+    elseif ns.RequestRefresh then
+        ns.RequestRefresh(false, "zone quest expansion")
+    end
 end
 
 local function PlayerIsOnTaxi()
@@ -831,6 +835,8 @@ local function Build()
             state = "info",
             icon = zone.candidates[1].icon or QUEST_ICON,
             onClick = function() ToggleExpanded(zoneAreaID) end,
+            disclosure = true,
+            expanded = ZoneExpanded,
         }
         for candidateIndex = 1, #zone.candidates do
             local row = QuestRow(zone.candidates[candidateIndex])

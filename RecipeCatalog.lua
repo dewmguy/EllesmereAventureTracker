@@ -434,7 +434,12 @@ local function ToggleExpanded(profession, group)
     end
     local key = ExpansionKey(profession, group)
     copy[key] = not (copy[key] == true)
-    ns.Set("professionRecipeCatalogExpandedByCharacter", copy)
+    ns.Set("professionRecipeCatalogExpandedByCharacter", copy, true)
+    if ns.RequestPresentationRefresh then
+        ns.RequestPresentationRefresh("profession recipe expansion")
+    elseif ns.RequestRefresh then
+        ns.RequestRefresh(false, "profession recipe expansion")
+    end
 end
 
 local function CrossProfessionSynergy(profession, professions)
@@ -668,6 +673,8 @@ function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
             state = "info",
             icon = profession.icon,
             onClick = function() ToggleExpanded(profession) end,
+            disclosure = true,
+            expanded = DirectExpanded,
         }
         for index = 2, #direct do
             local row = CandidateRow(direct[index], 1)
@@ -697,6 +704,8 @@ function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
             state = favorQuantity > 0 and "ready" or "info",
             icon = favorIcon or profession.icon,
             onClick = function() ToggleExpanded(profession, "merchant-favor") end,
+            disclosure = true,
+            expanded = FavorExpanded,
         }
         for index = 1, #merchantFavor do
             local row = CandidateRow(merchantFavor[index], 1)
@@ -722,6 +731,8 @@ function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
             state = "info",
             icon = profession.icon,
             onClick = function() ToggleExpanded(profession, "mob-drops") end,
+            disclosure = true,
+            expanded = MobDropsExpanded,
         }
         for index = 1, #mobDrops do
             local row = CandidateRow(mobDrops[index], 1)
