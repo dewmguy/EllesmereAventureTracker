@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.23 - 2026-11-28
+
+- Made the Wowhead URL copy prompt a compact, single-line dialog while keeping
+  the larger multiline window for exporting quest issue reports.
+
 ## 0.9.22 - 2026-11-28
 
 - Replaced the generic "current-zone quests available" summary wording with

@@ -447,14 +447,33 @@ local function CreateCopyFrame()
     return frame
 end
 
-local function ShowCopyText(title, instructions, value, showClear)
+local function ShowCopyText(title, instructions, value, showClear, compact)
     local frame = CreateCopyFrame()
     frame.title:SetText(title)
     frame.instructions:SetText(instructions)
     frame.clear:SetShown(showClear == true)
+    frame.scroll:ClearAllPoints()
+    if compact then
+        frame:SetSize(500, 148)
+        frame.scroll:SetPoint("TOPLEFT", 14, -68)
+        frame.scroll:SetPoint("BOTTOMRIGHT", -34, 48)
+        frame.edit:SetMultiLine(false)
+        frame.edit:SetWidth(430)
+        frame.edit:SetHeight(28)
+        frame.select:SetText("Select URL")
+    else
+        frame:SetSize(650, 430)
+        frame.scroll:SetPoint("TOPLEFT", 14, -72)
+        frame.scroll:SetPoint("BOTTOMRIGHT", -34, 48)
+        frame.edit:SetMultiLine(true)
+        frame.edit:SetWidth(590)
+        frame.select:SetText("Select All")
+    end
     value = tostring(value or "")
     local _, breaks = value:gsub("\n", "\n")
-    frame.edit:SetHeight(math.max(290, (breaks + 3) * 15))
+    if not compact then
+        frame.edit:SetHeight(math.max(290, (breaks + 3) * 15))
+    end
     frame.edit:SetText(value)
     frame:Show()
     frame:Raise()
@@ -465,14 +484,14 @@ end
 function ns.ShowQuestReportExport()
     ShowCopyText("Quest Issue Reports",
         "The batch is selected. Press Ctrl+C, then paste it into a message when you want the reports investigated.",
-        BuildReportExport(), true)
+        BuildReportExport(), true, false)
 end
 
 function ns.ShowQuestWowheadURL(questID)
     questID = tonumber(questID)
     if not questID then return end
     ShowCopyText("Wowhead Quest Link", "The URL is selected. Press Ctrl+C to copy it.",
-        string.format(WOWHEAD_QUEST_URL, questID), false)
+        string.format(WOWHEAD_QUEST_URL, questID), false, true)
 end
 
 function ns.ShowQuestContextMenu(owner, context)
