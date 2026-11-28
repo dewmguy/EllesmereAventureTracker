@@ -46,16 +46,9 @@ end
 
 local function AppearanceSet(key, value, refreshPage)
     ns.Set(key, value, true)
+    if ns.InvalidateForSetting then ns.InvalidateForSetting(key, "appearance setting") end
     if ns.ApplySettings then ns.ApplySettings() end
     if refreshPage and EUI.RefreshPage then EUI:RefreshPage() end
-end
-
-local function StyleToggle(key, text, tooltip, disabled, refreshPage)
-    return {
-        type = "toggle", text = text, tooltip = tooltip, disabled = disabled,
-        getValue = function() return ns.Get(key) == true end,
-        setValue = function(value) AppearanceSet(key, value, refreshPage) end,
-    }
 end
 
 local function Dropdown(key, text, values, order, tooltip, disabled, refreshPage)
@@ -67,37 +60,7 @@ local function Dropdown(key, text, values, order, tooltip, disabled, refreshPage
     }
 end
 
-local function ColorPicker(key, text, tooltip, hasAlpha, disabled)
-    return {
-        type = "colorpicker", text = text, tooltip = tooltip,
-        hasAlpha = hasAlpha, disabled = disabled,
-        getValue = function()
-            local color = ns.Get(key)
-            local fallback = ns.DEFAULTS[key] or {}
-            if type(color) ~= "table" then color = fallback end
-            return color.r or fallback.r or 1, color.g or fallback.g or 1,
-                color.b or fallback.b or 1, color.a == nil and (fallback.a or 1) or color.a
-        end,
-        setValue = function(r, g, b, a)
-            AppearanceSet(key, { r = r, g = g, b = b, a = a or 1 })
-        end,
-    }
-end
-
-local COLOR_MODE_VALUES = { custom = "Custom", class = "Class Color", accent = "Accent Color" }
-local COLOR_MODE_ORDER = { "custom", "class", "accent" }
-
-local function TextColorMode(key, text, tooltip, disabled)
-    return Dropdown(key, text, COLOR_MODE_VALUES, COLOR_MODE_ORDER, tooltip, disabled, true)
-end
-
-local function CustomColorDisabled(modeKey, additionalDisabled)
-    return function()
-        return ns.Get(modeKey) ~= "custom" or (additionalDisabled and additionalDisabled())
-    end
-end
-
-local function TextColorSwatches(modeKey, colorKey, text, disabled)
+local function ColorSwatches(modeKey, colorKey, text, disabled)
     local function SetMode(mode)
         AppearanceSet(modeKey, mode, true)
     end
@@ -160,17 +123,20 @@ end
 
 local TRACKER_KEYS = {
     "enabled", "locked", "width", "scale", "frameStrata", "maximizePaneHeight", "paneGrowthDirection", "paneHeightLimitMode", "paneHeightLimitPercent", "paneHeightLimitPixels", "opacity", "position", "hideInCombat", "hideInInstances", "hideWhenReady", "showContext", "collapsedSectionsByCharacter",
-    "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor", "entryBackgroundColor", "entryHoverBackgroundColor",
-    "borderTexture", "borderSize", "borderColor", "titleBarMode", "titleBarHeight", "titleBarColor",
+    "panePadding", "backgroundColorMode", "backgroundColor", "sectionBackgroundColorMode", "sectionBackgroundColor",
+    "sectionHoverBackgroundColorMode", "sectionHoverBackgroundColor", "entryBackgroundColorMode", "entryBackgroundColor",
+    "entryHoverBackgroundColorMode", "entryHoverBackgroundColor", "borderTexture", "borderSize", "borderColorMode", "borderColor",
+    "titleBarMode", "titleBarHeight", "titleBarColorMode", "titleBarColor",
     "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize", "contextFontSize", "statusTextAlignment", "contextTextColorMode", "contextTextColor",
     "sectionFontSize", "sectionTextColorMode", "sectionTextColor", "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor",
     "entryDetailFontSize", "entryDetailTextColorMode", "entryDetailTextColor",
-    "titleAlignment", "showTitleText", "titleSeparatorSize", "titleSeparatorColor", "runtimeFrameBudgetPercent",
+    "titleAlignment", "titleSeparatorSize", "titleSeparatorColorMode", "titleSeparatorColor", "runtimeFrameBudgetPercent",
 }
 local READINESS_KEYS = {
     "showReadiness", "readinessIconSize", "readinessIconSpacing", "readinessIconBorderTexture", "readinessIconBorderSize",
-    "readinessIconReadyBorderColor", "readinessIconWarningBorderColor", "readinessIconMissingBorderColor",
-    "readinessIconUnavailableBorderColor", "readinessIconUnknownBorderColor", "readinessIconInfoBorderColor",
+    "readinessIconReadyBorderColorMode", "readinessIconReadyBorderColor", "readinessIconWarningBorderColorMode", "readinessIconWarningBorderColor",
+    "readinessIconMissingBorderColorMode", "readinessIconMissingBorderColor", "readinessIconUnavailableBorderColorMode", "readinessIconUnavailableBorderColor",
+    "readinessIconUnknownBorderColorMode", "readinessIconUnknownBorderColor", "readinessIconInfoBorderColorMode", "readinessIconInfoBorderColor",
     "badgeFontSize", "badgeTextColorMode", "badgeTextColor", "badgeAnchor", "badgeOffsetX", "badgeOffsetY",
     "trackCamp", "trackSleepingBag", "trackFood", "trackClassBuffs", "trackWeaponEnhancements", "readinessWarnMinutes",
     "showCompletedReadiness", "roleByCharacter", "lastClassBuffSpellsByCharacter", "roleCriticalAlerts", "roleAlertMinDuration", "trackPartyClassBuffs",
@@ -187,7 +153,8 @@ local INSTANCE_KEYS = { "showInstances", "showInstanceRunTimer", "showInstanceBo
 local FLIGHT_KEYS = {
     "showFlightTimer", "flightTimerShowDestination", "flightTimerShowElapsed", "flightTimerShowRemaining", "flightTimerShowTotal",
     "flightTimerLearnTimes", "flightTimerShowIcon", "flightTimerBarHeight", "flightTimerBarTexture", "flightTimerFillColorMode",
-    "flightTimerFillColor", "flightTimerBackgroundColor", "flightTimerBorderTexture", "flightTimerBorderSize", "flightTimerBorderColor",
+    "flightTimerFillColor", "flightTimerBackgroundColorMode", "flightTimerBackgroundColor", "flightTimerBorderTexture", "flightTimerBorderSize",
+    "flightTimerBorderColorMode", "flightTimerBorderColor",
     "flightTimerFont", "flightTimerFontOutline", "flightTimerDestinationFontSize", "flightTimerTimeFontSize",
     "flightTimerDestinationColorMode", "flightTimerDestinationColor", "flightTimerTimeColorMode", "flightTimerTimeColor",
 }
@@ -224,13 +191,14 @@ local function BuildTracker(pageName, parent, yOffset)
           onClick = function() ns.ResetKeys({ "position", "width", "scale", "maximizePaneHeight", "paneGrowthDirection", "paneHeightLimitMode", "paneHeightLimitPercent", "paneHeightLimitPixels" }) end },
         { type = "button", text = "Reset Appearance", tooltip = "Restores spacing, backgrounds, border, title bar and text defaults.",
           onClick = function()
-              ns.ResetKeys({ "frameStrata", "opacity", "panePadding", "backgroundColor", "sectionBackgroundColor", "sectionHoverBackgroundColor",
-                  "entryBackgroundColor", "entryHoverBackgroundColor", "borderTexture", "borderSize", "borderColor", "titleBarMode",
-                  "titleBarHeight", "titleBarColor", "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize",
+              ns.ResetKeys({ "frameStrata", "opacity", "panePadding", "backgroundColorMode", "backgroundColor",
+                  "sectionBackgroundColorMode", "sectionBackgroundColor", "sectionHoverBackgroundColorMode", "sectionHoverBackgroundColor",
+                  "entryBackgroundColorMode", "entryBackgroundColor", "entryHoverBackgroundColorMode", "entryHoverBackgroundColor",
+                  "borderTexture", "borderSize", "borderColorMode", "borderColor", "titleBarMode",
+                  "titleBarHeight", "titleBarColorMode", "titleBarColor", "titleTextColorMode", "titleTextColor", "textFont", "textOutline", "titleFontSize",
                   "contextFontSize", "statusTextAlignment", "contextTextColorMode", "contextTextColor", "sectionFontSize", "sectionTextColorMode", "sectionTextColor",
                   "entryLabelFontSize", "entryLabelTextColorMode", "entryLabelTextColor", "entryDetailFontSize", "entryDetailTextColorMode",
-                  "entryDetailTextColor", "titleAlignment", "showTitleText",
-                  "titleSeparatorSize", "titleSeparatorColor" })
+                  "entryDetailTextColor", "titleAlignment", "titleSeparatorSize", "titleSeparatorColorMode", "titleSeparatorColor" })
           end })
     y = y - h
 
@@ -273,16 +241,16 @@ local function BuildTracker(pageName, parent, yOffset)
 
     _, h = W:SectionHeader(parent, "BACKGROUNDS", y); y = y - h
     _, h = W:DualRow(parent, y,
-        ColorPicker("backgroundColor", "Main Pane Background", "Color and alpha behind the tracker contents.", true),
+        ColorSwatches("backgroundColorMode", "backgroundColor", "Main Pane Background"),
         Slider("opacity", "Main Pane Opacity", 0.00, 1.00, 0.05, "Additional opacity for only the main pane background; text, title and entry backgrounds are unaffected."))
     y = y - h
     _, h = W:DualRow(parent, y,
-        ColorPicker("sectionBackgroundColor", "Section Background", "Normal color and alpha behind section titles.", true),
-        ColorPicker("sectionHoverBackgroundColor", "Section Hover Background", "Color and alpha behind a section title while hovered.", true))
+        ColorSwatches("sectionBackgroundColorMode", "sectionBackgroundColor", "Section Background"),
+        ColorSwatches("sectionHoverBackgroundColorMode", "sectionHoverBackgroundColor", "Section Hover Background"))
     y = y - h
     _, h = W:DualRow(parent, y,
-        ColorPicker("entryBackgroundColor", "Entry Background", "Normal color and alpha behind recommendation entries.", true),
-        ColorPicker("entryHoverBackgroundColor", "Entry Hover Background", "Color and alpha behind a recommendation while hovered.", true))
+        ColorSwatches("entryBackgroundColorMode", "entryBackgroundColor", "Entry Background"),
+        ColorSwatches("entryHoverBackgroundColorMode", "entryHoverBackgroundColor", "Entry Hover Background"))
     y = y - h
 
     _, h = W:SectionHeader(parent, "BORDER", y); y = y - h
@@ -291,14 +259,12 @@ local function BuildTracker(pageName, parent, yOffset)
         Slider("borderSize", "Border Size", 0, 4, 1, "Set to zero to hide the window border."))
     y = y - h
     _, h = W:DualRow(parent, y,
-        ColorPicker("borderColor", "Border Color", "Border color and opacity.", true, function() return (tonumber(ns.Get("borderSize")) or 0) <= 0 end),
+        ColorSwatches("borderColorMode", "borderColor", "Border Color", function() return (tonumber(ns.Get("borderSize")) or 0) <= 0 end),
         nil)
     y = y - h
 
     local titleHidden = function() return ns.Get("titleBarMode") == "hidden" end
     local titleNotFilled = function() return ns.Get("titleBarMode") ~= "filled" end
-    local titleTextHidden = function() return titleHidden() or not ns.Get("showTitleText") end
-    local customTitleColorDisabled = function() return ns.Get("titleTextColorMode") ~= "custom" end
     _, h = W:SectionHeader(parent, "TITLE BAR", y); y = y - h
     _, h = W:DualRow(parent, y,
         Dropdown("titleBarMode", "Title Bar", { filled = "Filled", transparent = "Transparent", hidden = "Hidden" },
@@ -306,24 +272,17 @@ local function BuildTracker(pageName, parent, yOffset)
         Slider("titleBarHeight", "Title Bar Height", 20, 40, 1, "Height of the title bar.", titleHidden))
     y = y - h
     _, h = W:DualRow(parent, y,
-        ColorPicker("titleBarColor", "Title Bar Color", "Filled title bar color and opacity.", true, titleNotFilled),
-        StyleToggle("showTitleText", "Show Title Text", "Shows Adventure Tracker in the title bar.", titleHidden, true))
-    y = y - h
-    _, h = W:DualRow(parent, y,
-        Dropdown("titleTextColorMode", "Title and Minimize Color",
-            { custom = "Custom", class = "Class Color", accent = "Accent Color" },
-            { "custom", "class", "accent" }, "Colors the title and Quest Tracker-style collapse glyph.", nil, true),
-        ColorPicker("titleTextColor", "Custom Title Color", "Custom color shared by the title and collapse glyph.", true,
-            customTitleColorDisabled))
+        ColorSwatches("titleBarColorMode", "titleBarColor", "Title Bar Color", titleNotFilled),
+        ColorSwatches("titleTextColorMode", "titleTextColor", "Title and Minimize Color"))
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("titleFontSize", "Title Font Size", 8, 24, 1, "Font size shared by the title and collapse glyph."),
         Dropdown("titleAlignment", "Title Alignment", { LEFT = "Left", CENTER = "Center", RIGHT = "Right" },
-            { "LEFT", "CENTER", "RIGHT" }, "Horizontal title alignment.", titleTextHidden))
+            { "LEFT", "CENTER", "RIGHT" }, "Horizontal title alignment.", titleHidden))
     y = y - h
     _, h = W:DualRow(parent, y,
-        Slider("titleSeparatorSize", "Bottom Separator", 0, 4, 1, "Optional divider beneath the title bar.", titleHidden),
-        ColorPicker("titleSeparatorColor", "Separator Color", "Title-bar divider color and opacity.", true,
+        Slider("titleSeparatorSize", "Bottom Separator Padding", 0, 4, 1, "Colored spacing beneath the title bar that increases the pane height by the selected number of pixels.", titleHidden),
+        ColorSwatches("titleSeparatorColorMode", "titleSeparatorColor", "Separator Color",
             function() return titleHidden() or (tonumber(ns.Get("titleSeparatorSize")) or 0) <= 0 end))
     y = y - h
 
@@ -335,7 +294,7 @@ local function BuildTracker(pageName, parent, yOffset)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("contextFontSize", "Context Font Size", 8, 24, 1, "Size of the zone, class, specialization, group-context and selected-role line."),
-        TextColorSwatches("contextTextColorMode", "contextTextColor", "Context Text Color"))
+        ColorSwatches("contextTextColorMode", "contextTextColor", "Context Text Color"))
     y = y - h
     _, h = W:DualRow(parent, y,
         Dropdown("statusTextAlignment", "Status Row Alignment", { LEFT = "Left", CENTER = "Center", RIGHT = "Right" },
@@ -344,15 +303,15 @@ local function BuildTracker(pageName, parent, yOffset)
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("sectionFontSize", "Section Font Size", 8, 24, 1, "Size of collapsible section titles."),
-        TextColorSwatches("sectionTextColorMode", "sectionTextColor", "Section Text Color"))
+        ColorSwatches("sectionTextColorMode", "sectionTextColor", "Section Text Color"))
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("entryLabelFontSize", "Entry Label Font Size", 8, 24, 1, "Size of recommendation entry labels."),
-        TextColorSwatches("entryLabelTextColorMode", "entryLabelTextColor", "Entry Label Color"))
+        ColorSwatches("entryLabelTextColorMode", "entryLabelTextColor", "Entry Label Color"))
     y = y - h
     _, h = W:DualRow(parent, y,
         Slider("entryDetailFontSize", "Entry Detail Font Size", 8, 24, 1, "Size of recommendation detail text."),
-        TextColorSwatches("entryDetailTextColorMode", "entryDetailTextColor", "Entry Detail Color"))
+        ColorSwatches("entryDetailTextColorMode", "entryDetailTextColor", "Entry Detail Color"))
     y = y - h
 
     _, h = W:SectionHeader(parent, "PERFORMANCE", y); y = y - h
@@ -395,22 +354,22 @@ local function BuildReadiness(pageName, parent, yOffset)
 
         _, h = W:SectionHeader(parent, "BORDER STATE COLORS", y); y = y - h
         _, h = W:DualRow(parent, y,
-            ColorPicker("readinessIconReadyBorderColor", "Ready", "Border color for active or satisfied readiness items.", true, borderDisabled),
-            ColorPicker("readinessIconWarningBorderColor", "Warning", "Border color for partial or expiring readiness items.", true, borderDisabled))
+            ColorSwatches("readinessIconReadyBorderColorMode", "readinessIconReadyBorderColor", "Ready", borderDisabled),
+            ColorSwatches("readinessIconWarningBorderColorMode", "readinessIconWarningBorderColor", "Warning", borderDisabled))
         y = y - h
         _, h = W:DualRow(parent, y,
-            ColorPicker("readinessIconMissingBorderColor", "Missing", "Border color for missing readiness items.", true, borderDisabled),
-            ColorPicker("readinessIconUnavailableBorderColor", "Unavailable", "Border color for readiness items that cannot currently be obtained.", true, borderDisabled))
+            ColorSwatches("readinessIconMissingBorderColorMode", "readinessIconMissingBorderColor", "Missing", borderDisabled),
+            ColorSwatches("readinessIconUnavailableBorderColorMode", "readinessIconUnavailableBorderColor", "Unavailable", borderDisabled))
         y = y - h
         _, h = W:DualRow(parent, y,
-            ColorPicker("readinessIconUnknownBorderColor", "Unknown", "Border color when a readiness state cannot be read.", true, borderDisabled),
-            ColorPicker("readinessIconInfoBorderColor", "Information", "Border color for informational readiness items.", true, borderDisabled))
+            ColorSwatches("readinessIconUnknownBorderColorMode", "readinessIconUnknownBorderColor", "Unknown", borderDisabled),
+            ColorSwatches("readinessIconInfoBorderColorMode", "readinessIconInfoBorderColor", "Information", borderDisabled))
         y = y - h
 
         _, h = W:SectionHeader(parent, "STACK TEXT", y); y = y - h
         _, h = W:DualRow(parent, y,
             Slider("badgeFontSize", "Stack Font Size", 6, 32, 1, "Font size of stack and count text drawn over readiness icons.", disabled),
-            TextColorSwatches("badgeTextColorMode", "badgeTextColor", "Stack Text Color", disabled))
+            ColorSwatches("badgeTextColorMode", "badgeTextColor", "Stack Text Color", disabled))
         y = y - h
         _, h = W:DualRow(parent, y,
             Dropdown("badgeAnchor", "Stack Position", {
@@ -740,9 +699,6 @@ local function BuildTravelStatus(pageName, parent, yOffset)
         local fontValues, fontOrder = { __global = "EUI Global Font" }, { "__global" }
         if EUI.BuildFontDropdownData then fontValues, fontOrder = EUI.BuildFontDropdownData() end
         local disabled = function() return not ns.Get("showFlightTimer") end
-        local customFillDisabled = function()
-            return not ns.Get("showFlightTimer") or ns.Get("flightTimerFillColorMode") ~= "custom"
-        end
 
         _, h = W:SectionHeader(parent, "TRACKER FLIGHT TIMER", y); y = y - h
         _, h = W:DualRow(parent, y,
@@ -778,18 +734,17 @@ local function BuildTravelStatus(pageName, parent, yOffset)
             Dropdown("flightTimerBarTexture", "Bar Texture", textureValues, textureOrder, "Texture used by both the fill and its independent background.", disabled))
         y = y - h
         _, h = W:DualRow(parent, y,
-            Dropdown("flightTimerFillColorMode", "Fill Color", { custom = "Custom", class = "Class Color", accent = "Accent Color" },
-                { "custom", "class", "accent" }, "Color source for the progress fill.", disabled, true),
-            ColorPicker("flightTimerFillColor", "Custom Fill Color", "Custom progress-fill color and opacity.", true, customFillDisabled))
+            ColorSwatches("flightTimerFillColorMode", "flightTimerFillColor", "Fill Color", disabled),
+            ColorSwatches("flightTimerBackgroundColorMode", "flightTimerBackgroundColor", "Bar Background", disabled))
         y = y - h
         _, h = W:DualRow(parent, y,
-            ColorPicker("flightTimerBackgroundColor", "Bar Background", "Background color and opacity behind the flight progress.", true, disabled),
-            Dropdown("flightTimerBorderTexture", "Border Style", borderValues, borderOrder, "Independent border style for the flight progress bar.", disabled))
+            Dropdown("flightTimerBorderTexture", "Border Style", borderValues, borderOrder, "Independent border style for the flight progress bar.", disabled),
+            Slider("flightTimerBorderSize", "Border Size", 0, 4, 1, "Set to zero to hide the flight progress border.", disabled))
         y = y - h
         _, h = W:DualRow(parent, y,
-            Slider("flightTimerBorderSize", "Border Size", 0, 4, 1, "Set to zero to hide the flight progress border.", disabled),
-            ColorPicker("flightTimerBorderColor", "Border Color", "Flight progress border color and opacity.", true,
-                function() return disabled() or (tonumber(ns.Get("flightTimerBorderSize")) or 0) <= 0 end))
+            ColorSwatches("flightTimerBorderColorMode", "flightTimerBorderColor", "Border Color",
+                function() return disabled() or (tonumber(ns.Get("flightTimerBorderSize")) or 0) <= 0 end),
+            nil)
         y = y - h
 
         _, h = W:SectionHeader(parent, "FLIGHT TYPOGRAPHY", y); y = y - h
@@ -800,21 +755,11 @@ local function BuildTravelStatus(pageName, parent, yOffset)
         y = y - h
         _, h = W:DualRow(parent, y,
             Slider("flightTimerDestinationFontSize", "Destination Font Size", 8, 24, 1, "Size of the flight destination label.", disabled),
-            TextColorMode("flightTimerDestinationColorMode", "Destination Color", "Use the player class, EllesmereUI accent, or a custom flight-destination color.", disabled))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            ColorPicker("flightTimerDestinationColor", "Custom Destination Color", "Custom color and alpha of the flight destination label.", true,
-                CustomColorDisabled("flightTimerDestinationColorMode", disabled)),
-            nil)
+            ColorSwatches("flightTimerDestinationColorMode", "flightTimerDestinationColor", "Destination Color", disabled))
         y = y - h
         _, h = W:DualRow(parent, y,
             Slider("flightTimerTimeFontSize", "Time Font Size", 8, 24, 1, "Size of elapsed, remaining and total time.", disabled),
-            TextColorMode("flightTimerTimeColorMode", "Time Detail Color", "Use the player class, EllesmereUI accent, or a custom flight-time detail color.", disabled))
-        y = y - h
-        _, h = W:DualRow(parent, y,
-            ColorPicker("flightTimerTimeColor", "Custom Time Detail Color", "Custom color and alpha of the flight time detail.", true,
-                CustomColorDisabled("flightTimerTimeColorMode", disabled)),
-            nil)
+            ColorSwatches("flightTimerTimeColorMode", "flightTimerTimeColor", "Time Detail Color", disabled))
         y = y - h
     else
         _, h = W:SectionHeader(parent, "ACTIVITY STATUSES", y); y = y - h

@@ -35,8 +35,8 @@ Version 0.9.2 includes:
   by viewport percentage or absolute UI pixels without crossing that safe span;
 - one combined Tracker settings page with customizable pane padding, independent
   pane/section/entry backgrounds, font face, outline and text sizes, plus compact
-  Class, Accent and Custom color swatches for every tracker text category and a
-  main-pane strata picker for controlling its position relative to other UI windows;
+  Class, Accent and Custom color swatches for every configurable appearance color
+  and a main-pane strata picker for controlling its position relative to other UI windows;
 - a Quest Tracker-style minimize glyph and a Damage Meter-style lock control;
 - a compact readiness icon strip with green, amber, red, gray, violet and blue
   states, customizable sizing, wrapping, spacing, border style, per-state border

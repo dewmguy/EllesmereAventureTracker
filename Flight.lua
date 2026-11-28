@@ -282,8 +282,8 @@ local function Build()
     local eta = active.eta
     local progress = eta and math.max(0, math.min(1, elapsed / eta)) or 0
     local fr, fg, fb, fa = FillColor()
-    local br, bg, bb, ba = ColorValue("flightTimerBackgroundColor")
-    local rr, rg, rb, ra = ColorValue("flightTimerBorderColor")
+    local br, bg, bb, ba = ThemeColor("flightTimerBackgroundColorMode", "flightTimerBackgroundColor")
+    local rr, rg, rb, ra = ThemeColor("flightTimerBorderColorMode", "flightTimerBorderColor")
     local lr, lg, lb, la = ThemeColor("flightTimerDestinationColorMode", "flightTimerDestinationColor")
     local dr, dg, db, da = ThemeColor("flightTimerTimeColorMode", "flightTimerTimeColor")
     local destination = active.info and active.info.destination

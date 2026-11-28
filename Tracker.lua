@@ -58,8 +58,8 @@ collapseButton.text:SetText("−")
 collapseButton:SetAlpha(0.85)
 
 local headerSeparator = header:CreateTexture(nil, "OVERLAY")
-headerSeparator:SetPoint("BOTTOMLEFT")
-headerSeparator:SetPoint("BOTTOMRIGHT")
+headerSeparator:SetPoint("TOPLEFT", header, "BOTTOMLEFT")
+headerSeparator:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT")
 headerSeparator:SetHeight(1)
 headerSeparator:Hide()
 
@@ -98,6 +98,7 @@ contextButton:SetPoint("TOPLEFT", 2, 0)
 contextButton:SetPoint("TOPRIGHT", -2, 0)
 contextButton:SetHeight(1)
 if contextButton.SetHyperlinksEnabled then contextButton:SetHyperlinksEnabled(true) end
+if contextButton.SetPushedTextOffset then contextButton:SetPushedTextOffset(0, 0) end
 
 local contextText = contextButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 contextText:SetPoint("TOPLEFT", 2, 0)
@@ -193,8 +194,12 @@ local function ThemeColor(modeKey, customKey)
     return ColorValue(customKey)
 end
 
+local function ConfiguredColor(key)
+    return ThemeColor(key .. "Mode", key)
+end
+
 local function SetSurfaceBackground(surface, key)
-    local r, g, b, a = ColorValue(key)
+    local r, g, b, a = ConfiguredColor(key)
     surface:SetBackdropColor(r, g, b, a)
 end
 
@@ -214,7 +219,7 @@ local READINESS_BORDER_COLOR_KEYS = {
 
 local function ReadinessBorderColor(state)
     local key = READINESS_BORDER_COLOR_KEYS[state]
-    if key then return ColorValue(key) end
+    if key then return ConfiguredColor(key) end
     local r, g, b = StateColor(state)
     return r, g, b, 1
 end
@@ -761,9 +766,15 @@ local function StyleFontString(fontString, sizeKey, fallbackSize, colorKey, mode
     if colorKey then fontString:SetTextColor(ThemeColor(modeKey or TEXT_COLOR_MODES[colorKey], colorKey)) end
 end
 
+local function StyleTitleFontString(fontString)
+    if not fontString then return end
+    local size = Clamp(ns.Get("titleFontSize"), 8, 24, 13)
+    pcall(fontString.SetFont, fontString, TextFontPath(), size, TextFontFlags())
+end
+
 local function ApplyTextAppearance(iconCount, sectionCount, rowCount)
-    StyleFontString(title, "titleFontSize", 13)
-    StyleFontString(collapseButton.text, "titleFontSize", 13)
+    StyleTitleFontString(title)
+    StyleTitleFontString(collapseButton.text)
     StyleFontString(contextText, "contextFontSize", 11, "contextTextColor", "contextTextColorMode")
     StyleFontString(playtimeText, "contextFontSize", 11, "contextTextColor", "contextTextColorMode")
     local statusAlignment = tostring(ns.Get("statusTextAlignment") or "LEFT"):upper()
@@ -828,7 +839,7 @@ local function DataColor(color, fallbackKey)
         return color.r or color[1] or 1, color.g or color[2] or 1,
             color.b or color[3] or 1, color.a == nil and (color[4] or 1) or color.a
     end
-    return ThemeColor(TEXT_COLOR_MODES[fallbackKey], fallbackKey)
+    return ThemeColor(TEXT_COLOR_MODES[fallbackKey] or (fallbackKey .. "Mode"), fallbackKey)
 end
 
 local function ApplyDataTypography(row, data)
@@ -1092,8 +1103,13 @@ local function TitleBarHeight()
         Clamp(ns.Get("titleFontSize"), 8, 24, 13) + 8)
 end
 
+local function TitleSeparatorSize()
+    if TitleBarMode() == "hidden" then return 0 end
+    return Clamp(ns.Get("titleSeparatorSize"), 0, 4, 0)
+end
+
 local function ChromeHeight()
-    return TitleBarHeight() + PanePadding() * 2
+    return TitleBarHeight() + TitleSeparatorSize() + PanePadding() * 2
 end
 
 local function GrowthDirection()
@@ -1259,12 +1275,12 @@ function ns.ApplyLockState()
 end
 
 local function ApplyWindowStyle()
-    local r, g, b, a = ColorValue("backgroundColor")
+    local r, g, b, a = ConfiguredColor("backgroundColor")
     local backgroundOpacity = Clamp(ns.Get("opacity"), 0, 1, 0.96)
     frame:SetAlpha(1)
     frame:SetBackdropColor(r, g, b, a * backgroundOpacity)
 
-    local borderR, borderG, borderB, borderA = ColorValue("borderColor")
+    local borderR, borderG, borderB, borderA = ConfiguredColor("borderColor")
     local borderSize = Clamp(ns.Get("borderSize"), 0, 4, 1)
     local borderTexture = ns.Get("borderTexture") or "solid"
     if EUI.ApplyBorderStyle then
@@ -1286,7 +1302,7 @@ local function ApplyWindowStyle()
     header:SetHeight(math.max(1, headerHeight))
     header:SetShown(mode ~= "hidden")
     if mode == "filled" then
-        local hr, hg, hb, ha = ColorValue("titleBarColor")
+        local hr, hg, hb, ha = ConfiguredColor("titleBarColor")
         header:SetBackdropColor(hr, hg, hb, ha)
     else
         header:SetBackdropColor(0, 0, 0, 0)
@@ -1296,7 +1312,7 @@ local function ApplyWindowStyle()
     ApplyTextAppearance()
     title:SetTextColor(tr, tg, tb, ta)
     collapseButton.text:SetTextColor(tr, tg, tb, ta)
-    title:SetShown(mode ~= "hidden" and ns.Get("showTitleText") == true)
+    title:SetShown(mode ~= "hidden")
     collapseButton:ClearAllPoints()
     if mode ~= "hidden" then
         collapseButton:SetPoint("RIGHT", header, "RIGHT", -7, 0)
@@ -1317,14 +1333,14 @@ local function ApplyWindowStyle()
         title:SetJustifyH("LEFT")
     end
 
-    local separatorSize = Clamp(ns.Get("titleSeparatorSize"), 0, 4, 0)
-    local sr, sg, sb, sa = ColorValue("titleSeparatorColor")
+    local separatorSize = TitleSeparatorSize()
+    local sr, sg, sb, sa = ConfiguredColor("titleSeparatorColor")
     headerSeparator:SetHeight(math.max(1, separatorSize))
     headerSeparator:SetColorTexture(sr, sg, sb, sa)
     headerSeparator:SetShown(mode ~= "hidden" and separatorSize > 0)
 
     local padding = PanePadding()
-    local topInset = headerHeight + padding
+    local topInset = headerHeight + separatorSize + padding
     fixedFrame:ClearAllPoints()
     fixedFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, -topInset)
     fixedFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -padding, -topInset)

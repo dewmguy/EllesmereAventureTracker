@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.16 - 2026-11-28
+
+- Removed the pushed-button movement from the clickable status row while
+  retaining its hyperlinks, tooltips and drag surface.
+- Standardized every appearance color control on adjacent Class, Accent and
+  Custom swatches, including pane backgrounds, borders, title elements,
+  readiness states and every flight-timer color.
+- Removed the Show Title Text toggle and the separate title-color dropdown and
+  Custom Title Color control. A visible title bar now always shows its title.
+- Made Bottom Separator Padding occupy real space beneath the title bar and
+  increase the pane's chrome height by its configured size.
+- Made the title-size slider apply the selected font size directly to both the
+  title and the minimize glyph.
+
 ## 0.9.15 - 2026-11-27
 
 - Extended the Background Work per Frame slider from 25% to 100% while keeping
