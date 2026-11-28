@@ -325,8 +325,9 @@ The tooltip explains why a row ranked highly.
 1. Resolve the current map to QuestieDB's zone classification.
 2. Build a lazy index of quests assigned to that zone.
 3. Remove completed quests and quests already present in the quest log.
-4. Require every faction, race, class, level, skill, reputation, specialization,
-   prerequisite and availability condition to be satisfied now.
+4. Require every faction, race, class, level, skill, reputation, specialization
+   and non-chain availability condition to be satisfied now. Exclude any quest
+   carrying a recorded chain prerequisite, even when that prior step is complete.
 5. Suppress breadcrumb conflicts, mutually exclusive alternatives, disabled quests,
    unavailable chain steps and quests with an unknown required state.
 6. Accept only two verified start forms:
@@ -343,9 +344,10 @@ The tooltip explains why a row ranked highly.
 
 Repeatables and breadcrumbs need explicit handling so the same recurring or
 alternative offer does not make the missing count misleading.
-For prerequisite semantics, every preQuestGroup entry must be complete, while at
-least one preQuestSingle entry must be complete. A failure or unknown value excludes
-the quest rather than exposing a later chain step.
+For prerequisite semantics, any positive `preQuestGroup`, `preQuestSingle`,
+`parentQuest` or `availableStartingWith` record excludes the quest. Adventure
+Tracker intentionally recommends standalone starts instead of downstream chain
+steps; unknown availability also excludes rather than overpromises.
 
 ### Profession synergy goals
 

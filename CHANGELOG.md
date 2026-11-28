@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.4 - 2026-11-27
+
+- Tightened Quest Progress to standalone quest starts. Any quest carrying a
+  recorded grouped, alternative, parent-active or available-starting-with chain
+  prerequisite is now excluded, even if completion history might otherwise make
+  a later chain step appear eligible. Future quest-item warnings use the same
+  conservative chain filter.
+- Added Questie's upstream non-SoD blacklist for Duskwood Mission I–XVIII
+  (81730–81747). QuestieDB's Forever records expose ordinary starters and no
+  availability flag for these Season of Discovery quests, so its public fields
+  alone cannot distinguish them from real Forever offers.
+
 ## 0.9.3 - 2026-11-27
 
 - Filtered purchased recipe sources by the current character's faction before

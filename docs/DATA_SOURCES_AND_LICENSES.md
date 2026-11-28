@@ -97,6 +97,10 @@ root `THIRD_PARTY_NOTICES.md`.
 - Extended in 0.8.1 to relate newly vendored items to actual item objectives
   for meaningful, unaccepted quests in zones the character has visited. The
   addon stores only the resulting per-character warning state.
+- QuestieDB does not expose a general player-availability field. In 0.9.4 the
+  shared eligibility adapter additionally mirrors Questie's own non-SoD
+  blacklist for Duskwood Mission I–XVIII, which otherwise appear as ordinary
+  available quests in QuestieDB's Forever artifact.
 
 ### What's Training?
 

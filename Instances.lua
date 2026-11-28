@@ -9,6 +9,18 @@ local QUEST_ICON = 134400
 local LOOT_ICON = 133784
 local QUEST_LEVEL_AHEAD_LIMIT = 5
 
+-- Questie keeps flavor availability outside QuestieDB's public quest schema.
+-- These Season of Discovery Duskwood missions are present in the Forever data
+-- artifact with ordinary starters and flags, but Questie's own blacklist hides
+-- them on every non-SoD client (Questie/Questie commit 01979e26f60047cd6fda53d4680fc6233c9074ae).
+local KNOWN_UNAVAILABLE_QUESTS = {
+    [81730] = true, [81731] = true, [81732] = true, [81733] = true,
+    [81734] = true, [81735] = true, [81736] = true, [81737] = true,
+    [81738] = true, [81739] = true, [81740] = true, [81741] = true,
+    [81742] = true, [81743] = true, [81744] = true, [81745] = true,
+    [81746] = true, [81747] = true,
+}
+
 local state = {
     inInstance = false,
     completed = false,
@@ -249,6 +261,10 @@ local function IsQuestComplete(questID)
     return false
 end
 
+local function IsKnownUnavailableQuest(questID)
+    return KNOWN_UNAVAILABLE_QUESTS[tonumber(questID)] == true
+end
+
 local function IsQuestInLog(questID)
     if C_QuestLog and C_QuestLog.IsOnQuest then
         local ok, onQuest = pcall(C_QuestLog.IsOnQuest, questID)
@@ -307,32 +323,22 @@ local function MaskIncludes(mask, flag)
     return mask % (flag * 2) >= flag
 end
 
-local function EveryQuestComplete(list)
-    if type(list) ~= "table" then return true end
-    local found = false
+local function HasPositiveQuestID(list)
+    if type(list) ~= "table" then return false end
     for _, id in pairs(list) do
         id = tonumber(id)
-        if id and id > 0 then
-            found = true
-            if not IsQuestComplete(id) then return false end
-        end
+        if id and id > 0 then return true end
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
-    return true
+    return false
 end
 
-local function AnyQuestComplete(list)
-    if type(list) ~= "table" then return true end
-    local found = false
-    for _, id in pairs(list) do
-        id = tonumber(id)
-        if id and id > 0 then
-            found = true
-            if IsQuestComplete(id) then return true end
-        end
-        if ns.YieldForBudget then ns.YieldForBudget() end
-    end
-    return not found
+local function QuestHasChainPrerequisite(questDB, questID)
+    if (tonumber(EntityValue(questDB, "parentQuest", questID)) or 0) > 0 then return true end
+    if (tonumber(EntityValue(questDB, "availableStartingWith", questID)) or 0) > 0 then return true end
+    if HasPositiveQuestID(EntityValue(questDB, "preQuestGroup", questID)) then return true end
+    if HasPositiveQuestID(EntityValue(questDB, "preQuestSingle", questID)) then return true end
+    return false
 end
 
 local function NoneComplete(list)
@@ -421,6 +427,7 @@ local function ReputationRequirementMet(required, maximum)
 end
 
 local function QuestRequirementsMet(questDB, questID)
+    if IsKnownUnavailableQuest(questID) then return false end
     local level = UnitLevel and UnitLevel("player") or 0
     local requiredLevel = tonumber(EntityValue(questDB, "requiredLevel", questID)) or 0
     local requiredMaxLevel = tonumber(EntityValue(questDB, "requiredMaxLevel", questID)) or 0
@@ -445,15 +452,13 @@ local function QuestRequirementsMet(questDB, questID)
     if not MaskIncludes(EntityValue(questDB, "requiredRaces", questID), raceMask) then return false end
     if ns.YieldForBudget then ns.YieldForBudget() end
 
-    local parent = tonumber(EntityValue(questDB, "parentQuest", questID)) or 0
-    if parent > 0 and not IsQuestInLog(parent) then return false end
-    if not EveryQuestComplete(EntityValue(questDB, "preQuestGroup", questID)) then return false end
-    if not AnyQuestComplete(EntityValue(questDB, "preQuestSingle", questID)) then return false end
+    -- Adventure Tracker deliberately recommends standalone quest starts only.
+    -- Even when Blizzard reports the prior step complete, a recorded chain gate
+    -- remains outside this addon's conservative definition of "available."
+    if QuestHasChainPrerequisite(questDB, questID) then return false end
     if not NoneComplete(EntityValue(questDB, "exclusiveTo", questID)) then return false end
     local nextQuest = tonumber(EntityValue(questDB, "nextQuestInChain", questID)) or 0
     if nextQuest > 0 and (IsQuestComplete(nextQuest) or IsQuestInLog(nextQuest)) then return false end
-    local startsWith = tonumber(EntityValue(questDB, "availableStartingWith", questID)) or 0
-    if startsWith > 0 and not IsQuestComplete(startsWith) and not IsQuestInLog(startsWith) then return false end
     local untilCompleted = tonumber(EntityValue(questDB, "availableUntilCompleted", questID)) or 0
     if untilCompleted > 0 and IsQuestComplete(untilCompleted) then return false end
     local breadcrumbFor = tonumber(EntityValue(questDB, "breadcrumbForQuestId", questID)) or 0
@@ -534,6 +539,8 @@ ns.QuestData = {
     Value = EntityValue,
     IsComplete = IsQuestComplete,
     IsInLog = IsQuestInLog,
+    IsKnownUnavailable = IsKnownUnavailableQuest,
+    HasChainPrerequisite = QuestHasChainPrerequisite,
     RequirementsMet = QuestRequirementsMet,
     Starter = QuestStarter,
 }

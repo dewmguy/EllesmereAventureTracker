@@ -227,6 +227,8 @@ end
 
 local function QuestMatchesCharacter(data, questDB, questID, visited, playerLevel)
     if data.IsComplete(questID) or data.IsInLog(questID) then return false end
+    if data.IsKnownUnavailable and data.IsKnownUnavailable(questID) then return false end
+    if data.HasChainPrerequisite and data.HasChainPrerequisite(questDB, questID) then return false end
 
     local requiredLevel = tonumber(data.Value(questDB, "requiredLevel", questID)) or 0
     local requiredMaxLevel = tonumber(data.Value(questDB, "requiredMaxLevel", questID)) or 0

@@ -87,8 +87,10 @@ Version 0.9.2 includes:
 - a Quest Progress section with one expandable summary per zone the character
   has actually entered outside flight-path travel, combined player-level XP
   and coin rewards, and conservative QuestieDB filtering for level, class,
-  race, profession and chain availability without exposing locations, routes
-  or objectives; recommendations remain within five levels of the character;
+  race and profession eligibility without exposing locations, routes or
+  objectives; only standalone starts are listed, while every quest carrying a
+  recorded chain prerequisite is omitted; known cross-flavor records are
+  suppressed using Questie's upstream non-SoD blacklist;
 - event-invalidated provider and composed zone-result caches that keep
   QuestieDB lookups out of timer, aura, group and unrelated presentation
   refreshes;

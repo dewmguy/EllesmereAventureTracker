@@ -147,3 +147,14 @@ SOFTWARE.
 
 QuestieDB is an optional runtime data provider. Adventure Tracker does not
 redistribute its database; users install and update it separately.
+
+Adventure Tracker also mirrors the 18 factual quest-ID exclusions added by
+Questie commit `01979e26f60047cd6fda53d4680fc6233c9074ae` for Duskwood's
+Season of Discovery missions on non-SoD clients. Questie is distributed under
+the GNU General Public License v3.0. No Questie UI, routing code or database is
+copied.
+
+Sources:
+
+- <https://github.com/Questie/Questie/commit/01979e26f60047cd6fda53d4680fc6233c9074ae>
+- <https://github.com/Questie/Questie/blob/master/LICENSE>
