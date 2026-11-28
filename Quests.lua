@@ -896,7 +896,7 @@ local function AppendZoneRows(rows, zone, options)
         key = "zone-quests-summary-" .. tostring(zoneAreaID),
         label = function()
             if alwaysExpanded then
-                return string.format("%d current-zone quest%s available", #zone.candidates,
+                return string.format("%d %s quest%s available", #zone.candidates, zone.name,
                     #zone.candidates == 1 and "" or "s")
             end
             return string.format("%s %d %s quest%s available", ZoneExpanded() and "−" or "+",

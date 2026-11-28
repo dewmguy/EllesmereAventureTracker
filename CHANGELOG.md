@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.22 - 2026-11-28
+
+- Replaced the generic "current-zone quests available" summary wording with
+  the current zone's actual name.
+
 ## 0.9.21 - 2026-11-28
 
 - Added Quest Progress sorting controls for quest order, visited-zone order and
