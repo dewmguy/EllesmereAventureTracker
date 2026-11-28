@@ -190,9 +190,10 @@ Version 0.9.2 includes:
   over the currently equipped item, plus attainable unlearned crafted upgrades;
 - coordinate-free gathering and Fishing summaries without repeating the zone
   name in each row;
-- a current-zone effective Fishing target based on OneCast's documented
-  Forever measurements or clearly labelled Classic baselines, with the live
-  profession bonus and remaining skill gap shown;
+- one current-zone Fishing opportunity row combining the Ellesmere world-map
+  catch floor, OneCast's documented no-getaway target, the character's live
+  effective skill and the local fish catalogue; it explicitly distinguishes
+  waters that are too difficult, possible but inefficient, or effective;
 - local account-wide fishing and skinning observations ranked by item count,
   with explicit per-zone catch/window sample sizes, no uploads and a dedicated
   clear-history control;

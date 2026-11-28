@@ -639,13 +639,13 @@ local function BuildProfessions(pageName, parent, yOffset)
     else
         _, h = W:SectionHeader(parent, "CURRENT ZONE", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Toggle("showProfessionZoneHints", "Local Gathering Hints", "Shows contextual reminders for Herbalism, Mining, Skinning and Fishing in the current zone."),
+            Toggle("showProfessionZoneHints", "Local Gathering Hints", "Shows contextual Herbalism, Mining and Skinning reminders. Fishing combines the catch floor, no-getaway target, effective skill and local fish in one row."),
             nil)
         y = y - h
 
         _, h = W:SectionHeader(parent, "DATA SOURCES", y); y = y - h
         _, h = W:DualRow(parent, y,
-            Label("Herb, ore and fishing summaries use the attributed, coordinate-free Forever Nodes catalogue."),
+            Label("Herb, ore and fish lists use the attributed, coordinate-free Forever Nodes catalogue. Fishing thresholds use OneCast plus the same Classic catch-floor relationship as Ellesmere's world map."),
             Label("Skill-up plans use permanent trainer and recipe data plus live learned state, bags, prices and equipped items."))
         y = y - h
     end

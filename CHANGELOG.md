@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.19 - 2026-11-28
+
+- Replaced Fishing's generic Local Opportunities text and separate threshold
+  row with one current-zone assessment.
+- The consolidated row now compares effective Fishing skill against the
+  Ellesmere-style catch floor and OneCast no-getaway target, describing the
+  waters as too difficult, possible but inefficient, or effective.
+- Kept the zone's known fish in that same row and retained detailed source and
+  bonus explanations in its tooltip.
+
 ## 0.9.18 - 2026-11-28
 
 - Added a right-click menu to zone and instance quest entries with confirmed

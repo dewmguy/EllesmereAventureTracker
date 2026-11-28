@@ -25,7 +25,7 @@ local GATHERING_HINTS = {
     [182] = "Watch the minimap for herbs while you travel.",
     [186] = "Watch the minimap for ore veins while you travel.",
     [393] = "Local beasts may provide skinning opportunities.",
-    [356] = "Local waters may advance Fishing or supply Cooking materials.",
+    [356] = "No reliable Fishing threshold is available for these waters.",
 }
 
 local GATHERING_KINDS = {
@@ -742,35 +742,78 @@ local function ObservedGatheringSummary(mapID, kind)
     }
 end
 
-local function AddFishingSkillRow(rows, profession, zoneName)
-    if not ns.Get("showProfessionZoneHints") or not ns.GetFishingSkillRecommendation then return end
-    local target, source = ns.GetFishingSkillRecommendation(zoneName)
+local function FishingOpportunityRow(profession, zoneName, summary)
+    if not ns.GetFishingSkillRecommendation then return nil end
+    local target, source, minimum, minimumSource = ns.GetFishingSkillRecommendation(zoneName)
+    local effective = (tonumber(profession.rank) or 0) + (tonumber(profession.rankBonus) or 0)
     if not target then
-        rows[#rows + 1] = {
-            key = "fishing-threshold-unknown",
-            label = "Recommended Fishing skill unknown",
-            detail = "No reliable no-getaway threshold has been measured for these waters yet.",
-            tooltip = "Adventure Tracker leaves an unmeasured Forever fishing threshold unknown instead of borrowing a guess from an unrelated zone.",
+        return {
+            key = "local-356",
+            label = summary and "Fish found; suitability unknown" or "Fishing suitability unknown",
+            detail = string.format("Effective Fishing %d • no reliable local threshold is known.%s", effective,
+                summary and (" • " .. summary) or ""),
+            tooltip = "These waters do not have a reliable Fishing threshold yet. Adventure Tracker will not borrow a value from an unrelated zone.",
             state = "unknown",
             icon = profession.icon,
         }
-        return
     end
-    local effective = (tonumber(profession.rank) or 0) + (tonumber(profession.rankBonus) or 0)
     local gap = math.max(0, target - effective)
     local sourceLabel = source == "forever" and "Forever player measurements"
         or source == "spot" and "this sub-zone's Classic baseline"
         or "Classic baseline; Forever may differ"
-    rows[#rows + 1] = {
-        key = "fishing-threshold",
-        label = string.format("Recommended effective Fishing: %d", target),
-        detail = gap > 0
-            and string.format("Current effective skill %d • %d short of the no-getaway threshold.", effective, gap)
-            or string.format("Current effective skill %d • meets the no-getaway threshold.", effective),
-        tooltip = string.format("OneCast source: %s. Effective skill includes the profession bonus reported by the client, so pole, lure, racial and equipment bonuses can count. A future observed getaway at or above this value should overrule the estimate.", sourceLabel),
-        state = gap > 0 and "warning" or "ready",
+    local label, status, state
+    if minimum and effective < minimum then
+        label = "Fishing is too low here"
+        status = string.format("Effective %d • at least %d needed to catch fish; %d avoids getaways.",
+            effective, minimum, target)
+        state = "missing"
+    elseif gap > 0 then
+        label = "Fishing is possible, but inefficient"
+        status = minimum
+            and string.format("Effective %d • fish may get away until %d (%d short).", effective, target, gap)
+            or string.format("Effective %d • below the %d no-getaway target; catch minimum is unknown.", effective, target)
+        state = "warning"
+    else
+        label = "Fishing is effective here"
+        status = string.format("Effective %d • meets the %d no-getaway target.", effective, target)
+        state = "ready"
+    end
+    local minimumLabel = minimum and (minimumSource == "forever"
+        and string.format("The observed Forever catch floor is %d.", minimum)
+        or string.format("The Ellesmere world-map Classic catch floor is %d and may differ on Forever.", minimum))
+        or "The minimum catch skill has not been measured for these waters."
+    return {
+        key = "local-356",
+        label = label,
+        detail = status .. (summary and (" • " .. summary) or ""),
+        tooltip = string.format("%s No-getaway target: %d (%s). Effective skill includes pole, lure, racial and equipment bonuses.%s",
+            minimumLabel, target, sourceLabel, summary and ("\nLocal fish catalogue: " .. summary) or ""),
+        state = state,
         icon = profession.icon,
     }
+end
+
+local function AddLocalOpportunity(rows, profession, mapID, zoneName, includeObserved)
+    if not ns.Get("showProfessionZoneHints") or not GATHERING_HINTS[profession.skillLineID] then return end
+    local kind = GATHERING_KINDS[profession.skillLineID]
+    local summary = GatheringSummary(mapID, kind)
+    local row = profession.skillLineID == 356 and FishingOpportunityRow(profession, zoneName, summary) or {
+        key = "local-" .. tostring(profession.skillLineID),
+        label = summary and "Available here" or "Local opportunities",
+        detail = summary or GATHERING_HINTS[profession.skillLineID],
+        state = "info",
+        icon = profession.icon,
+    }
+    if row then rows[#rows + 1] = row end
+    if includeObserved then
+        local observed = ObservedGatheringSummary(mapID, kind)
+        if observed then
+            observed.key = "observed-" .. tostring(profession.skillLineID)
+            observed.state = "info"
+            observed.icon = profession.icon
+            rows[#rows + 1] = observed
+        end
+    end
 end
 
 local function OpenProfession(name)
@@ -1373,26 +1416,7 @@ local function BuildStableProfessionRows(profession, professions, mapID, zoneNam
 
     if TRAINER_PROFESSIONS[profession.skillLineID] then AddTrainerRecipeRows(afterRoute, profession) end
     if ns.AddRecipeCatalogRows then ns.AddRecipeCatalogRows(afterRoute, profession, professions, mapID) end
-    if profession.skillLineID == 356 then AddFishingSkillRow(afterRoute, profession, zoneName) end
-
-    if ns.Get("showProfessionZoneHints") and GATHERING_HINTS[profession.skillLineID] then
-        local kind = GATHERING_KINDS[profession.skillLineID]
-        local summary = GatheringSummary(mapID, kind)
-        afterRoute[#afterRoute + 1] = {
-            key = "local-" .. tostring(profession.skillLineID),
-            label = summary and "Available here" or "Local opportunities",
-            detail = summary or GATHERING_HINTS[profession.skillLineID],
-            state = "info",
-            icon = profession.icon,
-        }
-        local observed = ObservedGatheringSummary(mapID, kind)
-        if observed then
-            observed.key = "observed-" .. tostring(profession.skillLineID)
-            observed.state = "info"
-            observed.icon = profession.icon
-            afterRoute[#afterRoute + 1] = observed
-        end
-    end
+    AddLocalOpportunity(afterRoute, profession, mapID, zoneName, true)
     return { beforeRoute = beforeRoute, afterRoute = afterRoute }
 end
 
@@ -1418,18 +1442,7 @@ local function BuildQuickProfessionRows(profession, mapID, zoneName)
         AddRankPlan(rows, profession, mapID)
     end
     if TRAINER_PROFESSIONS[profession.skillLineID] then AddTrainerRecipeRows(rows, profession) end
-    if profession.skillLineID == 356 then AddFishingSkillRow(rows, profession, zoneName) end
-    if ns.Get("showProfessionZoneHints") and GATHERING_HINTS[profession.skillLineID] then
-        local kind = GATHERING_KINDS[profession.skillLineID]
-        local summary = GatheringSummary(mapID, kind)
-        rows[#rows + 1] = {
-            key = "local-" .. tostring(profession.skillLineID),
-            label = summary and "Available here" or "Local opportunities",
-            detail = summary or GATHERING_HINTS[profession.skillLineID],
-            state = "info",
-            icon = profession.icon,
-        }
-    end
+    AddLocalOpportunity(rows, profession, mapID, zoneName, false)
     return rows
 end
 
