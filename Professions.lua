@@ -186,6 +186,29 @@ local function ItemName(itemID)
     return "Item " .. tostring(itemID)
 end
 
+local function SpellName(spellID)
+    if C_Spell and C_Spell.GetSpellName then
+        local ok, name = pcall(C_Spell.GetSpellName, spellID)
+        if ok and name then return name end
+    end
+    if GetSpellInfo then
+        local ok, name = pcall(GetSpellInfo, spellID)
+        if ok and name then return name end
+    end
+    if ns.RequestSpellData then ns.RequestSpellData(spellID, "professions") end
+end
+
+local function SpellIcon(spellID)
+    if C_Spell and C_Spell.GetSpellTexture then
+        local ok, icon = pcall(C_Spell.GetSpellTexture, spellID)
+        if ok and icon then return icon end
+    end
+    if GetSpellTexture then
+        local ok, icon = pcall(GetSpellTexture, spellID)
+        if ok and icon then return icon end
+    end
+end
+
 local function ItemID(value)
     if type(value) == "number" then return value end
     if type(value) ~= "string" then return nil end
@@ -1239,11 +1262,17 @@ local function PermanentTrainerServices(profession)
         and ns.GetPermanentProfessionTraining(profession.skillLineID) or {}) do
         local trainer = fact.source and fact.source:find("trainer", 1, true)
         local known = ns.IsProfessionRecipeKnown and ns.IsProfessionRecipeKnown(fact.spellID, profession)
-        if trainer and not fact.rank and fact.productID > 0 and fact.learnAt <= profession.rank
+        if trainer and not fact.rank and fact.learnAt <= profession.rank
             and (fact.level <= 0 or fact.level <= playerLevel) and not known then
-            local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(fact.spellID)
-                or ItemName(fact.productID)
-            local icon = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(fact.productID)
+            local name = SpellName(fact.spellID)
+            if not name and fact.productID > 0 then name = ItemName(fact.productID) end
+            name = name or ("Recipe " .. tostring(fact.spellID))
+            local icon
+            if fact.productID > 0 and C_Item and C_Item.GetItemIconByID then
+                local ok, value = pcall(C_Item.GetItemIconByID, fact.productID)
+                if ok then icon = value end
+            end
+            icon = icon or SpellIcon(fact.spellID)
             local liveKey = NormalizeProfessionName(name)
             local live = liveKey and liveByName[liveKey]
             services[#services + 1] = {

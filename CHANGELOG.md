@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.11 - 2026-11-27
+
+- Restored Enchanting trainer recipes to the collapsible profession summary.
+  Enchants apply effects directly and often have no crafted product item, so
+  they now use their spell name and icon instead of being discarded.
+
 ## 0.9.10 - 2026-11-27
 
 - Stopped learned profession gear recommendations from suggesting an item the
