@@ -17,6 +17,7 @@ local PROFESSION_INDEX = {
     [393] = 11, -- Skinning
     [356] = 12, -- Fishing
 }
+local MERCHANT_FAVOR_CURRENCY_ID = 3402
 local RECIPE_ICON = 134939
 local catalogByProfession
 local recipeItemsBySpell
@@ -62,6 +63,21 @@ local function ItemIcon(itemID)
         if ok and value then return value end
     end
     return RECIPE_ICON
+end
+
+local function MerchantFavorInfo()
+    local api = C_CurrencyInfo and C_CurrencyInfo.GetCurrencyInfo
+    if type(api) == "function" then
+        local ok, info = pcall(api, MERCHANT_FAVOR_CURRENCY_ID)
+        if ok and type(info) == "table" then
+            return math.max(0, tonumber(info.quantity) or 0), info.iconFileID
+        end
+    end
+    if type(GetCurrencyInfo) == "function" then
+        local ok, _, quantity, icon = pcall(GetCurrencyInfo, MERCHANT_FAVOR_CURRENCY_ID)
+        if ok then return math.max(0, tonumber(quantity) or 0), icon end
+    end
+    return 0, nil
 end
 
 local function ItemRequiredLevel(itemID)
@@ -482,9 +498,11 @@ local function CandidateRow(candidate, indent)
     local productName = ItemName(entry.productID)
     local label = candidate.delta and candidate.delta > 0
         and ("Unlearned crafted upgrade: " .. productName)
-        or ("Recipe opportunity: " .. productName)
-    local skill = math.max(1, (entry.yellowAt or 0) - 25)
-    local detail = source.detail .. string.format(" • Around %d %s skill.", skill, candidate.profession.name)
+        or ((candidate.merchantFavor and "Merchant's Favor recipe: " or "Recipe opportunity: ") .. productName)
+    local skill = candidate.skill or math.max(1, (entry.yellowAt or 0) - 25)
+    local favorDetail = candidate.merchantFavor and " • Merchant's Favor required." or ""
+    local detail = source.detail .. favorDetail
+        .. string.format(" • Around %d %s skill.", skill, candidate.profession.name)
     if candidate.delta and candidate.delta > 0 then
         detail = detail .. string.format(" +%d item levels for %s.", candidate.delta, candidate.slot or "gear")
     end
@@ -492,8 +510,10 @@ local function CandidateRow(candidate, indent)
         key = string.format("catalog-recipe-%s-%d", tostring(candidate.profession.skillLineID), entry.spellID),
         label = label,
         detail = detail,
-        tooltip = string.format("%s\n\nLearnable at around %d %s skill.%s",
-            source.tooltip, skill, candidate.profession.name,
+        tooltip = string.format("%s%s\n\nLearnable at around %d %s skill.%s",
+            source.tooltip,
+            candidate.merchantFavor and "\n\nThis recipe is purchased with Merchant's Favor rather than ordinary coin." or "",
+            skill, candidate.profession.name,
             candidate.delta and candidate.delta > 0
                 and string.format(" This would be a %d-item-level upgrade for %s.", candidate.delta, candidate.slot or "gear")
                 or ""),
@@ -503,8 +523,8 @@ local function CandidateRow(candidate, indent)
     }
 end
 
-local function CatalogCandidates(profession, mapID)
-    local learned = LearnedSpells(profession)
+local function CatalogCandidates(profession, mapID, learned)
+    learned = learned or LearnedSpells(profession)
     if not learned then return nil end
     local areaID = ns.ResolveQuestieAreaID and ns.ResolveQuestieAreaID(mapID)
     local candidates = {}
@@ -548,6 +568,66 @@ local function CatalogCandidates(profession, mapID)
     return candidates
 end
 
+local function MerchantFavorCandidates(profession, mapID, learned)
+    local areaID = ns.ResolveQuestieAreaID and ns.ResolveQuestieAreaID(mapID)
+    local candidates = {}
+    local rank = tonumber(profession.rank) or 0
+    local playerLevel = UnitLevel and UnitLevel("player") or 0
+    local training = ns.GetPermanentProfessionTraining
+        and ns.GetPermanentProfessionTraining(profession.skillLineID) or {}
+    for index = 1, #training do
+        local fact = training[index]
+        local skill = tonumber(fact.learnAt) or 0
+        local requiredLevel = tonumber(fact.level) or 0
+        local productID = tonumber(fact.productID) or 0
+        local teachingItemID = tonumber(fact.teachingItemID) or 0
+        local displayItemID = productID > 0 and productID or teachingItemID
+        if fact.favor and fact.spellID and displayItemID > 0 and teachingItemID > 0
+            and not learned[fact.spellID]
+            and skill <= rank + 15
+            and (requiredLevel <= 0 or requiredLevel <= playerLevel + 5) then
+            local source = BestSourceForItem(teachingItemID, areaID, true)
+            if not source or source.kind ~= "vendor" then
+                source = {
+                    score = 120,
+                    kind = "vendor",
+                    detail = "Purchased with Merchant's Favor",
+                    tooltip = "Purchase this recipe from a Merchant's Favor vendor.",
+                }
+            end
+            local item, delta, slot
+            local equippable = C_Item and C_Item.IsEquippableItem
+            local evaluate = productID > 0
+            if evaluate and type(equippable) == "function" then
+                local ok, value = pcall(equippable, productID)
+                evaluate = ok and value == true
+            end
+            if evaluate and ns.GetCraftedItemUpgrade then
+                item, delta, slot = ns.GetCraftedItemUpgrade(productID)
+            end
+            if not item or (item.requiredLevel or 0) <= playerLevel then
+                candidates[#candidates + 1] = {
+                    entry = { spellID = fact.spellID, productID = displayItemID },
+                    source = source,
+                    profession = profession,
+                    skill = math.max(1, skill),
+                    score = source.score - math.max(0, skill - rank) * 2
+                        + (delta and delta > 0 and (300 + delta * 10) or 0),
+                    delta = delta,
+                    slot = slot,
+                    merchantFavor = true,
+                }
+            end
+        end
+        if ns.YieldForBudget then ns.YieldForBudget() end
+    end
+    ns.BudgetedSort(candidates, function(a, b)
+        if a.score ~= b.score then return a.score > b.score end
+        return ItemName(a.entry.productID) < ItemName(b.entry.productID)
+    end)
+    return candidates
+end
+
 function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
     local synergy = CrossProfessionSynergy(profession, professions)
     if synergy then rows[#rows + 1] = synergy end
@@ -557,12 +637,15 @@ function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
     local state = StartSourceIndex()
     if state ~= "ready" then return end
 
-    local candidates = CatalogCandidates(profession, mapID)
-    if not candidates or #candidates == 0 then return end
+    local candidates = CatalogCandidates(profession, mapID, learned) or {}
+    local merchantFavor = MerchantFavorCandidates(profession, mapID, learned)
+    local favorQuantity, favorIcon = MerchantFavorInfo()
+    if #candidates == 0 and #merchantFavor == 0 then return end
 
     local direct, mobDrops = {}, {}
     for index = 1, #candidates do
-        local target = candidates[index].source.kind == "drop" and mobDrops or direct
+        local candidate = candidates[index]
+        local target = candidate.source.kind == "drop" and mobDrops or direct
         target[#target + 1] = candidates[index]
         if ns.YieldForBudget then ns.YieldForBudget() end
     end
@@ -585,6 +668,35 @@ function ns.AddRecipeCatalogRows(rows, profession, professions, mapID)
         if expanded then
             for index = 2, #direct do
                 rows[#rows + 1] = CandidateRow(direct[index], 1)
+                if ns.YieldForBudget then ns.YieldForBudget() end
+            end
+        end
+    end
+
+    if #merchantFavor > 0 then
+        local expanded = Expanded(profession, "merchant-favor")
+        local bestName = ItemName(merchantFavor[1].entry.productID)
+        local detail
+        if favorQuantity > 0 then
+            detail = string.format("You have %d Merchant's Favor • Best fit: %s.", favorQuantity, bestName)
+        elseif expanded then
+            detail = "Hide recipes purchased with Merchant's Favor."
+        else
+            detail = "Show recipes purchased with Merchant's Favor instead of ordinary coin."
+        end
+        rows[#rows + 1] = {
+            key = "catalog-merchant-favor-" .. tostring(profession.skillLineID),
+            label = string.format("%s %d Merchant's Favor recipe%s",
+                expanded and "− Hide" or "+ Show", #merchantFavor, #merchantFavor == 1 and "" or "s"),
+            detail = detail,
+            tooltip = string.format("You currently have %d Merchant's Favor. Recipes are ordered by usefulness for your current character. Check the vendor for the exact Favor cost and reputation requirement.", favorQuantity),
+            state = favorQuantity > 0 and "ready" or "info",
+            icon = favorIcon or profession.icon,
+            onClick = function() ToggleExpanded(profession, "merchant-favor") end,
+        }
+        if expanded then
+            for index = 1, #merchantFavor do
+                rows[#rows + 1] = CandidateRow(merchantFavor[index], 1)
                 if ns.YieldForBudget then ns.YieldForBudget() end
             end
         end

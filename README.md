@@ -172,8 +172,10 @@ Version 0.9.2 includes:
   eligible quest-reward overlays; vendor sources are filtered to the current
   character's faction while neutral vendors remain available to both;
 - a best attainable unlearned non-drop recipe recommendation plus expandable
-  source lists; mob-drop recipes remain collapsed behind their own summary and
-  show the source mob and zone only when requested;
+  source lists; Merchant's Favor purchases and mob-drop recipes remain
+  collapsed behind separate summaries, with detailed sources shown only when
+  requested; the Favor summary shows the character's current balance and its
+  best-fit recipe whenever that character has Favor to spend;
 - cross-profession reagent goals when one opened profession can craft a
   material needed by another opened profession's current skill-up recipe;
 - a learned crafted-gear recommendation that prefers a class-usable upgrade

@@ -76,6 +76,7 @@ local function TrainingRows(skillLineID)
             teachingItemID = tonumber(raw[6]) or 0,
             level = tonumber(raw[7]) or 0,
             auto = flags:find("auto", 1, true) ~= nil,
+            favor = flags:find("favor", 1, true) ~= nil,
             rank = flags:find("rank", 1, true) ~= nil,
         }
         if ns.YieldForBudget then ns.YieldForBudget() end

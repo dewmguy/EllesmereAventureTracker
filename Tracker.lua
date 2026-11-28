@@ -1783,6 +1783,7 @@ local eventNames = {
     "PLAYER_UPDATE_RESTING", "PLAYER_MOUNT_DISPLAY_CHANGED", "PLAYER_FLAGS_CHANGED", "UNIT_FLAGS", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST",
     "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "TRADE_SKILL_CLOSE", "ITEM_DATA_LOAD_RESULT", "SPELL_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED",
     "TRAINER_SHOW", "TRAINER_UPDATE", "TRAINER_CLOSED",
+    "CURRENCY_DISPLAY_UPDATE",
     "TRAIT_TREE_CURRENCY_INFO_UPDATED", "TRAIT_CONFIG_UPDATED", "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "ACHIEVEMENT_EARNED",
 }
 for i = 1, #eventNames do pcall(events.RegisterEvent, events, eventNames[i]) end
@@ -2016,6 +2017,10 @@ local function ProvidersForTrackerEvent(event, ...)
         return { "professions", "character-reminders" }
     elseif event == "ACHIEVEMENT_EARNED" or event == "MAJOR_FACTION_RENOWN_LEVEL_CHANGED" then
         return { "legacy" }
+    elseif event == "CURRENCY_DISPLAY_UPDATE" then
+        local currencyID = ...
+        if currencyID and tonumber(currencyID) ~= 3402 then return {} end
+        return { "professions" }
     elseif event == "TRAIT_TREE_CURRENCY_INFO_UPDATED" or event == "TRAIT_CONFIG_UPDATED" then
         return { "legacy", "readiness", "character-reminders", "professions" }
     elseif event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" or event == "ZONE_CHANGED_NEW_AREA" then

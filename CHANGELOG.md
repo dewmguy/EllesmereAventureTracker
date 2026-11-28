@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.8 - 2026-11-27
+
+- Separated recipes purchased with Merchant's Favor from ordinary vendor
+  recipes. Favor purchases now live behind their own collapsed summary for
+  each profession and cannot become the featured coin-vendor recommendation.
+- Added explicit Merchant's Favor purchase guidance to each expanded recipe's
+  detail and tooltip.
+- Made the Favor summary currency-aware. When the character holds Merchant's
+  Favor, it shows the current balance, highlights the group and names the
+  highest-ranked recipe for the character's present skill and equipment.
+- Included Favor recipes that teach effects without a crafted output item by
+  displaying their recipe item instead.
+
 ## 0.9.7 - 2026-11-27
 
 - Excluded Of Mice and Milk (93928) from Quest Progress. Its Mouse starter and

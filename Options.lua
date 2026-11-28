@@ -631,7 +631,7 @@ local function BuildProfessions(pageName, parent, yOffset)
         _, h = W:DualRow(parent, y,
             Toggle("showProfessionAttainableRecipes", "Looted and Purchased Recipes",
                 "Shows unlearned recipes you can obtain from vendors, quests, objects and enemies."),
-            Label("Vendor, quest and object sources stay concise; mob-drop recipes have their own collapsed summary with mob and zone details."))
+            Label("Merchant's Favor and mob-drop recipes have separate collapsed summaries; ordinary vendor, quest and object sources stay concise."))
         y = y - h
         _, h = W:DualRow(parent, y,
             Toggle("showObservedGathering", "Show Local Catch and Skinning History",
